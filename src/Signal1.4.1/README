@@ -1,0 +1,29 @@
+
+This is a slighly modified Tcl "Signal" package (author: Michael Schwartz).
+See the file "sig.announce.1.4" for a description. The only change from
+the original is the addition of the "waitpid" and "getppid" commands,
+as well as repackaging according to the TEA (tcl extensions architecture)
+conventions.
+
+The "waitpid" command should be used as follows:
+
+waitpid pid_number
+
+where pid_number is an integer. The command simply returns the result
+of the waitpid(pid_number, NULL, WNOHANG) system call. Run "man 2 waitpid"
+for the details. The "getppid" command (which has no arguments) returns
+the result of the getppid() system call.
+
+
+Simple Installation
+-------------------
+
+./configure --prefix=/whatever/your/tcl/installation/prefix/was
+make
+make install
+
+If this does not work, try "./configure --help" to see which additional
+options are available.
+
+Igor Volobouev
+10/01/2012

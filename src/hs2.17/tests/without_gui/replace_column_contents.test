@@ -1,0 +1,49 @@
+test replace_column_contents-1.1 {replacing column contents} {} {
+    set id1 [hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c}]
+    set id2 [hs::copy_hist $id1 [next_uid] "Test ntuple" "tests"]
+    set contents {
+        1  2  3
+        4  5  6
+        7  8  9
+        10 11 12
+    }
+    set replacement {13 14 15 16}
+    set ncols [hs::num_variables $id1]
+    for {set i 0} {$i < $ncols} {incr i} {
+        hs::reset $id1
+        hs::reset $id2
+        hs::fill_ntuple $id1 $contents
+        set nrows [hs::num_entries $id1]
+        hs::replace_column_contents $id1 $i $replacement
+        set new_contents {}
+        set j 0
+        for {set row 0} {$row < $nrows} {incr row} {
+            for {set col 0} {$col < $ncols} {incr col} {
+                if {$col == $i} {
+                    lappend new_contents [lindex $replacement $row]
+                } else {
+                    lappend new_contents [lindex $contents $j]
+                }
+                incr j
+            }
+        }
+        hs::fill_ntuple $id2 $new_contents
+        verify_similarity $id1 $id2 0.0
+    }
+} {}
+
+catch {unset id1}
+catch {unset id2}
+catch {unset contents}
+catch {unset replacement}
+catch {unset new_contents}
+catch {unset i}
+catch {unset j}
+catch {unset nrows}
+catch {unset ncols}
+catch {unset row}
+catch {unset col}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

@@ -1,0 +1,92 @@
+<title>Connect to Process Window </title>
+<h2>
+Connect to Process Window
+</h2>
+<p>
+When you select <i>Connect to Process</i> from the Main Window's <i>File/Process</i> 
+pull-down menu, Histo-Scope will pop-up a dialog box that lists all 
+processes on the machine Histo-Scope was run from that it can connect to.  
+That is, each running process is listed that has called the HS_INITIALIZE
+routine thereby making itself known to Histo-Scope.<p>
+<p>
+<IMG SRC="HSfig11.gif"><p>
+<p>
+Figure 13. Available Processes Window<p>
+<p>
+Histo-Scope allows heterogeneous connections.  For example, you can run
+Histo-Scope on an SGI Unix system and connect to a process running on a DEC
+OSF-1 system.  <p>
+<p>
+If you want to connect to a process on another machine, enter a remote node
+name and press the <i>Search Node</i> button.  The processes Histo-Scope can
+connect to on that machine will then be listed after a pause for searching that
+remote machine.  The .rhosts file on the remote node must allow access from
+your username on the current node.  If your username is different on the remote
+node than it is on your current system, you can specify a remote username, and
+that user's .rhosts file will be checked for access from your current username
+and system. <p>
+<p>
+If more than one process is listed, look for the identity string supplied in
+the HS_INITIALIZE call of your program, the user-name used to start the
+process, and the time the process executed the HS_INITIALIZE call (or was
+started).<p>
+<p><a name="2">
+Pressing the <i>Connect</i> </a>button or double-clicking on a process requests
+Histo-Scope to connect to the highlighted or selected process. Once the
+connection is established, Histo-Scope will display on the Main Window the
+top-level items and sub-categories of data items that Histo-Scope can access
+from the process. <p>
+<p>
+When selecting <i>Connect to Process </i>from the Main Window, if you already
+have a file open or are connected to another process, Histo-Scope will first
+ask you if you want to close or disconnect before it pops up the Connect to
+Process dialog box.<p>
+
+If you are running Histo-Scope on a Unix system, do not put the Histo-Scope
+process in the background if you plan to connect to a process.  This is because
+the system may put the Histo-Scope process into a wait state that it will not
+get out of until the process is put into the foreground.  After the connection
+is successful, the Histo-Scope process may be put into the background, if
+necessary, until you need to connect to another process.  
+
+<h3>
+<a name="1">Verifying Proper Setup of Permissions
+</a></h3>
+<p>
+Processes whose data can be viewed using Histo-Scope use the computer's file
+system to communicate their existence to the Histo-Scope program.  The
+HS_INITIALIZE call creates a small file which can be read by a Histo-Scope
+program trying to  make a connection.  On Unix Histo-Scope will create and
+look for running process identifications in the directory pointed to by
+the TMPDIR environment variable, if defined, or the /tmp if TMPDIR is not 
+defined.   However, for remote connections, Histo-Scope looks only in the
+/tmp directory on the remote system.
+
+<p>
+For remote access to a running data-generating process you can verify whether
+you have correctly set up your .rhosts file on that system:<p>
+
+Type to the shell on the system you will run Histo-Scope:<p>
+<p>
+	% rsh <i>nodename</i> ls /tmp<p>
+<p>
+where <i>nodename</i> is the remote host name you will be connecting to (i.e.
+where your data-generating process will be running).<p>
+<p>
+The following is an example .rhosts file:<p>
+<p>
+fnalv.fnal.gov  smith<p>
+fnalo.fnal.gov  smith<p>
+fnala.fnal.gov  smith<p>
+fnpspf.fnal.gov  jonsmith<p>
+<p>
+This .rhosts file should be created on the host where your data-generating
+process will run and specifies the access to this account <b>from</b> each
+node/username listed above (i.e. where you expect to run Histo-Scope).  On
+Unix, .rhosts resides in your home directory.<p>
+<p>
+After typing the above rsh command, you should see a directory of files (or a
+message saying no files were found).  If an error message is printed, use this
+to help correct the situation.  For instance, if the message printed is
+Permission Denied, check your .rhosts file to ensure it allows access to your
+username on the current host system.<p>

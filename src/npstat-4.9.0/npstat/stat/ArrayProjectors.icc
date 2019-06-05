@@ -1,0 +1,73 @@
+#include <algorithm>
+
+#include "npstat/stat/arrayStats.hh"
+
+namespace npstat {
+    template <typename T>
+    inline void ArrayMaxProjector<T>::process(const T& value)
+    {
+        if (isClear_)
+        {
+            v_ = value;
+            isClear_ = false;
+        }
+        else if (v_ < value)
+            v_ = value;
+    }
+
+    template <typename T>
+    inline void ArrayMinProjector<T>::process(const T& value)
+    {
+        if (isClear_)
+        {
+            v_ = value;
+            isClear_ = false;
+        }
+        else if (value < v_)
+            v_ = value;
+    }
+
+    template <typename T>
+    inline T ArrayMedianProjector<T>::medSorted(const T *array,
+                                                const unsigned long n)
+    {
+        if (n % 2)
+            return array[n/2];
+        else
+            return static_cast<T>((array[n/2-1]+array[n/2])*0.5);
+    }
+
+    template <typename T>
+    T ArrayMedianProjector<T>::result()
+    {
+        const unsigned long sz = v_.size();
+        if (!sz) throw std::runtime_error(
+            "In npstat::ArrayMedianProjector: no data processed");
+        std::sort(v_.begin(), v_.end());
+        return medSorted(&v_[0], sz);
+    }
+
+    template <typename T>
+    T ArrayRangeProjector<T>::result()
+    {
+        const unsigned long sz = this->v_.size();
+        if (!sz) throw std::runtime_error(
+            "In npstat::ArrayRangeProjector: no data processed");
+        if (sz == 1UL)
+            return T();
+        std::sort(this->v_.begin(), this->v_.end());
+        const unsigned long nhalf = sz/2UL;
+        const unsigned long iabove = (sz % 2UL) ? nhalf + 1UL : nhalf;
+        const T q25(this->medSorted(&this->v_[0], nhalf));
+        const T q75(this->medSorted(&this->v_[iabove], nhalf));
+        return static_cast<T>((q75 - q25)*0.74130110925280093);
+    }
+
+    template <typename T, typename Result>
+    inline Result ArrayStdevProjector<T, Result>::result()
+    {
+        double stdev;
+        arrayStats<T>(&v_[0], v_.size(), 0, &stdev);
+        return static_cast<Result>(stdev);
+    }
+}

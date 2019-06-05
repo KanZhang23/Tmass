@@ -1,0 +1,448 @@
+#include <cassert>
+#include <vector>
+#include <stdexcept>
+#include <algorithm>
+
+namespace npstat {
+    namespace Private {
+        template <class Functor>
+        class ClassOrthoPolyHlp : public Functor1<long double, long double>
+        {
+        public:
+            inline ClassOrthoPolyHlp(const AbsClassicalOrthoPoly1D& p,
+                                     const Functor& f, const unsigned d1)
+                : poly(p), fcn(f), deg(d1) {}
+
+            inline long double operator()(const long double& x) const
+                {return fcn(x)*poly.poly(deg, x)*poly.weight(x);}
+
+        private:
+            const AbsClassicalOrthoPoly1D& poly;
+            const Functor& fcn;
+            unsigned deg;
+        };
+    }
+
+    template <class Functor, class Quadrature>
+    void AbsClassicalOrthoPoly1D::calculateCoeffs(
+        const Functor& fcn, const Quadrature& quad,
+        double *coeffs, const unsigned maxdeg) const
+    {
+        assert(coeffs);
+
+        const double a = xmin();
+        const double b = xmax();
+
+        for (unsigned i=0; i<=maxdeg; ++i)
+        {
+            Private::ClassOrthoPolyHlp<Functor> func(*this, fcn, i);
+            coeffs[i] = quad.integrate(func, a, b);
+        }
+    }
+
+    template <class Quadrature>
+    double AbsClassicalOrthoPoly1D::empiricalKroneckerDelta(
+        const Quadrature& quad, const unsigned deg1, const unsigned deg2) const
+    {
+        ProdFcn fcn(*this, deg1, deg2);
+        return quad.integrate(fcn, xmin(), xmax());
+    }
+
+    template <class Quadrature>
+    double AbsClassicalOrthoPoly1D::jointAverage(
+        const Quadrature& quad, const unsigned deg1, const unsigned deg2,
+        const unsigned deg3, const unsigned deg4) const
+    {
+        unsigned degs[4];
+        unsigned nDegs = 0;
+        if (deg1)
+            degs[nDegs++] = deg1;
+        if (deg2)
+            degs[nDegs++] = deg2;
+        if (deg3)
+            degs[nDegs++] = deg3;
+        if (deg4)
+            degs[nDegs++] = deg4;
+        return jointAverage(quad, degs, nDegs, true);
+    }
+
+    template <class Quadrature>
+    double AbsClassicalOrthoPoly1D::jointAverage(
+        const Quadrature& quad, const unsigned* degrees,
+        const unsigned nDegrees, const bool checkedForZeros) const
+    {
+        if (nDegrees)
+        {
+            assert(degrees);
+
+            if (nDegrees == 1U)
+                return kdelta(degrees[0], 0U);
+            if (nDegrees == 2U)
+                return kdelta(degrees[0], degrees[1]);
+
+            if (!checkedForZeros)
+            {
+                bool allNonZero = true;
+                for (unsigned ideg=0; ideg<nDegrees && allNonZero; ++ideg)
+                    allNonZero = degrees[ideg];
+                if (!allNonZero)
+                {
+                    unsigned degBuf[256];
+                    if (nDegrees - 1U <= sizeof(degBuf)/sizeof(degBuf[0]))
+                    {
+                        unsigned nonZeroDegs = 0;
+                        for (unsigned ideg=0; ideg<nDegrees; ++ideg)
+                            if (degrees[ideg])
+                                degBuf[nonZeroDegs++] = degrees[ideg];
+                        return jointAverage(quad, degBuf, nonZeroDegs, true);
+                    }
+                }
+            }
+
+            MultiProdFcn fcn(*this, degrees, nDegrees);
+            return quad.integrate(fcn, xmin(), xmax());
+        }
+        else
+            return 1.0;
+    }
+
+    template <class Numeric>
+    Matrix<double> AbsClassicalOrthoPoly1D::sampleProductAverages(
+        const Numeric* coords, const unsigned long lenCoords,
+        const unsigned maxdeg) const
+    {
+        if (!lenCoords) throw std::invalid_argument(
+            "In npstat::AbsClassicalOrthoPoly1D::sampleProductAverages:"
+            " empty sample");
+        assert(coords);
+        const unsigned long nsums = (maxdeg + 1)*(unsigned long)(maxdeg + 2)/2;
+        std::vector<long double> membuf(nsums + (maxdeg + 1U), 0.0L);
+        long double* poly = &membuf[0];
+        long double* sums = poly + (maxdeg + 1U);
+        for (unsigned long i=0; i<lenCoords; ++i)
+        {
+            allpoly(coords[i], poly, maxdeg);
+            unsigned long isum = 0;
+            for (unsigned k=0; k<=maxdeg; ++k)
+                for (unsigned j=0; j<=k; ++j, ++isum)
+                    sums[isum] += poly[k]*poly[j];
+        }
+        Matrix<double> mat(maxdeg + 1U, maxdeg + 1U);
+        unsigned long isum = 0;
+        for (unsigned k=0; k<=maxdeg; ++k)
+            for (unsigned j=0; j<=k; ++j, ++isum)
+            {
+                const double v = sums[isum]/lenCoords;
+                mat[k][j] = v;
+                if (j != k)
+                    mat[j][k] = v;
+            }
+        return mat;
+    }
+
+    template <class Numeric>
+    void AbsClassicalOrthoPoly1D::sampleAverages(
+        const Numeric* coords, const unsigned long lenCoords,
+        double *averages, const unsigned maxdeg) const
+    {
+        if (!lenCoords) throw std::invalid_argument(
+            "In npstat::AbsClassicalOrthoPoly1D::sampleAverages: empty sample");
+        assert(coords);
+        assert(averages);
+        std::vector<long double> membuf(2U*(maxdeg + 1U), 0.0L);
+        long double* poly = &membuf[0];
+        long double* sums = poly + (maxdeg + 1U);
+        for (unsigned long i=0; i<lenCoords; ++i)
+        {
+            allpoly(coords[i], poly, maxdeg);
+            for (unsigned k=0; k<=maxdeg; ++k)
+                sums[k] += poly[k];
+        }
+        for (unsigned k=0; k<=maxdeg; ++k)
+            averages[k] = sums[k]/lenCoords;
+    }
+
+    template <class Numeric>
+    void AbsClassicalOrthoPoly1D::sampleCoeffs(
+        const Numeric* coords, const unsigned long lenCoords,
+        const Numeric location, const Numeric scale,
+        double *coeffs, const unsigned maxdeg) const
+    {
+        if (!lenCoords) throw std::invalid_argument(
+            "In npstat::AbsClassicalOrthoPoly1D::sampleCoeffs: empty sample");
+        assert(coords);
+        assert(coeffs);
+        const Numeric zero = Numeric();
+        if (scale == zero) throw std::invalid_argument(
+            "In npstat::AbsClassicalOrthoPoly1D::sampleCoeffs: zero scale");
+        std::vector<long double> membuf(2U*(maxdeg + 1U), 0.0L);
+        long double* poly = &membuf[0];
+        long double* sums = poly + (maxdeg + 1U);
+        for (unsigned long i=0; i<lenCoords; ++i)
+        {
+            const long double x = (coords[i] - location)/scale;
+            const long double w = weight(x);
+            allpoly(x, poly, maxdeg);
+            for (unsigned k=0; k<=maxdeg; ++k)
+                sums[k] += poly[k]*w;
+        }
+        for (unsigned k=0; k<=maxdeg; ++k)
+            coeffs[k] = sums[k]/scale/lenCoords;
+    }
+
+    template <class Numeric>
+    void AbsClassicalOrthoPoly1D::sampleCoeffVars(
+        const Numeric* coords, const unsigned long lenCoords,
+        const Numeric location, const Numeric scale,
+        const double *coeffs, const unsigned maxdeg,
+        double *variances) const
+    {
+        if (lenCoords < 2UL) throw std::invalid_argument(
+            "In npstat::AbsClassicalOrthoPoly1D::sampleCoeffVars: "
+            "insufficient sample size");
+        assert(coords);
+        assert(coeffs);
+        assert(variances);
+        const Numeric zero = Numeric();
+        if (scale == zero) throw std::invalid_argument(
+            "In npstat::AbsClassicalOrthoPoly1D::sampleCoeffVars: zero scale");
+        std::vector<long double> membuf(2U*(maxdeg + 1U), 0.0L);
+        long double* poly = &membuf[0];
+        long double* sums = poly + (maxdeg + 1U);
+        for (unsigned long i=0; i<lenCoords; ++i)
+        {
+            const long double x = (coords[i] - location)/scale;
+            const long double w = weight(x)/scale;
+            allpoly(x, poly, maxdeg);
+            for (unsigned k=0; k<=maxdeg; ++k)
+            {
+                const long double delta = poly[k]*w - coeffs[k];
+                sums[k] += delta*delta;
+            }
+        }
+        long double lm1 = lenCoords - 1UL;
+        lm1 *= lenCoords;
+        for (unsigned k=0; k<=maxdeg; ++k)
+            variances[k] = sums[k]/lm1;
+    }
+
+    template <class Numeric>
+    void AbsClassicalOrthoPoly1D::sampleCoeffs(
+        const Numeric* coords, const unsigned long lenCoords,
+        double *coeffs, const unsigned maxdeg) const
+    {
+        const Numeric zero = Numeric();
+        const Numeric one = static_cast<Numeric>(1);
+        sampleCoeffs(coords, lenCoords, zero, one, coeffs, maxdeg);
+    }
+
+    template <class Numeric>
+    void AbsClassicalOrthoPoly1D::sampleCoeffVars(
+        const Numeric* coords, const unsigned long lenCoords,
+        const double *coeffs, const unsigned maxdeg,
+        double *variances) const
+    {
+        const Numeric zero = Numeric();
+        const Numeric one = static_cast<Numeric>(1);
+        sampleCoeffVars(coords, lenCoords, coeffs, maxdeg,
+                        zero, one, variances);
+    }
+
+    template <class Pair>
+    void AbsClassicalOrthoPoly1D::weightedSampleCoeffs(
+        const Pair* points, const unsigned long numPoints,
+        const typename Pair::first_type location,
+        const typename Pair::first_type scale,
+        double *coeffs, const unsigned maxdeg) const
+    {
+        typedef typename Pair::first_type Numeric;
+
+        if (!numPoints) throw std::invalid_argument(
+            "In npstat::AbsClassicalOrthoPoly1D::weightedSampleCoeffs: "
+            "empty sample");
+        assert(points);
+        assert(coeffs);
+        const Numeric zero = Numeric();
+        if (scale == zero) throw std::invalid_argument(
+            "In npstat::AbsClassicalOrthoPoly1D::weightedSampleCoeffs: "
+            "zero scale");
+        std::vector<long double> membuf(2U*(maxdeg + 1U), 0.0L);
+        long double* poly = &membuf[0];
+        long double* sums = poly + (maxdeg + 1U);
+        long double wsum = 0.0L;
+        for (unsigned long i=0; i<numPoints; ++i)
+        {
+            const long double ptw = points[i].second;
+            if (ptw < 0.0L) throw std::invalid_argument(
+                "In npstat::AbsClassicalOrthoPoly1D::weightedSampleCoeffs: "
+                "all weights must be non-negative");
+            wsum += ptw;
+            const long double x = (points[i].first - location)/scale;
+            const long double w = weight(x);
+            allpoly(x, poly, maxdeg);
+            for (unsigned k=0; k<=maxdeg; ++k)
+                sums[k] += poly[k]*w*ptw;
+        }
+        if (wsum == 0.0L) throw std::invalid_argument(
+            "In npstat::AbsClassicalOrthoPoly1D::weightedSampleCoeffs: "
+            "at least one weight must be positive");
+        for (unsigned k=0; k<=maxdeg; ++k)
+            coeffs[k] = sums[k]/wsum/scale;
+    }
+
+    template <class Pair>
+    void AbsClassicalOrthoPoly1D::weightedSampleCoeffVars(
+        const Pair* points, const unsigned long numPoints,
+        typename Pair::first_type location,
+        typename Pair::first_type scale,
+        const  double *coeffs, const unsigned maxdeg,
+        double *variances) const
+    {
+        typedef typename Pair::first_type Numeric;
+
+        if (numPoints < 2UL) throw std::invalid_argument(
+            "In npstat::AbsClassicalOrthoPoly1D::weightedSampleCoeffVars: "
+            "insufficient sample size");
+        assert(points);
+        assert(coeffs);
+        assert(variances);
+        const Numeric zero = Numeric();
+        if (scale == zero) throw std::invalid_argument(
+            "In npstat::AbsClassicalOrthoPoly1D::weightedSampleCoeffVars: "
+            "zero scale");
+        std::vector<long double> membuf(2U*(maxdeg + 1U), 0.0L);
+        long double* poly = &membuf[0];
+        long double* sums = poly + (maxdeg + 1U);
+        long double wsum = 0.0L, wsqsum = 0.0L;
+        for (unsigned long i=0; i<numPoints; ++i)
+        {
+            const long double ptw = points[i].second;
+            if (ptw < 0.0L) throw std::invalid_argument(
+                "In npstat::AbsClassicalOrthoPoly1D::weightedSampleCoeffVars: "
+                "all weights must be non-negative");
+            wsum += ptw;
+            wsqsum += ptw*ptw;
+            const long double x = (points[i].first - location)/scale;
+            const long double w = weight(x)/scale;
+            allpoly(x, poly, maxdeg);
+            for (unsigned k=0; k<=maxdeg; ++k)
+            {
+                const long double delta = poly[k]*w - coeffs[k];
+                sums[k] += delta*delta*ptw;
+            }
+        }
+        if (wsum == 0.0L) throw std::invalid_argument(
+            "In npstat::AbsClassicalOrthoPoly1D::weightedSampleCoeffVars: "
+            "at least one weight must be positive");
+        long double lm1 = wsum*wsum/wsqsum - 1.0L;
+        if (lm1 <= 0.0L) throw std::invalid_argument(
+            "In npstat::AbsClassicalOrthoPoly1D::weightedSampleCoeffVars: "
+            "insufficient effective sample size");
+        lm1 *= wsum;
+        for (unsigned k=0; k<=maxdeg; ++k)
+            variances[k] = sums[k]/lm1;
+    }
+
+    template <class Pair>
+    void AbsClassicalOrthoPoly1D::weightedSampleCoeffs(
+        const Pair* points, const unsigned long numPoints,
+        double *coeffs, const unsigned maxdeg) const
+    {
+        typedef typename Pair::first_type Numeric;
+
+        const Numeric zero = Numeric();
+        const Numeric one = static_cast<Numeric>(1);
+        weightedSampleCoeffs(points, numPoints, zero, one, coeffs, maxdeg);
+    }
+
+    template <class Pair>
+    void AbsClassicalOrthoPoly1D::weightedSampleCoeffVars(
+        const Pair* points, const unsigned long nPoints,
+        const  double *coeffs, const unsigned maxdeg,
+        double *variances) const
+    {
+        typedef typename Pair::first_type Numeric;
+
+        const Numeric zero = Numeric();
+        const Numeric one = static_cast<Numeric>(1);
+        weightedSampleCoeffVars(points, nPoints, coeffs, maxdeg,
+                                zero, one, variances);
+    }
+
+    template <class Numeric>
+    double AbsClassicalOrthoPoly1D::jointSampleAverage(
+        const Numeric* coords, const unsigned long lenCoords,
+        const unsigned* degrees, const unsigned lenDegrees) const
+    {
+        if (!lenCoords) throw std::invalid_argument(
+            "In npstat::AbsClassicalOrthoPoly1D::jointSampleAverage: empty sample");
+        assert(coords);
+        if (lenDegrees)
+        {
+            assert(degrees);
+            const unsigned maxdeg = *std::max_element(degrees, degrees+lenDegrees);
+            std::vector<long double> membuf(maxdeg + 1U, 0.0L);
+            long double* poly = &membuf[0];
+            long double sum = 0.0L;
+            for (unsigned long i=0; i<lenCoords; ++i)
+            {
+                allpoly(coords[i], poly, maxdeg);
+                long double prod = 1.0L;
+                for (unsigned k=0; k<lenDegrees; ++k)
+                    prod *= poly[degrees[k]];
+                sum += prod;
+            }
+            return sum/lenCoords;
+        }
+        else
+            return 1.0;
+    }
+
+    template <class Numeric>
+    std::pair<double, double> AbsClassicalOrthoPoly1D::twoJointSampleAverages(
+        const Numeric* coords, const unsigned long lenCoords,
+        const unsigned* degrees1, const unsigned lenDegrees1,
+        const unsigned* degrees2, const unsigned lenDegrees2) const
+    {
+        if (!lenCoords) throw std::invalid_argument(
+            "In npstat::AbsClassicalOrthoPoly1D::twoJointSampleAverages: empty sample");
+        assert(coords);
+
+        unsigned maxdeg1 = 0, maxdeg2 = 0;
+        if (lenDegrees1)
+        {
+            assert(degrees1);
+            maxdeg1 = *std::max_element(degrees1, degrees1+lenDegrees1);
+        }
+        if (lenDegrees2)
+        {
+            assert(degrees2);
+            maxdeg2 = *std::max_element(degrees2, degrees2+lenDegrees2);
+        }
+        const unsigned maxdeg = std::max(maxdeg1, maxdeg2);
+
+        if (lenDegrees1 || lenDegrees2)
+        {
+            std::vector<long double> membuf(maxdeg + 1U, 0.0L);
+            long double* poly = &membuf[0];
+            long double sum1 = 0.0L, sum2 = 0.0L;
+            for (unsigned long i=0; i<lenCoords; ++i)
+            {
+                allpoly(coords[i], poly, maxdeg);
+
+                long double prod1 = 1.0L;
+                for (unsigned k=0; k<lenDegrees1; ++k)
+                    prod1 *= poly[degrees1[k]];
+                sum1 += prod1;
+
+                long double prod2 = 1.0L;
+                for (unsigned k=0; k<lenDegrees2; ++k)
+                    prod2 *= poly[degrees2[k]];
+                sum2 += prod2;
+            }
+            return std::pair<double, double>(sum1/lenCoords, sum2/lenCoords);
+        }
+        else
+            return std::pair<double, double>(1.0, 1.0);
+    }
+}

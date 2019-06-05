@@ -1,0 +1,27 @@
+test random-1.1 {pseudo-random number generator} {[hs::have_cernlib]} {
+    set n 10
+    hs::random_init 12345
+    set id [hs::create_1d_hist [next_uid] "random-1.1" "tests" X Y $n 0 $n]
+    hs::1d_hist_block_fill $id [hs::list_to_data [hs::random $n]]
+    hs::read_file [file join $::tcltest::testsDirectory \
+	    reference_files random.hs] "references"
+    set id_ref [hs::id_from_title "random-1.1" "references/tests"]
+    verify_similarity $id $id_ref 0.0
+} {}
+
+test random-1.2 {set/restore random number generator state} {[hs::have_cernlib]} {
+    set state [hs::random_get_state]
+    set sequence [hs::random 20]
+    hs::random_set_state $state
+    eval_at_precision 17 {string equal $sequence [hs::random 20]}
+} {1}
+
+catch {unset n}
+catch {unset id}
+catch {unset id_ref}
+catch {unset state}
+catch {unset sequence}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

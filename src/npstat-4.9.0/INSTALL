@@ -1,0 +1,40 @@
+
+The NPStat package depends on several other packages which must be
+installed first:
+
+1) Double precision version of the FFTW library from www.fftw.org
+
+2) The "Geners" package from http://geners.hepforge.org/
+
+3) The "KSTest" package from http://kstest.hepforge.org/
+
+4) LAPACK and BLAS libraries liblapack.so and libblas.so (installed
+   on many systems by default).
+
+If these packages are not yet installed on your machine, please
+install them first following the instructions in their corresponding
+INSTALL files.
+
+A few NPStat algorithms need an external minimization engine. These
+algorithms can be easily accessed if the Minuit2 minimization package
+is installed (see http://www.cern.ch/minuit/) However, Minuit2 is not
+needed in order to compile NPStat -- Minuit2 is interfaced to NPStat
+via header files only.
+
+Set the PKG_CONFIG_PATH environment variable to the name of the
+directory where the FFTW and Geners libraries install their package
+configuration files "fftw3.pc" and "geners.pc", respectively. Usually,
+this directory is /usr/local/lib/pkgconfig.
+
+After this, a typical NPStat installation can proceed as follows:
+
+./configure --with-pic
+make
+make install
+
+The last step may have to be performed as root. Run
+
+./configure --help
+
+to view available configuration options.
+

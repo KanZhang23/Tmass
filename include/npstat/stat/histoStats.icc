@@ -1,0 +1,145 @@
+#include <cassert>
+#include <stdexcept>
+#include <climits>
+#include <stdexcept>
+
+namespace npstat {
+    template<class Histo>
+    void histoMean(const Histo& histo, double* mean, const unsigned storageLen)
+    {
+        const unsigned lenMean = histo.dim();
+        if (lenMean)
+        {
+            typedef typename Histo::value_type Numeric;
+
+            if (storageLen < lenMean) throw std::invalid_argument(
+                "In npstat::histoMean: insufficient length of the mean array");
+            assert(mean);
+
+            long double meanAcc[CHAR_BIT*sizeof(unsigned long)] = {0.0L,};
+            assert(lenMean <= CHAR_BIT*sizeof(unsigned long));            
+            long double weightSum = 0.0L;
+
+            const unsigned long nbins = histo.nBins();
+            const Numeric* bins = histo.binContents().data();
+
+            for (unsigned long ibin=0; ibin<nbins; ++ibin)
+            {
+                const long double v = bins[ibin];
+                weightSum += v;
+                histo.binCenter(ibin, mean, lenMean);
+                for (unsigned i=0; i<lenMean; ++i)
+                    meanAcc[i] += v*mean[i];
+            }
+            if (weightSum <= 0.0L) throw std::invalid_argument(
+                "In npstat::histoMean: sum of bin values must be positive");
+            for (unsigned i=0; i<lenMean; ++i)
+                mean[i] = static_cast<double>(meanAcc[i]/weightSum);
+        }
+    }
+
+    template<class Histo, unsigned Len>
+    void histoCovariance(const Histo& histo, Matrix<double,Len>* covmat)
+    {
+        const unsigned aRank = histo.dim();
+        if (aRank)
+        {
+            typedef typename Histo::value_type Numeric;
+
+            assert(covmat);
+            if (!(covmat->nRows() == aRank && covmat->nColumns() == aRank))
+            {
+                covmat->uninitialize();
+                *covmat = Matrix<double,Len>(aRank, aRank);
+            }
+
+            double mean[CHAR_BIT*sizeof(unsigned long)];
+            assert(aRank <= CHAR_BIT*sizeof(unsigned long));
+            histoMean(histo, mean, aRank);
+
+            long double weightSum = 0.0L, weightSumSq = 0.0L;
+            const unsigned matLen = aRank*(aRank+1U)/2;
+            std::vector<long double> ldbuf(matLen, 0.0L);
+            long double* acc = &ldbuf[0];
+
+            double coords[CHAR_BIT*sizeof(unsigned long)];
+            const unsigned long nbins = histo.nBins();
+            const Numeric* bins = histo.binContents().data();
+
+            for (unsigned long ibin=0; ibin<nbins; ++ibin)
+            {
+                histo.binCenter(ibin, coords, aRank);
+                const long double v = bins[ibin];
+                weightSum += v;
+                weightSumSq += v*v;
+
+                unsigned ilin = 0;
+                for (unsigned i=0; i<aRank; ++i)
+                {
+                    const double di = coords[i] - mean[i];
+                    for (unsigned j=0; j<=i; ++j, ++ilin)
+                    {
+                        const double dj = coords[j] - mean[j];
+                        acc[ilin] += di*dj*v;
+                    }
+                }
+            }
+
+            const long double effM1 = weightSum*weightSum/weightSumSq - 1.0L;
+            if (effM1 <= 0.0L)
+            {
+                double* d = const_cast<double*>(covmat->data());
+                const unsigned len = covmat->length();
+                for (unsigned i=0; i<len; ++i)
+                    d[i] = 0.0;
+            }
+            else
+            {
+                unsigned ilin = 0;
+                for (unsigned i=0; i<aRank; ++i)
+                    for (unsigned j=0; j<=i; ++j, ++ilin)
+                    {
+                        const double cov = static_cast<double>(
+                            acc[ilin]/weightSum*(effM1 + 1.0L)/effM1);
+                        (*covmat)[i][j] = cov;
+                        (*covmat)[j][i] = cov;
+                    }
+            }
+        }
+    }
+
+    template<class Histo>
+    CPP11_auto_ptr<BinnedDensity1D> histoDensity1D(const Histo& h,
+                                                   const unsigned iDeg)
+    {
+        if (h.dim() != 1U) throw std::invalid_argument(
+            "In npstat::histoDensity1D: input histogram must be one-dimensional");
+        if (!h.isUniformlyBinned()) throw std::invalid_argument(
+            "In npstat::histoDensity1D: input histogram must be uniformly binned");
+        return CPP11_auto_ptr<BinnedDensity1D>(
+            new BinnedDensity1D(h.axis(0).min(), h.axis(0).length(),
+                                h.binContents().data(), h.nBins(), iDeg));
+    }
+
+    template<class Histo>
+    CPP11_auto_ptr<BinnedDensityND> histoDensityND(const Histo& h,
+                                                   const unsigned iDeg)
+    {
+        const unsigned dim = h.dim();
+        if (dim == 0U) throw std::invalid_argument(
+            "In npstat::histoDensityND: histo dimensionality must be at least 1");
+        if (dim > CHAR_BIT*sizeof(unsigned long)) throw std::invalid_argument(
+            "In npstat::histoDensityND: histogram dimensionality is too large");
+        if (!h.isUniformlyBinned()) throw std::invalid_argument(
+            "In npstat::histoDensityND: input histogram must be uniformly binned");
+        double location[CHAR_BIT*sizeof(unsigned long)];
+        double scale[CHAR_BIT*sizeof(unsigned long)];
+        for (unsigned i=0; i<dim; ++i)
+        {
+            location[i] = h.axis(i).min();
+            scale[i] = h.axis(i).length();
+        }
+        return CPP11_auto_ptr<BinnedDensityND>(
+            new BinnedDensityND(location, scale, dim, h.binContents(), iDeg));
+    }
+}

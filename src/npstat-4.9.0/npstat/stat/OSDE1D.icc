@@ -1,0 +1,130 @@
+#include <cassert>
+
+#include "npstat/nm/Interval.hh"
+
+namespace npstat {
+    namespace Private {
+        template <class Functor>
+        class OSDE1DHlp : public Functor1<double, double>
+        {
+        public:
+            inline OSDE1DHlp(const OSDE1D& p, const Functor& f,
+                             const unsigned d1)
+                : poly(p), fcn(f), deg(d1) {}
+
+            inline double operator()(const double& x) const
+                {return fcn(x)*poly.poly(deg, x)*poly.weight(x);}
+
+        private:
+            const OSDE1D& poly;
+            const Functor& fcn;
+            unsigned deg;
+        };
+    }
+
+    template <class Numeric>
+    void OSDE1D::sampleCoeffs(
+        const Numeric* coords, const unsigned long lenCoords,
+        double *coeffs, const unsigned maxdeg) const
+    {
+        const Numeric loc = static_cast<Numeric>(shift_);
+        const Numeric s = static_cast<Numeric>(scale_);
+        poly_->sampleCoeffs(coords, lenCoords, loc, s, coeffs, maxdeg);
+    }
+
+    template <class Numeric>
+    void OSDE1D::sampleCoeffVars(
+        const Numeric* coords, const unsigned long lenCoords,
+        const double *coeffs, const unsigned maxdeg, double* vars) const
+    {
+        const Numeric loc = static_cast<Numeric>(shift_);
+        const Numeric s = static_cast<Numeric>(scale_);
+        poly_->sampleCoeffVars(coords, lenCoords, loc, s, coeffs, maxdeg, vars);
+    }
+
+    template <class Pair>
+    void OSDE1D::weightedSampleCoeffs(
+        const Pair* points, const unsigned long numPoints,
+        double *coeffs, const unsigned maxdeg) const
+    {
+        typedef typename Pair::first_type Numeric;
+
+        const Numeric loc = static_cast<Numeric>(shift_);
+        const Numeric s = static_cast<Numeric>(scale_);
+        poly_->weightedSampleCoeffs(points, numPoints, loc, s, coeffs, maxdeg);
+    }
+
+    template <class Pair>
+    void OSDE1D::weightedSampleCoeffVars(
+        const Pair* points, const unsigned long numPoints,
+        const double *coeffs, const unsigned maxdeg, double* vars) const
+    {
+        typedef typename Pair::first_type Numeric;
+
+        const Numeric loc = static_cast<Numeric>(shift_);
+        const Numeric s = static_cast<Numeric>(scale_);
+        poly_->weightedSampleCoeffVars(points, numPoints, loc, s, coeffs, maxdeg, vars);
+    }
+
+    template <class Functor, class Quadrature>
+    void OSDE1D::calculateCoeffs(const Functor& fcn, const Quadrature& quad,
+                                 double *coeffs, const unsigned maxdeg) const
+    {
+        assert(coeffs);
+        for (unsigned i=0; i<=maxdeg; ++i)
+        {
+            Private::OSDE1DHlp<Functor> func(*this, fcn, i);
+            coeffs[i] = quad.integrate(func, xmin_, xmax_);
+        }
+    }
+
+    template <class Functor, class Quadrature>
+    double OSDE1D::integratedSquaredError(const Functor& fcn,
+                                          const Quadrature& quad,
+                                          const double *coeffs,
+                                          const unsigned maxdeg) const
+    {
+        assert(coeffs);
+        DeltaSquaredSerFcn<OSDE1D,Functor> func(*this, fcn, coeffs, maxdeg);
+        return quad.integrate(func, xmin_, xmax_);
+    }
+
+    template <class Functor, class Quadrature>
+    double OSDE1D::integratedSquaredError(const Functor& fcn,
+                                          const Quadrature& quad,
+                                          const double *coeffs,
+                                          const unsigned maxdeg,
+                                          const double i_xmin,
+                                          const double i_xmax) const
+    {
+        typedef Interval<double> I;
+
+        assert(coeffs);
+        const double factor = i_xmin <= i_xmax ? 1.0 : -1.0;
+        long double integral = 0.0L;
+
+        const I i_integ(i_xmin, i_xmax, true);
+        const I i_my(xmin_, xmax_);
+
+        const I i_over(i_integ.overlap(i_my));
+        if (i_over.length() > 0.0)
+        {
+            DeltaSquaredSerFcn<OSDE1D,Functor> func(*this, fcn, coeffs, maxdeg);
+            integral += quad.integrate(func, i_over.min(), i_over.max());
+        }
+
+        const std::pair<I,I> i_diff(i_integ.logicalDifference(i_my));
+        if (i_diff.first.length() > 0.0)
+        {
+            FunctorPowerFcnHelper<Functor> f(fcn, 2.0);
+            integral += quad.integrate(f, i_diff.first.min(), i_diff.first.max());
+        }
+        if (i_diff.second.length() > 0.0)
+        {
+            FunctorPowerFcnHelper<Functor> f(fcn, 2.0);
+            integral += quad.integrate(f, i_diff.second.min(), i_diff.second.max());
+        }
+
+        return factor*integral;
+    }
+}

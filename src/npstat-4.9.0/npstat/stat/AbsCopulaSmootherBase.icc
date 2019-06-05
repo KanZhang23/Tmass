@@ -1,0 +1,52 @@
+#include "npstat/stat/empiricalCopulaHisto.hh"
+#include "npstat/stat/weightedCopulaHisto.hh"
+
+namespace npstat{
+    template <class Point>
+    inline const HistoND<double>& AbsCopulaSmootherBase::smooth(
+       const unsigned long uniqueId,
+       std::vector<OrderedPointND<Point> >& in,
+       double* bandwidthUsed)
+    {
+        HistoND<double>& h = this->clearHisto();
+        double bw = 0.0;
+        if (!in.empty())
+        {
+            empiricalCopulaHisto(in, &h);
+            this->storeHisto(uniqueId, bw);
+
+            const double n = h.nFillsInRange();
+            this->smoothHisto(h, n, &bw, false);
+            assert(bw > 0.0);
+            this->makeMarginalsUniform();
+            this->storeHisto(uniqueId, bw);
+        }
+        if (bandwidthUsed)
+            *bandwidthUsed = bw;
+        return h;
+    }
+
+    template <class Point>
+    inline const HistoND<double>& AbsCopulaSmootherBase::weightedSmooth(
+        const unsigned long uniqueId,
+        const std::vector<std::pair<const Point*, double> >& in,
+        const unsigned* dimsToUse, const unsigned nDimsToUse,
+        double* bandwidthUsed)
+    {
+        HistoND<double>& h = this->clearHisto();
+        double bw = 0.0;
+        if (!in.empty())
+        {
+            const double n = weightedCopulaHisto(in, dimsToUse, nDimsToUse, &h);
+            this->storeHisto(uniqueId, bw);
+
+            this->smoothHisto(h, n, &bw, true);
+            assert(bw > 0.0);
+            this->makeMarginalsUniform();
+            this->storeHisto(uniqueId, bw);
+        }
+        if (bandwidthUsed)
+            *bandwidthUsed = bw;
+        return h;
+    }
+}

@@ -1,0 +1,125 @@
+#include <cmath>
+#include <cfloat>
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/nm/Interval.hh"
+
+namespace npstat {
+    template <typename Result, typename Arg1>
+    bool findRootInLogSpace(const Functor1<Result, Arg1>& f,
+                            const Result& rhs, const Arg1& x0,
+                            const double tol, Arg1* root,
+                            double logstep)
+    {
+        const unsigned maxiter = 3000;
+        const double increase = 1.2;
+
+        if (tol <= DBL_EPSILON) throw std::invalid_argument(
+            "In npstat::findRootInLogSpace: tolerance argument is too small");
+        assert(root);
+
+        const double sqrdeps = sqrt(DBL_EPSILON);
+        logstep = fabs(logstep);
+        if (logstep < sqrdeps)
+            logstep = sqrdeps;
+        logstep *= 2.0;
+
+        double factor0 = exp(logstep);
+        Arg1 xleft = x0*exp(-logstep/2.0);
+        Arg1 xright = xleft*factor0;
+        Result fleft = f(xleft);
+        Result fright = f(xright);
+        Interval<Result> fvalues(fleft, fright, true);
+
+        // Move the bounds so that they cover the root
+        unsigned it = 0U;
+        for (; !fvalues.isInsideWithBounds(rhs) && it < maxiter; ++it)
+        {
+            if (fright == fleft)
+                return false;
+
+            // Increase the stepping factor
+            logstep *= increase;
+            factor0 = exp(logstep);
+
+            if (fleft < rhs ? fright < fleft : fright > fleft)
+            {
+                xright = xleft;
+                fright = fleft;
+                xleft = xright*(1.0/factor0);
+                fleft = f(xleft);
+            }
+            else
+            {
+                xleft = xright;
+                fleft = fright;
+                xright = xleft*factor0;
+                fright = f(xright);
+            }
+
+            fvalues.setBounds(fleft, fright, true);
+        }
+        if (it == maxiter)
+            return false;
+
+        if (fleft == rhs)
+        {
+            *root = xleft;
+            return true;
+        }
+
+        if (fright == rhs)
+        {
+            *root = xright;
+            return true;
+        }
+
+        // Now, converge towards the root in a numerically
+        // stable manner
+        it = 0U;
+        for (; fabs(factor0 - 1.0) > tol && it < maxiter; ++it)
+        {
+            factor0 = sqrt(factor0);
+            assert(factor0 >= 1.0);
+
+            const Arg1 xtry = xleft*factor0;
+            const Result ftry = f(xtry);
+            if (ftry == rhs)
+            {
+                *root = xtry;
+                return true;
+            }
+            fvalues.setBounds(fleft, ftry, true);
+            if (fvalues.isInside(rhs))
+            {
+                xright = xtry;
+                fright = ftry;
+                continue;
+            }
+
+            const Arg1 xtry1 = xright*(1.0/factor0);
+            const Result ftry1 = f(xtry1);
+            if (ftry1 == rhs)
+            {
+                *root = xtry1;
+                return true;
+            }
+            fvalues.setBounds(ftry1, fright, true);
+            if (fvalues.isInside(rhs))
+            {
+                xleft = xtry1;
+                fleft = ftry1;
+                continue;
+            }
+
+            *root = xtry;
+            return true;
+        }
+        if (it == maxiter)
+            return false;
+
+        *root = xleft*sqrt(factor0);
+        return true;
+    }
+}

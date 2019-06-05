@@ -1,0 +1,67 @@
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    template <typename Numeric>
+    void BoxNDScanner<Numeric>::initialize(const unsigned* shape,
+                                           const unsigned dim)
+    {
+        if (!(dim && box_.dim() == dim)) throw std::invalid_argument(
+            "In npstat::BoxNDScanner::initialize: incompatible scan shape");
+        assert(shape);
+        for (unsigned j=0; j<dim; ++j)
+            if (!shape[j]) throw std::invalid_argument(
+                "In npstat::BoxNDScanner::initialize: "
+                "number of scans must be positive in each dimension");
+
+        strides_.resize(dim);
+        strides_[dim - 1] = 1UL;
+        for (unsigned j=dim - 1; j>0; --j)
+            strides_[j - 1] = strides_[j]*shape[j];
+        maxState_ = strides_[0]*shape[0];
+
+        bw_.reserve(dim);
+        for (unsigned j=0; j<dim; ++j)
+            bw_.push_back(box_[j].length()*1.0/shape[j]);
+    }
+
+    template <typename Numeric>
+    void BoxNDScanner<Numeric>::getCoords(Numeric* x, const unsigned nx) const
+    {
+        const unsigned dim = strides_.size();
+        if (nx < dim) throw std::invalid_argument(
+            "In npstat::BoxNDScanner::getCoords: "
+            "insufficient length of the output buffer");
+        if (state_ >= maxState_) throw std::runtime_error(
+            "In npstat::BoxNDScanner::getCoords: invalid scanner state");
+        assert(x);
+
+        unsigned long l = state_;
+        for (unsigned i=0; i<dim; ++i)
+        {
+            const unsigned long idx = l / strides_[i];
+            x[i] = box_[i].min() + (idx + 0.5)*bw_[i];
+            l -= (idx * strides_[i]);
+        }
+    }
+
+    template <typename Numeric>
+    void BoxNDScanner<Numeric>::getIndex(unsigned* ix, const unsigned nx) const
+    {
+        const unsigned dim = strides_.size();
+        if (nx < dim) throw std::invalid_argument(
+            "In npstat::BoxNDScanner::getIndex: "
+            "insufficient length of the output buffer");
+        if (state_ >= maxState_) throw std::runtime_error(
+            "In npstat::BoxNDScanner::getIndex: invalid scanner state");
+        assert(ix);
+
+        unsigned long l = state_;
+        for (unsigned i=0; i<dim; ++i)
+        {
+            const unsigned long idx = l / strides_[i];
+            ix[i] = static_cast<unsigned>(idx);
+            l -= (idx * strides_[i]);
+        }
+    }
+}

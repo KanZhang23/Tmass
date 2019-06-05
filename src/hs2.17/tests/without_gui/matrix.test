@@ -1,0 +1,362 @@
+
+# Test matrix comparison operators used heavily in other tests
+test matrix-1.1 {matrix equality} {} {
+    set m1 {{1 2 3} {4 5 6}}
+    set m2 {{1 2 3} {4 5 6}}
+    hs::M $m1 == $m2
+} {1}
+
+test matrix-1.2 {matrix inequality, incompatible dimensionality} {} {
+    set m1 {{1 2 3}} ;# this is a 1x3 matrix
+    set m2 {1 2 3}   ;# this is a 3x1 matrix
+    hs::M $m1 == $m2
+} {0}
+
+test matrix-1.3 {matrix inequality, incompatible values} {} {
+    set m1 {{1 2 3} {4 5 6}}
+    set m2 {{1 0 3} {4 5 6}}
+    hs::M $m1 == $m2
+} {0}
+
+test matrix-1.4 {matrix inequality, incompatible dimensionality} {} {
+    set m1 {{1 2 3} {4 5 6}}
+    set m2 {{1 0 3} {4 5 6} {4 5 6}}
+    hs::M $m1 == $m2
+} {0}
+
+test matrix-1.5 {maximum relative difference} {} {
+    set m1 {{1 2 3} {4 5 6}}
+    set m2 {{1 0 3} {4 5 10}}
+    hs::M $m1 maxreldiff $m2
+} {1.0}
+
+test matrix-1.6 {maximum absolute difference} {} {
+    set m1 {{1 2 3} {4 5 6}}
+    set m2 {{1 0 3} {4 5 10}}
+    hs::M $m1 maxabsdiff $m2
+} {4.0}
+
+test matrix-1.7 {invalid relative difference} {} {
+    set m1 {{1 2} {5 6}}
+    set m2 {{1 0 3} {4 5 10}}
+    catch {hs::M $m1 maxreldiff $m2} errmess
+    set errmess
+} {incompatible argument dimensions}
+
+# Test unary operations
+test matrix-2.1 {matrix transposition} {} {
+    set m1 {{1 2 3} {4 5 6}}
+    set m2 {{1 4} {2 5} {3 6}}
+    hs::M [hs::M $m1 t] == $m2
+} {1}
+
+test matrix-2.2 {matrix inversion} {[hs::have_cernlib]} {
+    set m1 {{4 1 2} {3 7 5} {6 7 8}}
+    eval_at_precision 12 {
+	set m2 [hs::M $m1 inv]
+	string length $m2
+	set m2
+    }
+} {{0.4375 0.125 -0.1875} {0.125 0.416666666667 -0.291666666667} {-0.4375 -0.458333333333 0.520833333333}}
+
+test matrix-2.3 {inversion of a singular matrix} {[hs::have_cernlib]} {
+    set m1 {{0 1 2} {3 4 5} {6 7 8}}
+    catch {hs::M $m1 inv} errmess
+    set errmess
+} {matrix is singular}
+
+test matrix-2.4 {invalid unary operation} {} {
+    set m1 {{4 1 2} {3 7 5} {6 7 8}}
+    catch {hs::M $m1 +} errmess
+    set errmess
+} {invalid unary matrix operation "+"}
+
+test matrix-2.5 {matrix trace} {} {
+    set m1 {{4 1 2} {3 7 5} {6 7 8}}
+    hs::M $m1 sp
+} {19.0}
+
+test matrix-2.6 {invalid matrix trace} {} {
+    set m1 {4 1 2}
+    catch {hs::M $m1 sp} errmess
+    set errmess
+} {matrix is not square}
+
+test matrix-2.7 {matrix dimensionality} {} {
+    set m1 {{4 1 2} {3 7 5}}
+    hs::M $m1 dim
+} {2 3}
+
+test matrix-2.8 {calculation of the 1x1 determinant} {} {
+    set m1 {{5}}
+    hs::M $m1 det
+} {5.0}
+
+test matrix-2.9 {calculation of the 2x2 determinant} {} {
+    set m1 {{3 4} {-7 12}}
+    hs::M $m1 det
+} {64.0}
+
+test matrix-2.10 {calculation of the 3x3 determinant} {} {
+    set m1 {{4 1 2} {3 7 5} {7 8 9}}
+    hs::M $m1 det
+} {50.0}
+
+test matrix-2.11 {calculation of the 4x4 determinant} {} {
+    set m1 {{4 1 2 -3} {3 -6 7 5} {7 -5 8 9} {3 9 1 -7}}
+    hs::M $m1 det
+} {1287.0}
+
+test matrix-2.12 {calculation of the 5x5 determinant} {[hs::have_cernlib]} {
+    set m1 {{4 1 2 2 -3} {3 -6 -4 7 5} {7 -5 3 8 9} {3 9 9 1 -7} {1 2 3 4 5}}
+    hs::M $m1 det
+} {-3177.0}
+
+# Test simple binary operations
+test matrix-3.1 {matrix addition} {} {
+    set m1 {{1 4 2} {2 8 13}}
+    set m2 {{7 5 4} {8 3 -5}}
+    set m3 [hs::M $m1 + $m2]
+    set m4 {{8 9 6} {10 11 8}}
+    hs::M $m3 == $m4
+} {1}
+
+test matrix-3.2 {vector addition} {} {
+    set m1 {3 4 2}
+    set m2 {7 5 4}
+    set m3 [hs::M $m1 + $m2]
+    set m4 {10 9 6}
+    hs::M $m3 == $m4
+} {1}
+
+test matrix-3.3 {matrix subtraction} {} {
+    set m1 {{1 4 2} {2 8 13}}
+    set m2 {{7 5 4} {8 3 -5}}
+    set m3 [hs::M $m1 - $m2]
+    set m4 {{-6 -1 -2} {-6 5 18}}
+    hs::M $m3 == $m4
+} {1}
+
+test matrix-3.4 {matrix multiplication by a scalar} {} {
+    set m1 {{1 4} {2 -2} {8 13}}
+    set m2 [hs::M $m1 * 2]
+    set m3 {{2 8} {4 -4} {16 26}}
+    hs::M $m2 == $m3
+} {1}
+
+test matrix-3.5 {matrix division by a scalar} {} {
+    set m1 {{1 4} {2 -2} {8 13}}
+    set m2 [hs::M $m1 / 2]
+    set m3 {{0.5 2} {1 -1} {4 6.5}}
+    hs::M $m2 == $m3
+} {1}
+
+test matrix-3.6 {invalid binary matrix operation} {} {
+    set m1 {{4 1 2} {3 7 5} {6 7 8}}
+    catch {hs::M $m1 inv $m1} errmess
+    set errmess
+} {invalid binary matrix operation "inv"}
+
+test matrix-3.7 {matrix subscripting} {} {
+    set m1 {{4 1 2} {3 7 5} {6 7 8}}
+    set m2 {}
+    foreach {nrows ncols} [hs::M $m1 dim] {}
+    for {set i 0} {$i < $nrows} {incr i} {
+        set m3 {}
+        for {set j 0} {$j < $ncols} {incr j} {
+            lappend m3 [hs::M $m1 _ [list $i $j]]
+        }
+        lappend m2 $m3
+    }
+    hs::M $m1 == $m2
+} {1}
+
+test matrix-3.8 {vector subscripting} {} {
+    set m1 {{4 1 2}}
+    hs::M $m1 _ 2
+} {2.0}
+
+test matrix-3.9 {vector subscripting} {} {
+    set m1 {4 1 2}
+    hs::M $m1 _ 0
+} {4.0}
+
+test matrix-3.10 {vector subscripting} {} {
+    set m1 {4 1 2}
+    catch {hs::M $m1 _ 3} errmess
+    set errmess
+} {subscript is out of range}
+
+# Test matrix multiplication, similarity
+test matrix-4.1 {matrix by matrix multiplication} {} {
+    set m1 {{1 4 2} {2 8 13}}
+    set m2 {{2 5 -3 8} {8 3 16 7} {7 4 2 -3}}
+    set m3 [hs::M $m1 . $m2]
+    set m4 {{48 25 65 30} {159 86 148 33}}
+    hs::M $m3 == $m4
+} {1}
+
+test matrix-4.2 {matrix by vector multiplication} {} {
+    set m1 {{1 4 2} {2 8 13}}
+    set m2 {6 3 15}
+    set m3 [hs::M $m1 . $m2]
+    set m4 {48 231}
+    hs::M $m3 == $m4
+} {1}
+
+test matrix-4.3 {vector by matrix multiplication} {} {
+    set m1 {{1 4 2} {2 8 13}}
+    set m2 {{3 4}}
+    set m3 [hs::M $m2 . $m1]
+    set m4 {{11 44 58}}
+    hs::M $m3 == $m4
+} {1}
+
+test matrix-4.4 {matrix multiplication properties} {} {
+    set m1 [hs::M {{1 4 2} {2 8 13}} t]
+    set m2 [hs::M {{2 5 -3 8} {8 3 16 7} {7 4 2 -3}} t]
+    set m3 [hs::M $m2 . $m1]
+    set m4 [hs::M {{48 25 65 30} {159 86 148 33}} t]
+    hs::M $m3 == $m4
+} {1}
+
+test matrix-4.5 {matrix transpose and multiply} {} {
+    set m1 {{1 2} {4 8} {2 13}}
+    set m2 {{2 5 -3 8} {8 3 16 7} {7 4 2 -3}}
+    set m3 [hs::M $m1 t. $m2]
+    set m4 {{48 25 65 30} {159 86 148 33}}
+    hs::M $m3 == $m4
+} {1}
+
+test matrix-4.6 {multiplication of incompatible matrices} {} {
+    set m1 {{1 4 2} {2 8 13}}
+    set m2 {{7 5 4} {8 3 -5}}
+    catch {hs::M $m1 . $m2} errmess
+    set errmess
+} {incompatible argument dimensions}
+
+test matrix-4.7 {matrix similarity} {} {
+    set m1 {{4 1 2} {3 7 5} {6 7 8}}
+    set m2 {{1 2} {33 8} {2 13}}
+    set m3 [hs::M $m1 sim $m2]
+    set m4 [hs::M [hs::M [hs::M $m2 t] . $m1] . $m2]
+    hs::M $m3 == $m4
+} {1}
+
+# Test solution of a linear system
+test matrix-5.1 {linear system of equations} {[hs::have_cernlib]} {
+    set m1 {{4 1 2} {3 7 5} {6 7 8}}
+    eval_at_precision 12 {
+	set m2 [hs::M $m1 .x= {1 5 4}]
+	string length $m2
+	set m2
+    }    
+} {0.3125 1.04166666667 -0.645833333333}
+
+test matrix-5.2 {degenerate linear system} {[hs::have_cernlib]} {
+    set m1 {{0 1 2} {3 4 5} {6 7 8}}
+    catch {hs::M $m1 .x= {1 5 4}} errmess
+    set errmess
+} {matrix is singular}
+
+test matrix-5.3 {linear system with wrong left side} {[hs::have_cernlib]} {
+    set m1 {{4 1 2} {3 7 5}}
+    catch {hs::M $m1 .x= {1 5 4}} errmess
+    set errmess
+} {incompatible argument dimensions}
+
+test matrix-5.4 {linear system with wrong right side} {[hs::have_cernlib]} {
+    set m1 {{4 1 2} {3 7 5} {6 7 8}}
+    catch {hs::M $m1 .x= {1 5}} errmess
+    set errmess
+} {incompatible argument dimensions}
+
+# Test unit and constant matrix commands
+test matrix-6.1 {generation of a unit matrix} {} {
+    set m1 {{1 0 0} {0 1 0} {0 0 1}}
+    set m2 [hs::Unit_matrix 3]
+    hs::M $m1 == $m2
+} {1}
+
+test matrix-6.2 {generation of a constant matrix} {} {
+    set m1 {{7 7 7} {7 7 7}}
+    set m2 [hs::Const_matrix 2 3 7]
+    hs::M $m1 == $m2
+} {1}
+
+# Test special commands related to symmetric matrices
+test matrix-7.1 {inversion of a symmetric positive definite matrix} {[hs::have_cernlib]} {
+    set m1 {{5 1 2} {1 6 3} {2 3 7}}
+    set m2 [hs::Invert_sym_pos_matrix $m1]
+    set m3 [hs::M $m1 inv]
+    eval_at_precision 15 {
+	set m4 [hs::M [hs::M $m2 - $m3] + {{1 1 1} {1 1 1} {1 1 1}}]
+	string length $m4
+	set m4
+    }
+} {{1.0 1.0 1.0} {1.0 1.0 1.0} {1.0 1.0 1.0}}
+
+test matrix-7.2 {symmetric positive definite linear system} {[hs::have_cernlib]} {
+    set m1 {{5 1 2} {1 6 3} {2 3 7}}
+    eval_at_precision 12 {
+        set m2 [hs::Sym_pos_linsys $m1 {3 4 5}]
+	string length $m2
+	set m2
+    }
+} {0.342465753425 0.383561643836 0.452054794521}
+
+# Test use of matrices with 2d histograms
+test matrix-8.1 {filling 2d histogram from a matrix} {} {
+    set nrows 3
+    set ncols 2
+    set id [hs::create_2d_hist [next_uid] "Example 2d histo" "Test" \
+        X Y Z $ncols $nrows 0 $ncols 0 $nrows]
+    set m1 {{11 12} {21 22} {31 32}}
+    hs::2d_fill_from_matrix $id $m1
+    for {set i 0} {$i < $nrows} {incr i} {
+        for {set j 0} {$j < $ncols} {incr j} {
+            if {[lindex [lindex $m1 $i] $j] != \
+                 [hs::2d_hist_bin_value $id $j $i]} {
+                error "Failed to fill the histogram for row $i column $j"
+            }
+        }
+    }
+} {}
+
+test matrix-8.2 {filling matrix from a 2d histogram} {} {
+    set nrows 3
+    set ncols 2
+    set id [hs::create_2d_hist [next_uid] "Example 2d histo" "Test" \
+        X Y Z $ncols $nrows 0 $ncols 0 $nrows]
+    hs::2d_hist_block_fill $id [list 1 2 3 4 5 6]
+    set m1 [hs::Histo_matrix $id]
+    if {[llength $m1] != $nrows} {
+        error "Bad number of rows"
+    }
+    if {[llength [lindex $m1 0]] != $ncols} {
+        error "Bad number of columns"
+    }
+    for {set i 0} {$i < $nrows} {incr i} {
+        for {set j 0} {$j < $ncols} {incr j} {
+            if {[lindex [lindex $m1 $i] $j] != \
+                 [hs::2d_hist_bin_value $id $j $i]} {
+                error "Failed to fill matrix row $i column $j"
+            }
+        }
+    }
+} {}
+
+catch {unset i}
+catch {unset j}
+catch {unset id}
+catch {unset nrows}
+catch {unset ncols}
+catch {unset m1}
+catch {unset m2}
+catch {unset m3}
+catch {unset m4}
+catch {unset errmess}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

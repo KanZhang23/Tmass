@@ -1,0 +1,30 @@
+global test_data
+set test_data {
+    1  5  3
+    4  2  6
+    7 17  9
+   10  8 14
+}
+
+test column_edf-1.1 {ntuple column empirical distribution function} {} {
+    set id [hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c}]
+    global test_data
+    hs::ntuple_block_fill $id $test_data
+    assert_same_list [hs::data_to_list [hs::column_edf $id 1]] \
+            {0.375 0.125 0.875 0.625} 0
+} {}
+
+test column_edf-1.2 {ntuple column edf, reverse ordering} {} {
+    set id [hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c}]
+    global test_data
+    hs::ntuple_block_fill $id $test_data
+    assert_same_list [hs::data_to_list [hs::column_edf $id 1 1]] \
+            {0.625 0.875 0.125 0.375} 0
+} {}
+
+unset test_data
+catch {unset id}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

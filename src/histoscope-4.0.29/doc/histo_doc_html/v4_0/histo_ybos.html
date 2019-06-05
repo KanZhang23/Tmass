@@ -1,0 +1,41 @@
+<h1>
+Using Histo-Scope with YBOS on VMS
+</h1>
+                             <p>
+Histo-Scope has been tested and can be used with CDF YBOS applications.
+However, <b>instead</b> of using HISTOLIB_DIR: SHR_OPTIONS_FILE.OPT in the link
+command for your application, <b>use</b> the file:<p>
+<p>
+	<b>HISTOLIB_DIR:BCOPY_HISTO_OPT.OPT</b><p>
+           <p>
+Using this options file is necessary because Histo-Scope uses libraries from
+the TGV MultiNet communication software package.  The MultiNet libraries
+unfortunately contain a routine called bcopy which conflicts with the YBOS
+routine of the same name.  Because the MultiNet library is packaged as a
+shareable image, steps must be taken to ensure that the YBOS bcopy routine
+takes precedence over the MultiNet bcopy routine.  BCOPY_HISTO_OPT references a
+shareable image, BCOPY_SHR, which is basically the YBOS routine BCOPY linked
+with the routines it references from the YBOS and CERN libraries.  The
+maintainer of your system's YBOS library <u>must</u> rebuild this shareable
+image whenever a new release of YBOS or CERN would make BCOPY_SHR incompatible
+with that new release.<p>
+<p>
+BCOPY_HISTO_OPT.OPT defines a cluster for BCOPY_SHR, and then defines another
+cluster for HISTO_SHR.  This will cause the linker to use BCOPY_SHR to resolve
+references before using HISTO_SHR and the MultiNet library it references.  As a
+general guideline, BCOPY_HISTO_OPT.OPT should be one of the last options files
+referenced in your link command.  If your application itself uses clusters in
+its linker options files, please note that the cluster used for HISTO_SHR
+should be defined <u>after</u> all clusters defined for YBOS routines (you may
+want to extract the two lines in the BCOPY_HISTO_OPT.OPT file to arrange the
+cluster definitions as you require). <p>
+<p>
+As a final note, every time you link your YBOS application that references the
+YBOS BCOPY routine, you will get a LINK warning message:<p>
+<p>
+     %LINK-W-MULDEF, symbol BCOPY multiply defined in module
+      MULTINET_SOCKET_LIBRARY file <p>
+      MULTINET_COMMON_ROOT:[MULTINET]MULTINET_SOCKET_LIBRARY.EXE<p>
+                  <p>
+This warning should be ignored as long as it refers to the MultiNet library
+instead of the YBOS library or your own routines.<p>

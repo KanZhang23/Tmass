@@ -1,0 +1,16 @@
+#ifndef RANDOMNUMBERSEQUENCE_HH_
+#define RANDOMNUMBERSEQUENCE_HH_
+
+enum RandomNumberSequence
+{
+    RSEQ_PT_JET0 = 0,
+    RSEQ_PT_JET1,
+    RSEQ_PT_JET2,
+    RSEQ_PT_JET3,
+    RSEQ_TOTAL_PT_X,
+    RSEQ_TOTAL_PT_Y,
+    RSEQ_TAU,
+    N_RSEQ_VARS
+};
+
+#endif // RANDOMNUMBERSEQUENCE_HH_

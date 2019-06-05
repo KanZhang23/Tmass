@@ -1,0 +1,64 @@
+#include <cmath>
+#include <stdexcept>
+
+namespace emsunfold {
+    template<class Matrix>
+    CPP11_auto_ptr<std::vector<Eigen::Triplet<double,typename Matrix::Index> > >
+    pruneCovariance(const Matrix& m, const double tol)
+    {
+        typedef typename Matrix::Index index_type;
+        typedef Eigen::Triplet<double,index_type> T;
+
+        const index_type nrows = m.rows();
+        if (nrows != m.cols()) throw std::invalid_argument(
+            "In emsunfold::pruneCovariance: input matrix is not square");
+
+        CPP11_auto_ptr<std::vector<T> > triplets(new std::vector<T>());
+        triplets->reserve(nrows);
+
+        std::vector<double> stdevsVec(nrows);
+        for (index_type i=0; i<nrows; ++i)
+        {
+            const double sigmasq = m.coeff(i, i);
+            if (sigmasq < 0.0) throw std::invalid_argument(
+                "In emsunfold::pruneCovariance: found "
+                "a negative element on the diagonal of the input matrix ");
+            stdevsVec[i] = sqrt(sigmasq);
+            if (sigmasq)
+                triplets->push_back(T(i, i, sigmasq));
+        }
+
+        const double* stdevs = &stdevsVec[0];
+        const index_type nouter = m.outerSize();
+        for (index_type i=1; i<nouter; ++i)
+            if (stdevs[i])
+                for (typename Matrix::InnerIterator it(m,i); it; ++it)
+                {
+                    const index_type j = it.index();
+                    if (j >= i)
+                        break;
+                    if (stdevs[j])
+                    {
+                        double value = it.value();
+                        double rho = value/stdevs[i]/stdevs[j];
+                        if (rho > 1.0)
+                        {
+                            value = stdevs[i]*stdevs[j];
+                            rho = 1.0;
+                        }
+                        else if (rho < -1.0)
+                        {
+                            value = -stdevs[i]*stdevs[j];
+                            rho = -1.0;
+                        }
+                        if (fabs(rho) > tol)
+                        {
+                            triplets->push_back(T(i, j, value));
+                            triplets->push_back(T(j, i, value));
+                        }
+                    }
+                }
+
+        return triplets;
+    }
+}

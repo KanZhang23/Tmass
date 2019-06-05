@@ -1,0 +1,18 @@
+
+"hs" extension wish list
+------------------------
+
+1) Include "weighted_column_percentiles" command.
+
+2) Include "column_sum" command.
+
+3) Write a wrapper for the hs::allow_item_send command so that the state
+   can be returned to the user.
+
+4) Change data_1d and data_2d functions so that they interpolate without
+   modifying the histogram integral (fix edges).
+
+5) Add data_3d function.
+
+6) Include "partial_integral" command for histograms -- integral between
+   given values of xmin (ymin, zmin) and xmax (ymax, zmax).

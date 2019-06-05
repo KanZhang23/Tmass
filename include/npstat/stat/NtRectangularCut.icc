@@ -1,0 +1,452 @@
+#include <cassert>
+#include <stdexcept>
+
+#include "geners/IOException.hh"
+
+namespace npstat {
+    template<typename Numeric>
+    unsigned long NtRectangularCut<Numeric>::nUniqueColumns() const
+    {
+        unsigned long unique(0);
+        if (nCuts_)
+        {
+            const RCut* cuts = &cutData_[0];
+            unique = 1UL;
+            for (unsigned long i=1; i<nCuts_; ++i)
+            {
+                const unsigned long col = cuts[i].col;
+                bool isnew = true;
+                for (unsigned long j=0; j<i; ++j)
+                    if (col == cuts[j].col)
+                    {
+                        isnew = false;
+                        break;
+                    }
+                if (isnew)
+                    ++unique;
+            }
+        }
+        return unique;
+    }
+
+    template<typename Numeric>
+    bool NtRectangularCut<Numeric>::operator()(
+        const Numeric* row, const unsigned long nCols) const
+    {
+        if (nCuts_)
+        {
+            const RCut* cuts = &cutData_[0];
+            for (unsigned long i=0; i<nCuts_; ++i)
+            {
+                const unsigned long col = cuts[i].col;
+                if (col >= nCols)
+                    throw std::out_of_range(
+                        "In npstat::NtRectangularCut::operator(): "
+                        "column number out of range");
+                bool pass = cuts[i].min <= row[col] && row[col] < cuts[i].max;
+                if (cuts[i].inverted)
+                    pass = !pass;
+                if (!pass)
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    template<typename Numeric>
+    template<typename T>
+    NtRectangularCut<Numeric>& NtRectangularCut<Numeric>::addCut(
+        const unsigned long c0, const T& min0, const T& max0,
+        const bool inverted)
+    {
+        cutData_.push_back(RCut(c0, min0, max0, inverted));
+        ++nCuts_;
+        return *this;
+    }
+
+    template<typename Numeric>
+    template<typename T>
+    NtRectangularCut<Numeric>& NtRectangularCut<Numeric>::addCut(
+        const NtRectangularCut<T>& r)
+    {
+        cutData_.reserve(nCuts_ + r.nCuts_);
+        for (unsigned long i=0; i<r.nCuts_; ++i)
+        {
+            const typename NtRectangularCut<T>::RCut& cut(r.cutData_[i]);
+            cutData_.push_back(RCut(cut.col, cut.min, cut.max, cut.inverted));
+        }
+        nCuts_ += r.nCuts_;
+        return *this;
+    }
+
+    template<typename Numeric>
+    std::vector<unsigned long> NtRectangularCut<Numeric>::ntupleColumns() const
+    {
+        std::vector<unsigned long> result(nCuts_);
+        for (unsigned long i=0; i<nCuts_; ++i)
+            result[i] = cutData_[i].col;
+        return result;
+    }
+
+    template<typename Numeric>
+    BoxND<Numeric> NtRectangularCut<Numeric>::acceptedBox() const
+    {
+        BoxND<Numeric> result;
+        result.reserve(nCuts_);
+        for (unsigned long i=0; i<nCuts_; ++i)
+        {
+            if (cutData_[i].inverted) throw std::invalid_argument(
+                "In npstat::NtRectangularCut::acceptedBox: "
+                "accepted region is not a box (there are inverted cuts)");
+            const Numeric& minval(cutData_[i].min);
+            const Numeric& maxval(cutData_[i].max);
+            result.push_back(Interval<Numeric>(
+                                 minval, maxval >= minval ? maxval : minval));
+        }
+        return result;
+    }
+
+    template<typename Numeric>
+    template<typename T>
+    NtRectangularCut<Numeric>::NtRectangularCut(
+        const unsigned long c0, const T& min0, const T& max0)
+        : nCuts_(1)
+    {
+        cutData_.reserve(nCuts_);
+        cutData_.push_back(RCut(c0, min0, max0, false));
+        assert(cutData_.size() == nCuts_);
+    }
+
+    template<typename Numeric>
+    template<typename T>
+    NtRectangularCut<Numeric>::NtRectangularCut(
+        const unsigned long c0, const T& min0, const T& max0,
+        const unsigned long c1, const T& min1, const T& max1)
+        : nCuts_(2)
+    {
+        cutData_.reserve(nCuts_);
+
+        cutData_.push_back(RCut(c0, min0, max0, false));
+        cutData_.push_back(RCut(c1, min1, max1, false));
+
+        assert(cutData_.size() == nCuts_);
+    }
+
+    template<typename Numeric>
+    template<typename T>
+    NtRectangularCut<Numeric>::NtRectangularCut(
+        const unsigned long c0, const T& min0, const T& max0,
+        const unsigned long c1, const T& min1, const T& max1,
+        const unsigned long c2, const T& min2, const T& max2)
+        : nCuts_(3)
+    {
+        cutData_.reserve(nCuts_);
+
+        cutData_.push_back(RCut(c0, min0, max0, false));
+        cutData_.push_back(RCut(c1, min1, max1, false));
+        cutData_.push_back(RCut(c2, min2, max2, false));
+
+        assert(cutData_.size() == nCuts_);
+    }
+
+    template<typename Numeric>
+    template<typename T>
+    NtRectangularCut<Numeric>::NtRectangularCut(
+        const unsigned long c0, const T& min0, const T& max0,
+        const unsigned long c1, const T& min1, const T& max1,
+        const unsigned long c2, const T& min2, const T& max2,
+        const unsigned long c3, const T& min3, const T& max3)
+        : nCuts_(4)
+    {
+        cutData_.reserve(nCuts_);
+
+        cutData_.push_back(RCut(c0, min0, max0, false));
+        cutData_.push_back(RCut(c1, min1, max1, false));
+        cutData_.push_back(RCut(c2, min2, max2, false));
+        cutData_.push_back(RCut(c3, min3, max3, false));
+
+        assert(cutData_.size() == nCuts_);
+    }
+
+    template<typename Numeric>
+    template<typename T>
+    NtRectangularCut<Numeric>::NtRectangularCut(
+        const unsigned long c0, const T& min0, const T& max0,
+        const unsigned long c1, const T& min1, const T& max1,
+        const unsigned long c2, const T& min2, const T& max2,
+        const unsigned long c3, const T& min3, const T& max3,
+        const unsigned long c4, const T& min4, const T& max4)
+        : nCuts_(5)
+    {
+        cutData_.reserve(nCuts_);
+
+        cutData_.push_back(RCut(c0, min0, max0, false));
+        cutData_.push_back(RCut(c1, min1, max1, false));
+        cutData_.push_back(RCut(c2, min2, max2, false));
+        cutData_.push_back(RCut(c3, min3, max3, false));
+        cutData_.push_back(RCut(c4, min4, max4, false));
+
+        assert(cutData_.size() == nCuts_);
+    }
+
+    template<typename Numeric>
+    template<typename T>
+    NtRectangularCut<Numeric>::NtRectangularCut(
+        const unsigned long c0, const T& min0, const T& max0,
+        const unsigned long c1, const T& min1, const T& max1,
+        const unsigned long c2, const T& min2, const T& max2,
+        const unsigned long c3, const T& min3, const T& max3,
+        const unsigned long c4, const T& min4, const T& max4,
+        const unsigned long c5, const T& min5, const T& max5)
+        : nCuts_(6)
+    {
+        cutData_.reserve(nCuts_);
+
+        cutData_.push_back(RCut(c0, min0, max0, false));
+        cutData_.push_back(RCut(c1, min1, max1, false));
+        cutData_.push_back(RCut(c2, min2, max2, false));
+        cutData_.push_back(RCut(c3, min3, max3, false));
+        cutData_.push_back(RCut(c4, min4, max4, false));
+        cutData_.push_back(RCut(c5, min5, max5, false));
+
+        assert(cutData_.size() == nCuts_);
+    }
+
+    template<typename Numeric>
+    template<typename T>
+    NtRectangularCut<Numeric>::NtRectangularCut(
+        const unsigned long c0, const T& min0, const T& max0,
+        const unsigned long c1, const T& min1, const T& max1,
+        const unsigned long c2, const T& min2, const T& max2,
+        const unsigned long c3, const T& min3, const T& max3,
+        const unsigned long c4, const T& min4, const T& max4,
+        const unsigned long c5, const T& min5, const T& max5,
+        const unsigned long c6, const T& min6, const T& max6)
+        : nCuts_(7)
+    {
+        cutData_.reserve(nCuts_);
+
+        cutData_.push_back(RCut(c0, min0, max0, false));
+        cutData_.push_back(RCut(c1, min1, max1, false));
+        cutData_.push_back(RCut(c2, min2, max2, false));
+        cutData_.push_back(RCut(c3, min3, max3, false));
+        cutData_.push_back(RCut(c4, min4, max4, false));
+        cutData_.push_back(RCut(c5, min5, max5, false));
+        cutData_.push_back(RCut(c6, min6, max6, false));
+
+        assert(cutData_.size() == nCuts_);
+    }
+
+    template<typename Numeric>
+    template<typename T>
+    NtRectangularCut<Numeric>::NtRectangularCut(
+        const unsigned long c0, const T& min0, const T& max0,
+        const unsigned long c1, const T& min1, const T& max1,
+        const unsigned long c2, const T& min2, const T& max2,
+        const unsigned long c3, const T& min3, const T& max3,
+        const unsigned long c4, const T& min4, const T& max4,
+        const unsigned long c5, const T& min5, const T& max5,
+        const unsigned long c6, const T& min6, const T& max6,
+        const unsigned long c7, const T& min7, const T& max7)
+        : nCuts_(8)
+    {
+        cutData_.reserve(nCuts_);
+
+        cutData_.push_back(RCut(c0, min0, max0, false));
+        cutData_.push_back(RCut(c1, min1, max1, false));
+        cutData_.push_back(RCut(c2, min2, max2, false));
+        cutData_.push_back(RCut(c3, min3, max3, false));
+        cutData_.push_back(RCut(c4, min4, max4, false));
+        cutData_.push_back(RCut(c5, min5, max5, false));
+        cutData_.push_back(RCut(c6, min6, max6, false));
+        cutData_.push_back(RCut(c7, min7, max7, false));
+
+        assert(cutData_.size() == nCuts_);
+    }
+
+    template<typename Numeric>
+    template<typename T>
+    NtRectangularCut<Numeric>::NtRectangularCut(
+        const unsigned long c0, const T& min0, const T& max0,
+        const unsigned long c1, const T& min1, const T& max1,
+        const unsigned long c2, const T& min2, const T& max2,
+        const unsigned long c3, const T& min3, const T& max3,
+        const unsigned long c4, const T& min4, const T& max4,
+        const unsigned long c5, const T& min5, const T& max5,
+        const unsigned long c6, const T& min6, const T& max6,
+        const unsigned long c7, const T& min7, const T& max7,
+        const unsigned long c8, const T& min8, const T& max8)
+        : nCuts_(9)
+    {
+        cutData_.reserve(nCuts_);
+
+        cutData_.push_back(RCut(c0, min0, max0, false));
+        cutData_.push_back(RCut(c1, min1, max1, false));
+        cutData_.push_back(RCut(c2, min2, max2, false));
+        cutData_.push_back(RCut(c3, min3, max3, false));
+        cutData_.push_back(RCut(c4, min4, max4, false));
+        cutData_.push_back(RCut(c5, min5, max5, false));
+        cutData_.push_back(RCut(c6, min6, max6, false));
+        cutData_.push_back(RCut(c7, min7, max7, false));
+        cutData_.push_back(RCut(c8, min8, max8, false));
+
+        assert(cutData_.size() == nCuts_);
+    }
+
+    template<typename Numeric>
+    template<typename T>
+    NtRectangularCut<Numeric>::NtRectangularCut(
+        const unsigned long c0, const T& min0, const T& max0,
+        const unsigned long c1, const T& min1, const T& max1,
+        const unsigned long c2, const T& min2, const T& max2,
+        const unsigned long c3, const T& min3, const T& max3,
+        const unsigned long c4, const T& min4, const T& max4,
+        const unsigned long c5, const T& min5, const T& max5,
+        const unsigned long c6, const T& min6, const T& max6,
+        const unsigned long c7, const T& min7, const T& max7,
+        const unsigned long c8, const T& min8, const T& max8,
+        const unsigned long c9, const T& min9, const T& max9)
+        : nCuts_(10)
+    {
+        cutData_.reserve(nCuts_);
+
+        cutData_.push_back(RCut(c0, min0, max0, false));
+        cutData_.push_back(RCut(c1, min1, max1, false));
+        cutData_.push_back(RCut(c2, min2, max2, false));
+        cutData_.push_back(RCut(c3, min3, max3, false));
+        cutData_.push_back(RCut(c4, min4, max4, false));
+        cutData_.push_back(RCut(c5, min5, max5, false));
+        cutData_.push_back(RCut(c6, min6, max6, false));
+        cutData_.push_back(RCut(c7, min7, max7, false));
+        cutData_.push_back(RCut(c8, min8, max8, false));
+        cutData_.push_back(RCut(c9, min9, max9, false));
+
+        assert(cutData_.size() == nCuts_);
+    }
+
+    template<typename Numeric>
+    template<typename T>
+    NtRectangularCut<Numeric>::NtRectangularCut(
+        const std::vector<unsigned long>& ntupleColumns,
+        const BoxND<T>& acceptedBox)
+        : nCuts_(ntupleColumns.size())
+    {
+        if (acceptedBox.dim() != nCuts_) throw std::invalid_argument(
+            "In npstat::NtRectangularCut constructor: "
+            "incompatible acceptance box dimensionality");
+        cutData_.reserve(nCuts_);
+        for (unsigned long i=0; i<nCuts_; ++i)
+            cutData_.push_back(RCut(ntupleColumns[i], acceptedBox[i].min(),
+                                    acceptedBox[i].max(), false));
+    }
+
+    template<typename Numeric>
+    inline void NtRectangularCut<Numeric>::cutInterval(
+        const unsigned long cutNumber,
+        Numeric* minValue, Numeric* maxValue) const
+    {
+        const RCut& cut(cutData_.at(cutNumber));
+        assert(minValue);
+        *minValue = cut.min;
+        assert(maxValue);
+        *maxValue = cut.max;
+    }
+
+    template<typename Numeric>
+    inline bool NtRectangularCut<Numeric>::isInverted(
+        const unsigned long cutNumber) const
+    {
+        return cutData_.at(cutNumber).inverted;
+    }
+
+    template<typename Numeric>
+    inline void NtRectangularCut<Numeric>::invert()
+    {
+        const unsigned long siz = cutData_.size();
+        for (unsigned long n = 0; n < siz; ++n)
+        {
+            RCut& cut(cutData_[n]);
+            cut.inverted = !cut.inverted;
+        }
+    }
+
+    template<typename Numeric>
+    inline bool NtRectangularCut<Numeric>::operator==(
+        const NtRectangularCut<Numeric>& r) const
+    {
+        return nCuts_ == r.nCuts_ && cutData_ == r.cutData_;
+    }
+
+    template<typename Numeric>
+    const char* NtRectangularCut<Numeric>::classname()
+    {
+        static const std::string name(
+            gs::template_class_name<Numeric>("npstat::NtRectangularCut"));
+        return name.c_str();
+    }
+
+    template<typename Numeric>
+    bool NtRectangularCut<Numeric>::write(std::ostream& of) const
+    {
+        const unsigned char trueC = 1;
+        const unsigned char falseC = 0;
+        const unsigned long mydim = cutData_.size();
+        assert(mydim == nCuts_);
+        gs::write_pod(of, mydim);
+        bool status = !of.fail();
+        if (mydim && status)
+        {
+            std::vector<unsigned long> columns;
+            columns.reserve(mydim);
+            std::vector<Numeric> limits;
+            limits.reserve(2UL*mydim);
+            std::vector<unsigned char> inv;
+            inv.reserve(mydim);
+            for (unsigned long i=0; i<mydim; ++i)
+            {
+                columns.push_back(cutData_[i].col);
+                limits.push_back(cutData_[i].min);
+                limits.push_back(cutData_[i].max);
+                inv.push_back(cutData_[i].inverted ? trueC : falseC);
+            }
+            gs::write_pod_array(of, &columns[0], mydim);
+            gs::write_pod_array(of, &inv[0], mydim);
+            status = !of.fail() && gs::write_item(of, limits);
+        }
+        return status;
+    }
+
+    template<typename Numeric>
+    void NtRectangularCut<Numeric>::restore(
+        const gs::ClassId& id, std::istream& in, NtRectangularCut* cut)
+    {
+        static const gs::ClassId current(
+            gs::ClassId::makeId<NtRectangularCut<Numeric> >());
+        current.ensureSameId(id);
+
+        assert(cut);
+        unsigned long mydim = 0;
+        gs::read_pod(in, &mydim);
+        cut->nCuts_ = mydim;
+        cut->cutData_.clear();
+
+        if (mydim)
+        {
+            std::vector<unsigned long> columns(mydim);
+            gs::read_pod_array(in, &columns[0], mydim);
+            std::vector<unsigned char> inv(mydim);
+            gs::read_pod_array(in, &inv[0], mydim);
+            std::vector<Numeric> limits;
+            gs::restore_item(in, &limits);
+            if (limits.size() != 2UL*mydim) throw gs::IOInvalidData(
+                "In npstat::NtRectangularCut::restore: record is corrupted");
+            cut->cutData_.reserve(mydim);
+            for (unsigned long i=0; i<mydim; ++i)
+                cut->cutData_.push_back(RCut(columns[i], limits[2U*i],
+                                             limits[2U*i+1U], inv[i]));
+        }
+        if (in.fail())
+            throw gs::IOReadFailure("In npstat::NtRectangularCut::restore: "
+                                    "input stream failure");
+    }
+}

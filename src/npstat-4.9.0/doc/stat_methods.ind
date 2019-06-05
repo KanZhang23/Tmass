@@ -1,0 +1,332 @@
+\begin{theindex}
+
+  \item AbsArrayProjector, \hyperpage{10}
+  \item AbsBandwidthCV1D, \hyperpage{35}
+  \item AbsBandwidthCVND, \hyperpage{35}
+  \item AbsBoundaryFilter1DBuilder, \hyperpage{31}
+  \item AbsDiscreteDistribution1D, \hyperpage{15}
+  \item AbsDistribution1D, \hyperpage{10}, \hyperpage{15}, 
+		\hyperpage{53}
+  \item AbsDistributionND, \hyperpage{15}, \hyperpage{26}, 
+		\hyperpage{53}
+  \item AbsMultivariateFunctor, \hyperpage{45}
+  \item AbsNtuple, \hyperpage{4}, \hyperpage{6}
+  \item AbsRandomGenerator, \hyperpage{52, 53}
+  \item AbsScalableDistribution1D, \hyperpage{10}
+  \item AbsScalableDistributionND, \hyperpage{15}
+  \item AbsVisitor, \hyperpage{10}
+  \item amiseOptimalBwGauss, \hyperpage{25, 26}
+  \item amiseOptimalBwSymbeta, \hyperpage{25, 26}
+  \item amisePluginBwGauss, \hyperpage{25}
+  \item amisePluginBwSymbeta, \hyperpage{26}
+  \item ArchivedNtuple, \hyperpage{4}
+  \item arrayCoordCovariance, \hyperpage{8}
+  \item arrayCoordMean, \hyperpage{8}
+  \item arrayEntropy, \hyperpage{9}
+  \item ArrayMaxProjector, \hyperpage{9}
+  \item ArrayMeanProjector, \hyperpage{9}
+  \item ArrayMedianProjector, \hyperpage{9}
+  \item ArrayMinProjector, \hyperpage{9}
+  \item ArrayND, \hyperpage{3, 4}, \hyperpage{8--10}
+  \item arrayQuantiles1D, \hyperpage{8, 9}
+  \item ArrayRangeProjector, \hyperpage{9}
+  \item arrayShape1D, \hyperpage{8}, \hyperpage{26}
+  \item arrayStats, \hyperpage{5}
+  \item ArrayStdevProjector, \hyperpage{9}
+  \item ArraySumProjector, \hyperpage{9}
+
+  \indexspace
+
+  \item BandwidthCVLeastSquares1D, \hyperpage{36}
+  \item BandwidthCVLeastSquaresND, \hyperpage{36}
+  \item BandwidthCVPseudoLogli1D, \hyperpage{36}
+  \item BandwidthCVPseudoLogliND, \hyperpage{36}
+  \item BernsteinFilter1DBuilder, \hyperpage{34}
+  \item Beta1D, \hyperpage{11}
+  \item BetaFilter1DBuilder, \hyperpage{34}
+  \item betaKernelsBandwidth, \hyperpage{34}
+  \item BifurcatedGauss1D, \hyperpage{11}
+  \item BinnedCompositeJohnson, \hyperpage{14}
+  \item BinnedDensity1D, \hyperpage{9}, \hyperpage{12}, \hyperpage{14}, 
+		\hyperpage{36}
+  \item BinnedDensityND, \hyperpage{16}, \hyperpage{22}
+  \item binomialCoefficient, \hyperpage{54}
+
+  \indexspace
+
+  \item calculateEmpiricalCopula, \hyperpage{18}
+  \item Cauchy1D, \hyperpage{11}
+  \item cdf, \hyperpage{10}, \hyperpage{15}
+  \item CensoredQuantileRegressionOnHisto, \hyperpage{43}
+  \item CensoredQuantileRegressionOnKDTree, \hyperpage{42, 43}
+  \item chebyshevSeriesCoeffs, \hyperpage{56}
+  \item chebyshevSeriesSum, \hyperpage{56}
+  \item CircularMapper1d, \hyperpage{56}
+  \item closestBin, \hyperpage{55}
+  \item CompositeDistribution1D, \hyperpage{14}
+  \item CompositeDistributionND, \hyperpage{17}, \hyperpage{31}
+  \item ConstantBandwidthSmoother1D, \hyperpage{26}
+  \item ConstantBandwidthSmootherND, \hyperpage{26, 27}
+  \item convertToSphericalRandom, \hyperpage{53}
+  \item ConvolutionEngine1D, \hyperpage{54}
+  \item ConvolutionEngineND, \hyperpage{54}
+  \item convolve, \hyperpage{30}, \hyperpage{34}
+  \item CopulaInterpolationND, \hyperpage{22}
+  \item coveringBox, \hyperpage{36}
+  \item CPP11RandomGen, \hyperpage{53}
+  \item CrossCovarianceAccumulator, \hyperpage{7}
+  \item cycleOverRows, \hyperpage{6}
+
+  \indexspace
+
+  \item density, \hyperpage{10}, \hyperpage{15}
+  \item DiscreteTabulated1D, \hyperpage{15}
+  \item DistributionMix1D, \hyperpage{12}
+  \item doublyStochasticFilter, \hyperpage{33}
+  \item DualAxis, \hyperpage{55}
+  \item DualHistoAxis, \hyperpage{4}
+
+  \indexspace
+
+  \item empiricalCdf, \hyperpage{5}, \hyperpage{7}
+  \item empiricalCopulaDensity, \hyperpage{18}, \hyperpage{26}, 
+		\hyperpage{31}
+  \item empiricalCopulaHisto, \hyperpage{18}, \hyperpage{26}, 
+		\hyperpage{31}
+  \item empiricalQuantile, \hyperpage{6, 7}
+  \item EquidistantInLinearSpace, \hyperpage{54}
+  \item EquidistantInLogSpace, \hyperpage{54}
+  \item EquidistantSampler1D, \hyperpage{53}
+  \item exceedance, \hyperpage{10}, \hyperpage{15}
+  \item Exponential1D, \hyperpage{11}
+
+  \indexspace
+
+  \item factorial, \hyperpage{53}
+  \item FGMCopula, \hyperpage{17}
+  \item fill, \hyperpage{4}
+  \item fillC, \hyperpage{4}
+  \item filter, \hyperpage{30}, \hyperpage{34}
+  \item findPeak3by3, \hyperpage{56}
+  \item findPeak5by5, \hyperpage{56}
+  \item findRootInLogSpace, \hyperpage{54}
+
+  \indexspace
+
+  \item Gamma1D, \hyperpage{11}
+  \item Gauss1D, \hyperpage{11}
+  \item GaussHermiteQuadrature, \hyperpage{54}
+  \item GaussianCopula, \hyperpage{17}
+  \item gaussianMISE, \hyperpage{26}
+  \item GaussianMixture1D, \hyperpage{11}, \hyperpage{26}
+  \item GaussLegendreQuadrature, \hyperpage{55}
+  \item gegenbauerSeriesSum, \hyperpage{56}
+  \item getBoundaryFilter1DBuilder, \hyperpage{31}
+  \item goldenSectionSearchInLogSpace, \hyperpage{55}
+  \item goldenSectionSearchOnAGrid, \hyperpage{55}
+  \item GridAxis, \hyperpage{55}
+  \item griddedRobustRegression, \hyperpage{45}
+  \item GriddedRobustRegressionStop, \hyperpage{45}
+  \item GridInterpolatedDistribution, \hyperpage{22}
+
+  \indexspace
+
+  \item hermiteSeriesSumPhys, \hyperpage{56}
+  \item hermiteSeriesSumProb, \hyperpage{56}
+  \item HistoAxis, \hyperpage{4}
+  \item histoCovariance, \hyperpage{8}
+  \item histoMean, \hyperpage{8}
+  \item HistoND, \hyperpage{4}, \hyperpage{7, 8}, \hyperpage{55}
+  \item HistoNDCdf, \hyperpage{36}
+  \item HomogeneousProductDistroND, \hyperpage{15}
+  \item HOSobolGenerator, \hyperpage{53}
+  \item Huber1D, \hyperpage{11}
+
+  \indexspace
+
+  \item InMemoryNtuple, \hyperpage{4}
+  \item interpolate\_cubic, \hyperpage{55}
+  \item interpolate\_linear, \hyperpage{55}
+  \item interpolate\_quadratic, \hyperpage{55}
+  \item InterpolatedDistribution1D, \hyperpage{20}
+  \item InterpolatedDistro1D1P, \hyperpage{20}
+  \item interpolateHistoND, \hyperpage{55}
+  \item isDensity, \hyperpage{8}
+
+  \indexspace
+
+  \item JohnsonKDESmoother, \hyperpage{26}
+  \item JohnsonLadder, \hyperpage{14}
+  \item JohnsonSb, \hyperpage{13}
+  \item JohnsonSu, \hyperpage{13}
+  \item JohnsonSystem, \hyperpage{13}
+
+  \indexspace
+
+  \item KDECopulaSmoother, \hyperpage{26, 27}, \hyperpage{31}, 
+		\hyperpage{36}
+  \item KDEFilterND, \hyperpage{27}
+  \item KDTree, \hyperpage{40}
+  \item kendallsTauFromCopula, \hyperpage{18}
+
+  \indexspace
+
+  \item ldfactorial, \hyperpage{54}
+  \item LeftCensoredDistribution, \hyperpage{12}
+  \item legendreSeriesSum, \hyperpage{56}
+  \item linearLoss, \hyperpage{41}
+  \item LinearMapper1d, \hyperpage{55, 56}
+  \item LinInterpolatedTable1D, \hyperpage{55}
+  \item LinInterpolatedTableND, \hyperpage{45}, \hyperpage{55}
+  \item LocalPolyFilter1D, \hyperpage{26}, \hyperpage{30, 31}, 
+		\hyperpage{33, 34}, \hyperpage{38}, \hyperpage{49}
+  \item LocalPolyFilterND, \hyperpage{31}, \hyperpage{38}, 
+		\hyperpage{49}
+  \item LocalQuadraticLeastSquaresND, \hyperpage{39}
+  \item logfactorial, \hyperpage{54}
+  \item LogisticRegressionOnGrid, \hyperpage{40}
+  \item LogisticRegressionOnKDTree, \hyperpage{39, 40}, \hyperpage{42}
+  \item LogMapper1d, \hyperpage{56}
+  \item LogNormal, \hyperpage{13}
+  \item LogQuadratic1D, \hyperpage{11}, \hyperpage{14}
+  \item LOrPECopulaSmoother, \hyperpage{26, 27}, \hyperpage{31}, 
+		\hyperpage{36}
+  \item lorpeMise1D, \hyperpage{31}
+
+  \indexspace
+
+  \item mappedByQuantiles, \hyperpage{22}
+  \item Matrix, \hyperpage{49, 50}, \hyperpage{56}
+  \item MersenneTwister, \hyperpage{53}
+  \item minuitLocalQuantileRegression1D, \hyperpage{43}
+  \item minuitLogisticRegressionOnGrid, \hyperpage{40}
+  \item minuitQuantileRegression, \hyperpage{43}
+  \item minuitQuantileRegressionIncrBW, \hyperpage{43}
+  \item minuitUnbinnedLogisticRegression, \hyperpage{40}
+  \item MirroredGauss1D, \hyperpage{11}
+  \item miseOptimalBw, \hyperpage{26}
+  \item Moyal1D, \hyperpage{11}
+  \item MultivariateSumAccumulator, \hyperpage{6}
+  \item MultivariateSumsqAccumulator, \hyperpage{6}
+  \item MultivariateWeightedSumAccumulator, \hyperpage{6}
+  \item MultivariateWeightedSumsqAccumulator, \hyperpage{6}
+
+  \indexspace
+
+  \item ndUnitSphereVolume, \hyperpage{56}
+  \item NMCombinationSequencer, \hyperpage{54}
+  \item NonmodifyingFilter1DBuilder, \hyperpage{31}
+  \item NonparametricCompositeBuilder, \hyperpage{31}
+  \item NUHistoAxis, \hyperpage{4}
+
+  \indexspace
+
+  \item orderedPermutation, \hyperpage{54}
+  \item OrthoPoly1D, \hyperpage{56}
+  \item OrthoPolyND, \hyperpage{56}
+
+  \indexspace
+
+  \item parabolicExtremum, \hyperpage{55}
+  \item Pareto1D, \hyperpage{11}
+  \item permutationNumber, \hyperpage{54}
+  \item Poisson1D, \hyperpage{15}
+  \item polyAndDeriv, \hyperpage{56}
+  \item PolyFilterCollection1D, \hyperpage{31}
+  \item polySeriesSum, \hyperpage{56}
+  \item pooledDiscreteTabulated1D, \hyperpage{15}
+  \item probability, \hyperpage{15}
+  \item processAICcBandwidth, \hyperpage{51}
+  \item ProductDistributionND, \hyperpage{16}
+  \item ProductSymmetricBetaND, \hyperpage{16}
+  \item project, \hyperpage{9, 10}
+
+  \indexspace
+
+  \item Quadratic1D, \hyperpage{11}
+  \item QuadraticOrthoPolyND, \hyperpage{38}
+  \item quantile, \hyperpage{9, 10}, \hyperpage{15}, \hyperpage{53}
+  \item QuantileRegression1D, \hyperpage{41}, \hyperpage{43}
+  \item QuantileRegressionOnHisto, \hyperpage{42, 43}
+  \item QuantileRegressionOnKDTree, \hyperpage{41}, \hyperpage{43}
+  \item QuantileTable1D, \hyperpage{12}
+
+  \indexspace
+
+  \item RadialProfileND, \hyperpage{16}
+  \item random, \hyperpage{15}, \hyperpage{53}
+  \item randomPermutation, \hyperpage{54}
+  \item RandomSequenceRepeater, \hyperpage{53}
+  \item RatioOfNormals, \hyperpage{12}
+  \item rectangleIntegralCenterAndSize, \hyperpage{55}
+  \item RegularSampler1D, \hyperpage{53}
+  \item RightCensoredDistribution, \hyperpage{12}
+
+  \indexspace
+
+  \item SampleAccumulator, \hyperpage{7}
+  \item sampleKendallsTau, \hyperpage{8}
+  \item sampleSpearmansRho, \hyperpage{8}
+  \item ScalableGaussND, \hyperpage{16}
+  \item ScalableHuberND, \hyperpage{16}
+  \item ScalableSymmetricBetaND, \hyperpage{16}
+  \item SequentialCopulaSmoother, \hyperpage{31}, \hyperpage{36}
+  \item SequentialPolyFilterND, \hyperpage{31}, \hyperpage{33}, 
+		\hyperpage{38}, \hyperpage{49}, \hyperpage{51}
+  \item ShiftableDiscreteDistribution1D, \hyperpage{15}
+  \item simpleVariableBandwidthSmooth1D, \hyperpage{27}
+  \item SmoothedEMSparseUnfoldND, \hyperpage{52}
+  \item SmoothedEMUnfold1D, \hyperpage{49}
+  \item SmoothedEMUnfoldND, \hyperpage{49}, \hyperpage{52}
+  \item SobolGenerator, \hyperpage{53}
+  \item solveCubic, \hyperpage{56}
+  \item solveQuadratic, \hyperpage{56}
+  \item SparseUnfoldingBandwidthScannerND, \hyperpage{52}
+  \item spearmansRhoFromCopula, \hyperpage{18}
+  \item spearmansRhoFromCopulaDensity, \hyperpage{18}
+  \item StatAccumulator, \hyperpage{6, 7}
+  \item StatAccumulatorArr, \hyperpage{7}
+  \item StatAccumulatorPair, \hyperpage{7}
+  \item StorableHistoNDFunctor, \hyperpage{45}
+  \item StorableInterpolationFunctor, \hyperpage{45}
+  \item StudentsT1D, \hyperpage{11}
+  \item symbetaLOrPEFilter1D, \hyperpage{31}, \hyperpage{34}
+  \item SymmetricBeta1D, \hyperpage{11}, \hyperpage{23}
+  \item symPSDefEffectiveRank, \hyperpage{50}
+
+  \indexspace
+
+  \item Tabulated1D, \hyperpage{11}
+  \item TCopula, \hyperpage{17}
+  \item TransformedDistribution1D, \hyperpage{12}
+  \item TruncatedDistribution1D, \hyperpage{11, 12}
+  \item TruncatedGauss1D, \hyperpage{11}
+  \item TwoPointsLTSLoss, \hyperpage{45}
+
+  \indexspace
+
+  \item UGaussConvolution1D, \hyperpage{11}
+  \item UnfoldingBandwidthScanner1D, \hyperpage{51, 52}
+  \item UnfoldingBandwidthScannerND, \hyperpage{51}
+  \item UnfoldingFilterND, \hyperpage{49}
+  \item Uniform1D, \hyperpage{11}
+  \item UniformAxis, \hyperpage{55}
+  \item UniformND, \hyperpage{16}
+  \item unitMap, \hyperpage{15}, \hyperpage{53}
+  \item UnitMapInterpolationND, \hyperpage{22}
+
+  \indexspace
+
+  \item variableBandwidthSmooth1D, \hyperpage{26, 27}
+  \item VerticallyInterpolatedDistro1D1P, \hyperpage{20}
+
+  \indexspace
+
+  \item weightedLocalQuantileRegression1D, \hyperpage{43}
+  \item WeightedLTSLoss, \hyperpage{45}
+  \item WeightedSampleAccumulator, \hyperpage{7}
+  \item WeightedStatAccumulator, \hyperpage{7}
+  \item WeightTableFilter1DBuilder, \hyperpage{31}
+  \item WrappedRandomGen, \hyperpage{53}
+
+\end{theindex}

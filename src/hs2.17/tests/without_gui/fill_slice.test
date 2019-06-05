@@ -1,0 +1,58 @@
+test fill_slice-1.1 {test of fill_slice procedure} {} {
+    proc thistest {} {
+	set nxbins 5
+	set nybins 7
+	set nzbins 11
+	set xmin 1.0
+	set xmax 2.0
+	set ymin 3.0
+	set ymax 4.0
+	set zmin 5.0
+	set zmax 6.0
+	set parent_id [hs::create_3d_hist [next_uid] "Example 3d histo" "Test" \
+		X Y Z V $nxbins $nybins $nzbins $xmin $xmax $ymin $ymax $zmin $zmax]
+	set data {}
+	set poserr {}
+	set value 0
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    for {set j 0} {$j < $nybins} {incr j} {
+		for {set k 0} {$k < $nzbins} {incr k} {
+		    lappend data $value
+		    lappend poserr [expr {$value/2.0}]
+		    incr value
+		}
+	    }
+	}
+	hs::3d_hist_block_fill $parent_id $data $poserr
+
+	set slice_bin_x 2
+	set slice_bin_y 5
+	set id1 [hs::slice_histogram [next_uid] "3d stack" \
+		"Slices" $parent_id x $slice_bin_x y $slice_bin_y]
+	set id2 [hs::copy_hist $id1 [next_uid] "3d stack" "Slices"]
+	hs::reset $id2
+	set x [expr {$xmin+$slice_bin_x*($xmax-$xmin)/$nxbins}]
+	set y [expr {$ymin+$slice_bin_y*($ymax-$ymin)/$nybins}]
+	hs::fill_slice $id2 $parent_id x $x y $y
+	verify_similarity $id1 $id2 0
+
+	set slice_bin_x 3
+	set slice_bin_z 9
+	set id1 [hs::slice_histogram [next_uid] "3d stack" \
+		"Slices" $parent_id x $slice_bin_x z $slice_bin_z]
+	set id2 [hs::copy_hist $id1 [next_uid] "3d stack" "Slices"]
+	hs::reset $id2
+	set x [expr {$xmin+$slice_bin_x*($xmax-$xmin)/$nxbins}]
+	set z [expr {$zmin+$slice_bin_z*($zmax-$zmin)/$nzbins}]
+	hs::fill_slice $id2 $parent_id z $z x $x
+	verify_similarity $id1 $id2 0
+	return
+    }
+    thistest
+} {}
+
+catch {rename thistest {}}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

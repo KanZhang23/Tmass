@@ -1,0 +1,28 @@
+Initialization of the random number sequence:
+L 924-930 in mc_topmass_integrator.c. Note that some of the QMC points
+are skipped inside "fill_quasi_mc_grid" which is probably a bug in the
+logic (not in the code) -- the convergence assumptions may later be
+violated because we are no longer checking for convergence only after
+2^K points.
+
+Up to 19-dim QMC integration (N_MC_DIMS, defined in mc_topmass_integrator.h,
+is 19). The actual dimensionality is flexible and configurable. On top
+of that, we have 1-d regular grid integration in either the leptonic W
+mass squared or neutrino Pz. Regular grid integration is needed in order
+to avoid singularities in the phase space Jacobian.
+
+The results are filled using the "norm_accumulate" function in the file
+"mc_topmass_integrator.c". This is done in two places: on line 1439 and
+line 1932. It looks like the simplest way to proceed would be to replace
+these calls with calls to another function which will internally call
+both "norm_accumulate" and the code which calculates the new error.
+
+The memory for the results is allocated on line 972. This memory is
+treated, basically, as a 3-d array, with dimensionalities
+[n_jet_permutations, n_tmass_points, n_jes_points].
+
+The decision when to stop integrating is made by the function
+"is_scan_complete". This is the most important function to understand
+and, potentially, replace. It returns the current decision (called
+"status") of the scan and also tells the integration code which
+permutations should be concentrated upon (sets "current_perm_mask").

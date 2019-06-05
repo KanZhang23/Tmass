@@ -1,0 +1,54 @@
+<title>Hints for Programmers</title>
+<h2>
+Hints for Programmers
+</h2>
+<p>
+*	If the linker cannot find the routines: hs_hbook_setup and
+hs_update_hbook_setup when you are linking your program, you may be linking
+with the wrong library.  Try linking with libFHistoHB (or libCHistoHB if you
+are coding in C). <p>
+<p>
+*	If you call HS_HISTOSCOPE and get an error that the histo executable was not
+found, type <i>setup histo</i> to the shell (UNIX) before
+executing your program.<p>
+<p>
+*	If running on IBM AIX systems and your FORTRAN program does not compile, make
+sure that the program uses the FORTRAN INCLUDE statement instead of the
+#include statement for including the Histo-Scope include file.  Also check that
+you used the compiler option for specifying the path to the include file for
+your system.  $HISTO_DIR/user_sources contains a makefile for the example
+programs and can be editted for your own use.  <p>
+<p>
+*	If you have re-compiled and linked a pre-V3.0 program with a V3
+Histo-Scope library and run the program without adding the <b>uid</b> parameter
+to the item creation routine calls, you may find that the program gets a
+segmentation violation, bus error (Unix) at or near the item creation 
+routine call.  Add the <b>uid</b> parameter in the correct place to 
+fix this error.<p>
+<p>
+*	If you have booked new HBOOK histograms or Ntuples, or deleted, renamed,
+rebinned, or reset existing HBOOK histograms or Ntuples, and these changes are
+not reflected in the Histo-Scope display, you need to call HS_RESET_HBOOK_SETUP
+in your program.  Refer to the description of the routine.<p>
+<p>
+*	If your program prints an error indicating that it cannot perform a malloc 
+or that virtual memory has been exhausted, make sure your Histo-Scope defined
+Ntuples don't grow too large for the virtual memory of your machine.  Also
+check the return status of HS_FILL_NTUPLE.<p>
+<p>
+*	If Histo-Scope rejects  connections, or updating is too infrequent, call
+HS_UPDATE more often.  There is no cpu penalty for calling HS_UPDATE more
+frequently than is necessary.<p>
+<p>
+*	To our knowledge, HBOOK does not let a program access multiple top
+directories without opening/closing them sequentially.  Therefore, we recommend
+using Histo-Scope with only one top directory at a time.<p>
+<p>
+*	If your program does an HRPUT, put the call to HRPUT <u>after</u> the call 
+to HS_COMPLETE.  This is necessary because under some circumstances HRPUT will
+make the HBOOK data inaccessible, and HS_COMPLETE may access the HBOOK data for
+Histo-Scope one last time before completing.  <p>
+<p>
+<a name="1">
+*	Histo-Scope </a><b>can</b> be used with any process embedded in a CPS
+application. 

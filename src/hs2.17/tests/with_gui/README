@@ -1,0 +1,10 @@
+
+Change directory to this one and run the tests as follows:
+
+wish all.tcl
+
+The tests in this directory require user interaction. The GUI tools
+built into the hs extension will pop up sequentially, as soon as
+the user dismisses the previous GUI (do not exit the main Histo-Scope
+GUI though). The purpose of the tester is to crash the GUIs :-)
+

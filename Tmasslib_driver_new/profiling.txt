@@ -1,0 +1,46 @@
+In order to use "gprof" with the top mass library, one has to compile
+the library with the "-pg" switch and to link it statically into an
+executable. Note that using "sprof" is also non-trivial: tcl manages
+the shared librarires itself instead of using the dynamic linker, so
+the usual way of generating the shared library profile (by setting
+LD_PROFILE and LD_PROFILE_OUTPUT environment) does not work.
+
+The sequence of steps is as follows. Note that various Makefile.profile
+makefiles have not been adapted yet for use on fcdflnx6.
+
+1) If you have not yet done so, generate "data_integ_mtm3.c" from the
+   template using "compile_driver.tcl" script. This step requires that
+   you have normal, shared versions of JetUser and Tmasslib libraries.
+
+2) Create the static, profiled version of the JetUser package:
+
+   cd JetUser (substitute proper path)
+   make clean
+   make -f Makefile.profile
+
+3) Create the static, profiled version of the top mass library:
+
+   cd Tmasslib (substitute proper path)
+   make clean
+   make -f Makefile.profile
+
+4) Compile the "mtm3sh" executable in this directory:
+
+   make -f Makefile.profile
+
+5) Set up the LD_LIBRARY_PATH environment for running the "mtm3sh" executable
+   (this is not yet adapted for fcdflnx6):
+
+   source setup.csh
+
+6) Run the "mt_test_scan.tcl" script by mtm3sh (instead of by itself which
+   would invoke tclsh):
+
+mtm3sh mt_test_scan.tcl data_parameters_fullscan.tcl ../Transfer_functions ttkt70_gen6_100ev.hs myscan.hs 1024 2
+
+7) Process the profile data by "gprof":
+
+rm -f gmon.txt
+gprof mtm3sh gmon.out > gmon.txt
+
+8) Examine the "gmon.txt" file.

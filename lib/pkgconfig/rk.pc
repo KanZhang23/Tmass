@@ -1,0 +1,10 @@
+prefix=/cdf/home/kanzhang/Topmass_SL6
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: rk
+Description: Relativistic Kinematics
+Version: 1.7
+Libs: -L${libdir} -lrk
+Cflags: -I${includedir}

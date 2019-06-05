@@ -1,0 +1,229 @@
+#include <cmath>
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    template<typename Precise>
+    template<typename Precise2>
+    MultivariateWeightedSumsqAccumulator<Precise>::
+    MultivariateWeightedSumsqAccumulator(
+        const unsigned long* columns, unsigned nColumns,
+        const MultivariateWeightedSumAccumulator<Precise2>& sums)
+        : sumsq_(nColumns*(nColumns+1UL)/2UL),
+          mean_(nColumns),
+          indexMap_(columns, columns+nColumns),
+          weightSum_(),
+          weightSumSq_(),
+          nCols_(sums.dim()),
+          ncalls_(0),
+          mapLen_(nColumns)
+    {
+        if (!nCols_) throw std::invalid_argument(
+            "In npstat::MultivariateWeightedSumsqAccumulator constructor: can"
+            " not use uninitialized MultivariateWeightedSumAccumulator input");
+        if (!nColumns) throw std::invalid_argument(
+            "In npstat::MultivariateWeightedSumsqAccumulator constructor: "
+            "empty column map");
+        assert(columns);
+        for (unsigned i=0; i<nColumns; ++i)
+            // The "mean" function will check if index is out of range
+            mean_[i] = sums.mean(columns[i]);
+    }
+
+    template<typename Precise>
+    template<typename Precise2>
+    MultivariateWeightedSumsqAccumulator<Precise>::
+    MultivariateWeightedSumsqAccumulator(
+        const MultivariateWeightedSumAccumulator<Precise2>& sums)
+        : sumsq_(sums.dim()*(sums.dim()+1UL)/2UL),
+          mean_(sums.dim()),
+          indexMap_(sums.dim()),
+          weightSum_(),
+          weightSumSq_(),
+          nCols_(sums.dim()),
+          ncalls_(0),
+          mapLen_(nCols_)
+    {
+        if (!nCols_) throw std::invalid_argument(
+            "In npstat::MultivariateWeightedSumsqAccumulator constructor: can"
+            " not use uninitialized MultivariateWeightedSumAccumulator input");
+        for (unsigned i=0; i<mapLen_; ++i)
+        {
+            indexMap_[i] = i;
+            mean_[i] = sums.mean(i);
+        }
+    }
+
+    template<typename Precise>
+    inline Precise MultivariateWeightedSumsqAccumulator<Precise>::count() const
+    {
+        if (weightSumSq_ > Precise())
+            return weightSum_*weightSum_/weightSumSq_;
+        else
+            return Precise();
+    }
+
+    template<typename Precise>
+    inline const Precise& 
+    MultivariateWeightedSumsqAccumulator<Precise>::sumsq(
+        const unsigned i, const unsigned j) const
+    {
+        if (!(i < mapLen_ && j < mapLen_)) throw std::out_of_range(
+            "In npstat::MultivariateWeightedSumsqAccumulator::sumsq: "
+            "index out of range");
+        return j <= i ? sumsq_[i*(i+1UL)/2UL+j] : sumsq_[j*(j+1UL)/2UL+i];
+    }
+
+    template<typename Precise>
+    inline Precise MultivariateWeightedSumsqAccumulator<Precise>::cov(
+        const unsigned i, const unsigned j) const
+    {
+        if (!ncalls_) throw std::runtime_error(
+            "In npstat::MultivariateWeightedSumsqAccumulator::cov: "
+            "no data accumulated");
+        const Precise& cntm1 = count() - static_cast<Precise>(1);
+        const Precise& zero = Precise();
+        return ncalls_ > 1UL && cntm1 > zero ? sumsq(i, j)/cntm1 : zero;
+    }
+
+    template<typename Precise>
+    inline Precise MultivariateWeightedSumsqAccumulator<Precise>::stdev(
+        const unsigned i) const
+    {
+        const Precise& cv = cov(i, i);
+        if (cv > Precise())
+            return std::sqrt(cv);
+        else
+            return Precise();
+    }
+
+    template<typename Precise>
+    template<typename T>
+    void MultivariateWeightedSumsqAccumulator<Precise>::accumulate(
+        const T* data, const unsigned long len, const double w)
+    {
+        if (len != nCols_) throw std::invalid_argument(
+            "In npstat::MultivariateWeightedSumsqAccumulator::accumulate: "
+            "incompatible data length");
+        if (w < 0.0) throw std::invalid_argument(
+            "In npstat::MultivariateWeightedSumswAccumulator::accumulate:"
+            " weight must be non-negative");
+        if (w > 0.0)
+        {
+            assert(data);
+            Precise* buf = &sumsq_[0];
+            const Precise* mean = &mean_[0];
+            const unsigned long* map = &indexMap_[0];
+            for (unsigned i=0; i<mapLen_; ++i)
+            {
+                const Precise idelta = data[map[i]] - mean[i];
+                for (unsigned j=0; j<=i; ++j, ++buf)
+                    *buf += w*idelta*(data[map[j]] - mean[j]);
+            }
+            weightSum_ += w;
+            weightSumSq_ += w*w;
+        }
+        ++ncalls_;
+    }
+
+    template<typename Precise>
+    inline Precise MultivariateWeightedSumsqAccumulator<Precise>::corr(
+        const unsigned i, const unsigned j) const
+    {
+        if (!ncalls_) throw std::runtime_error(
+            "In npstat::MultivariateWeightedSumsqAccumulator::corr: "
+            "no data accumulated");
+        if (i == j)
+            return static_cast<Precise>(1);
+        if (ncalls_ == 1UL || count() <= static_cast<Precise>(1))
+            return Precise();
+        const Precise& zero = Precise();
+        const Precise& si = sumsq_[i*(i+1UL)/2UL+i];
+        const Precise& sj = sumsq_[j*(j+1UL)/2UL+j];
+        if (!(si > zero && sj > zero)) throw std::runtime_error(
+            "In npstat::MultivariateWeightedSumsqAccumulator::corr: "
+            "variable with zero variance found");
+        return sumsq(i, j)/std::sqrt(si)/std::sqrt(sj);
+    }
+
+    template<typename Precise>
+    Matrix<Precise> MultivariateWeightedSumsqAccumulator<Precise>::covMat() const
+    {
+        if (!ncalls_) throw std::runtime_error(
+            "In npstat::MultivariateWeightedSumsqAccumulator::covMat: "
+            "no data accumulated");
+        const Precise& cntm1 = count() - static_cast<Precise>(1);
+        if (ncalls_ > 1UL && cntm1 > Precise())
+        {
+            const Precise* buf = &sumsq_[0];
+            Matrix<Precise> m(mapLen_, mapLen_);
+            Precise* mdata = const_cast<Precise*>(m.data());
+            for (unsigned long i=0; i<mapLen_; ++i)
+            {
+                for (unsigned long j=0; j<i; ++j, ++buf)
+                {
+                    mdata[i*mapLen_+j] = *buf/cntm1;
+                    mdata[j*mapLen_+i] = mdata[i*mapLen_+j];
+                }
+                mdata[i*mapLen_+i] = *buf++/cntm1;
+            }
+            return m;
+        }
+        else
+            return Matrix<Precise>(mapLen_, mapLen_, 0);
+    }
+
+    template<typename Precise>
+    Matrix<Precise> MultivariateWeightedSumsqAccumulator<Precise>::corrMat() const
+    {
+        if (!ncalls_) throw std::runtime_error(
+            "In npstat::MultivariateWeightedSumsqAccumulator::corrMat: "
+            "no data accumulated");
+        const Precise& cntm1 = count() - static_cast<Precise>(1);
+        const Precise& zero = Precise();
+        if (ncalls_ > 1UL && cntm1 > zero)
+        {
+            const Precise* buf = &sumsq_[0];
+            Matrix<Precise> m(mapLen_, mapLen_);
+            Precise* mdata = const_cast<Precise*>(m.data());
+
+            // Calculate the square roots first
+            for (unsigned long i=0; i<mapLen_; ++i)
+            {
+                const Precise& diagTerm = buf[i*(i+1UL)/2UL+i];
+                if (diagTerm <= zero) throw std::runtime_error(
+                    "In npstat::MultivariateWeightedSumsqAccumulator::corrMat: "
+                    "variable with zero variance found");
+                mdata[(mapLen_-1U)*mapLen_ + i] = std::sqrt(diagTerm);
+            }
+
+            for (unsigned long i=0; i<mapLen_; ++i)
+            {
+                const Precise& sqi = mdata[(mapLen_-1U)*mapLen_ + i];
+                for (unsigned long j=0; j<i; ++j, ++buf)
+                {
+                    mdata[i*mapLen_+j] = *buf/sqi/mdata[(mapLen_-1U)*mapLen_+j];
+                    mdata[j*mapLen_+i] = mdata[i*mapLen_+j];
+                }
+                mdata[i*mapLen_+i] = static_cast<Precise>(1);
+                ++buf;
+            }
+            return m;
+        }
+        else
+            return Matrix<Precise>(mapLen_, mapLen_, 1);
+    }
+
+    template<typename Precise>
+    void MultivariateWeightedSumsqAccumulator<Precise>::reset()
+    {
+        const Precise& zero = Precise();
+        const unsigned long len = sumsq_.size();
+        Precise* buf = &sumsq_[0];
+        for (unsigned long i=0; i<len; ++i)
+            buf[i] = zero;
+        weightSum_ = zero;
+        weightSumSq_ = zero;
+        ncalls_ = 0;
+    }
+}

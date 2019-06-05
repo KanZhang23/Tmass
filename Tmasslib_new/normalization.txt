@@ -1,0 +1,44 @@
+See "ttbar_phase_space.c".
+
+dtmp = p_lepton*eta_factor*betaprod*rhoprod/enu/dethad;
+
+p_lepton   is the momentum of the charged lepton
+eta_factor is the product of sin^2(theta) for the 4 partons.
+             sin^2(theta) = (d cos(theta))/(d eta)
+betaprod   is the product of p/E for the 4 partons
+rhoprod    is the product of momenta of the 4 partons
+enu        is the neutrino energy
+dethad     is the hadronic side Jacobian
+
+(with these factors, partons should be integrated over dp dEta dPhi).
+
+This factor is divided by the leptonic side Jacobian to get
+the final normalization.
+
+Note that the Jacobian is calculated for integrating over Mt^2
+on both sides, but the code currently integrates over Mt!
+
+If the channel is the tau, the additional factors applied
+are as follows:
+
+tau_daughter_spectrum(...)*tauWeight*dp_over_dpt/tauEnergy;
+
+tauWeight = maxTauPt - minTauPt;
+dp_over_dpt = 1/sin(theta)
+
+It looks like the tau handling is slightly incorrect:
+one p/E factor is missing assuming that the density is
+calculated in y = lepton_p/tauEnergy. This probably doesn't
+matter. However, using leptonic top quark to determine the
+max possible momentum of the tau probably leads to rather
+large momentum and is likely to be inefficient. Also, the
+branching factors are not applied.
+
+The proton structure functions are applied inside the
+"fill_lepton_solution_info" function.
+
+The flux factor is applied inside the "pdfterm_qqbar" function.
+
+Note that PDFLIB returns x*(parton distribution function).
+This is why there is additional division by x1*x2 in the
+flux factor.

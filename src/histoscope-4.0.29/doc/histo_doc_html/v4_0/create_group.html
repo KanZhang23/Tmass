@@ -1,0 +1,51 @@
+<dl>
+<dt><tt>id<b> = HS_CREATE_GROUP(</b>uid<b>, </b>title<b>,
+</b>category<b>,</b>groupType<b>,</b>numItems<b>,</b>itemId<b>,</b>
+errsDisp<b> )</b></tt><p>
+<dd><tt><b>INTEGER</b> uid <i>(input)</i></tt><p>
+<tt><b>CHARACTER *</b>n title <i>(input, n &lt;= 80)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt><b>CHARACTER</b> groupType <i>(input)</i><b></b></tt><p>
+<tt><b>INTEGER</b> numItems <i>(input)</i></tt><p>
+<tt><b>INTEGER</b> itemId <i>(input)</i></tt><p>
+<tt><b>CHARACTER *</b>n errsDisp <i>(input, n &lt;= 80)</i><b></b></tt><p>
+<tt><b>INTEGER</b> id <i>(returned)</i><b></b></tt><p>
+<tt>Creates a group, which is an item that points to other data items, thus
+grouping them into one addressable entity.uid defines a user-specified 
+identification number which can later be used along with the category to 
+specify the item created.  category is a string defining a hierarchical 
+"location" for the trigger.  Subcategories can be specified using the "/" 
+character as in Unix file specifications.  If a category or subcategory does not
+exist, it is created.  If the category argument is blank (either " '', or ' ')
+the trigger will appear in the top level category.  The Histo-Scope defined id
+for the trigger is returned and is used in later calls to identify the trigger
+just created.  groupType is the group's suggested window type.  The number of
+items in this group, specified by numItems, should not be larger than 81.
+itemId is an array of HS item ids that compose the group.  errsDisp is an 
+array of values (NO_ERROR_BARS, DATA_ERROR_BARS, GAUSSIAN_ERROR_BARS) that
+corresponds to the itemId array and tells Histo-Scope how to display errors
+for the corresponding histogram (used only when the corresponding data item 
+is a histogram).  <p>
+A group can be made out of a number of items in order to display them as a
+Multiple Plot Window, an Overlaid Plot, or simply as a convenience for putting
+plots up individually with fewer mouse clicks.  Data items may be put into more
+than one group and there is no limit on the number of groups you can create.  
+Including an item in a group does not effect the display of the item
+individually in the main panel.  The item still appears in the main panel list
+box and can be viewed individually.  The category string can be used to affect
+how Histo-Scope items appear in the main panel.<p>
+When a group is selected in Histo-Scope's main window and the user presses the
+"View" Button, the groupType field tells Histo-Scope how to display the items
+in the group.  This can be overridden in the Histo-Scope main panel by using
+the "View Multiple" or "View Overlaid" buttons.  If groupType is HS_MULTI_PLOT,
+pressing the View button displays all the 1- and 2-D histograms in the group 
+as one Multi-plot window.  Similarly, if you would like to see all the 1D
+histograms in a group displayed over each other in one plot window, you can 
+specify a groupType of HS_OVERLAY_PLOT.  Triggers, controls, and indicators
+cannot appear inside a Multiple Plot Window or Overlaid Plot.<p>
+Specifying HS_INDIVIDUAL for groupType means that if a group is selected, and
+the "View" button is pressed on the Histo-Scope main panel, each data item in
+the group will be viewed individually.  In the case of Ntuples, the Ntuple
+panel will be displayed so that the user can choose the variables to plot and
+the type to use.
+</tt><p>

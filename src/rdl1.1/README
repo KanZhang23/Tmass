@@ -1,0 +1,229 @@
+
+This is a basic implementation of a tcl interface for GNU readline.
+It allows tclsh or wish to feel somewhat like other UNIX shells.
+This interface supports command and file name completion, as well as
+command line history. Needs tcl/tk version 8.1 or higher and readline
+library version 2.2 or higher.
+
+Installation
+------------
+
+Type "./configure", "make" and then (perhaps as root) "make install".
+If something doesn't work, you may have to specify certain machine-specific
+options to "configure". Please run ./configure --help to see the list of
+options. If you have installed your own version of tcl, you need to run
+./configure --prefix=PREFIX where PREFIX is the same as the one used to
+build tcl. If you system has libreadline.a installed in some strange place
+then you may have to edit the LIBS definition in the Makefile generated
+by the "configure" script. Add something like -L/path/to/readline/lib
+before -lreadline.
+
+Usage
+-----
+
+All package commands are placed into the namespace ::rdl:: 
+The user interface consists of the following commands:
+
+rdl::add_completion $word
+
+     Arguments : string word
+     Returns   : nothing
+
+     Adds $word to the list of names for command name completion.
+
+rdl::add_namespace $nsp
+
+     Arguments : string nsp
+     Returns   : nothing
+
+     Adds all commands in the namespace $nsp and its children to the
+     list of names for command name completion.
+
+rdl::add_path $path1 $path2 ...
+
+     Arguments : strings or lists $path1 $path2 ...
+     Returns   : nothing
+
+     Adds names of executables designated by fully-qualified path names 
+     $path1, $path2, ... to the list of names for command name completion.
+     $path1, etc. may also be tcl lists of path names. The executables must
+     reside in one of the directories listed in the user's environmental
+     variable PATH, otherwise they are ignored. If a path name refers to
+     a directory, all executable files in this directory are added as
+     command name completion candidates if this directory is listed in
+     the PATH.
+
+     Example.
+     The following command will add all executables in the user's PATH
+     as candidates for command name completion:
+
+     rdl::add_path [split $env(PATH) :]
+
+rdl::input_loop $event_loop
+
+     Arguments : boolean event_loop (normally omitted)
+     Returns   : this command never returns
+
+     This command interacts with the user. During the rest of the user
+     session tcl prompts are generated via rdl::prompt1 and rdl::prompt2
+     commands. The event_loop argument may be used to specify how the
+     readline library will be accessed. If $event_loop is false then the
+     "classic" readline interface will be used. If $event_loop is true
+     then readline will be called via its callbacks interface. 
+     The event_loop argument may be omitted, in which case the procedure
+     will use callbacks for wish and "classic" interface for tclsh.
+
+rdl::interact $event_loop
+
+     Arguments : boolean event_loop (normally omitted)
+     Returns   : this command never returns
+
+     This command is intended for producing interactive prompts inside
+     executable tclsh or wish scripts. Internally, it uses rdl::input_loop
+     but it also takes care of a few operations you would normally like
+     to perform before switching to interactive mode (for example, it sets
+     the global variable tcl_interactive to 1). A wish script which utilizes
+     this command may look like this:
+
+     #!/bin/sh
+     # The next line restarts using wish \
+     exec wish "$0" ${1+"$@"}
+     # Do whatever you like here... The next 2 lines make a button.
+     button .b -text "Push Me" -command {puts "Oh!"}
+     pack .b
+     # Produce an interactive prompt
+     package require rdl
+     rdl::interact
+
+rdl::prompt1
+
+     Arguments : none
+     Returns   : string
+
+     This command is executed by rdl::input_loop every time the user
+     prompt is produced after execution of a complete command. The user
+     may overwrite the default prompt with his/her own version.
+
+     Example.
+     The following procedure will print the user name, the host name, and
+     the current directory at the prompt. It should be defined after the
+     readline package has been loaded, not before:
+
+     proc rdl::prompt1 {} {
+         global env
+         return "\[$env(USER)@[lindex [split [info hostname] .] 0] [pwd]\]% "
+     }
+
+rdl::prompt2
+
+     Arguments : none
+     Returns   : string
+
+     This command is executed by rdl::input_loop every time the user
+     enters a line which does not result in a complete command. The user
+     may overwrite the default prompt with his/her own version.
+
+rdl::ls $flags $path1 $path2 ...
+
+     Arguments : same as for "/bin/ls"
+     Returns   : nothing
+
+     Lists directory contents. This command wraps "/bin/ls" so that its
+     use from tclsh or wish is similar to classic.
+
+rdl::rm $flags $path1 $path2 ...
+
+     Arguments : same as for "/bin/rm"
+     Returns   : nothing
+
+     Removes file(s). This command wraps "/bin/rm" so that its use from
+     tclsh or wish is similar to classic. It uses "-i" flag by default.
+
+rdl::tcl_api_version
+
+     Arguments : none
+     Returns   : string
+
+     Returns the tcl readline interface version, for example "0.6".
+
+rdl::use_xtermcd
+
+     Arguments : none
+     Returns   : nothing
+
+     Replaces the tcl "cd" command with a command which, in addition to
+     changing the directory, displays the host name and the directory in
+     the terminal title when xterm is used. It also creates a command in
+     the global scope called "back" which returns to the previous directory.
+     The rdl::use_xtermcd command should be used only once per session.
+
+rdl::clear_history
+
+     Arguments : none
+     Returns   : nothing
+
+     Clears the command line history.
+
+rdl::history_max_length $max
+
+     Arguments : integer max
+     Returns   : nothing
+
+     Sets the maximum length of the command line history to $max. In case
+     $max is a negative number, the history length becomes unlimited.
+
+rdl::write_history $filename
+
+     Arguments : optional string filename
+     Returns   : nothing
+
+     Writes the command history to file $filename. In case filename
+     argument is not specified or is an empty string, the default file
+     name is used: $env(HOME)/.tclhistory.
+
+rdl::read_history $filename
+
+     Arguments : optional string filename
+     Returns   : nothing
+
+     Reads the command history from file $filename. In case filename
+     argument is not specified or is an empty string, the default file
+     name is used: $env(HOME)/.tclhistory.
+
+To start using the above commands, tell tcl to load the readline package
+like this: "package require rdl". A good place to start the interface is 
+the user's ~/.tclshrc or ~/.wishrc file. An example file is shown below:
+
+# ================= cut here ==================
+
+# An example ~/.tclshrc or ~/.wishrc file 
+# which uses tcl readline package
+
+if {$tcl_interactive} {
+    # Load packages which you frequently use here,
+    # before the rdl package, so that their commands
+    # are picked up for completion.
+    package require rdl
+    namespace import rdl::ls rdl::rm
+    rdl::use_xtermcd
+    rdl::add_namespace ::
+    rdl::add_path /bin /usr/bin /usr/local/bin $env(HOME)/bin
+    catch {rdl::read_history}
+    rdl::history_max_length 500
+    rename ::exit ::_history_write_exit
+    proc ::exit {{status 0}} {
+        catch {rdl::write_history}
+        ::_history_write_exit $status
+    }
+    # The next command never returns
+    rdl::input_loop
+}
+
+# ================= cut here ==================
+
+If you find a bug in the tcl readline interface, please report it to
+ivolobouev@lbl.gov
+
+Igor Volobouev
+08/22/2002
+

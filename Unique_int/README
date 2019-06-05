@@ -1,0 +1,21 @@
+This code assumes that you have the "hs" tcl extension installed on
+your system. To run the server, set the "port" variable in the file
+"unique_int_server.tcl" to some number of your choosing between 49152
+and 65535 (that is, if you want to be IANA-compliant, see
+http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xml).
+Also, update the "allowed_hosts" setings. If you are using this server
+with the "Mt_master_worker" code, note that only the director program
+will access the server, so that the host on which the director runs
+must be apended to the "allowed_hosts" list. Make sure that the port
+you selected is not protected by a firewall from the director (or set
+up an ssh tunnel appropriately).
+
+When the proper port and permissions are set up, you can simply run
+the server in the background from your own account:
+
+nohup ./unique_int_server.tcl >& unique_int_server.log &
+
+This will automatically compile and load the little tcl extension in
+the "nextint.c" file using the "hs" extension facilities. The code is
+in C in order to use 64-bit integers as tcl built-in integers are
+32-bit.

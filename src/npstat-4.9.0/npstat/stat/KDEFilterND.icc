@@ -1,0 +1,207 @@
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/nm/OrthoPolyND.hh"
+#include "npstat/stat/mirrorWeight.hh"
+
+namespace npstat {
+    template <unsigned MaxDeg>
+    template <typename T, unsigned StackLen, unsigned StackDim>
+    KDEFilterND<MaxDeg>::KDEFilterND(
+        const double* itaper, const unsigned maxDegree,
+        const ArrayND<T,StackLen,StackDim>& inweight,
+        ConvolutionEngineND& engine, const unsigned long id,
+        ArrayND<double>& workBuffer, const bool mirror)
+        : dataShape_(halfShape(engine.shape())),
+          idxBuffer_(inweight.shape()),
+          engine_(&engine),
+          taper_(maxDegree+1U, 1.0),
+          slotId_(id),
+          buf_(&workBuffer),
+          filterAtTheCenter_(0.0),
+          selfContrib_(0),
+          mirrorData_(mirror)
+    {
+        if (!isSubShape(idxBuffer_, dataShape_)) throw std::invalid_argument(
+            "In npstat::KDEFilterND constructor: "
+            "weight size is too large in at least one dimension");
+        if (!buf_->isCompatible(engine.shape())) throw std::invalid_argument(
+            "In npstat::KDEFilterND constructor: "
+            "work buffer is not compatible with the convolution engine");
+        unsigned* wshape = &idxBuffer_[0];
+
+        // Copy the taper
+        if (itaper)
+            copyBuffer(&taper_[0], itaper, maxDegree+1);
+
+        // Generate the complete weight
+        const unsigned wdim = inweight.rank();
+        for (unsigned i=0; i<wdim; ++i)
+            wshape[i] = 2*wshape[i] - 1;        
+        ArrayND<double,StackLen,StackDim> weight(idxBuffer_);
+        Private::mirrorWeight(inweight, &weight);
+
+        // Build useful step sizes for each dimension
+        std::vector<double> steps(wdim);
+        for (unsigned i=0; i<wdim; ++i)
+            steps[i] = 1.0/sqrt(1.0*wshape[i]);
+
+        // Generate the filter
+        OrthoPolyND<MaxDeg> p(maxDegree, weight, &steps[0], wdim);
+        const unsigned nTerms = p.nTerms();
+        std::vector<double> coeffs(nTerms);
+        for (unsigned i=0; i<nTerms; ++i)
+            coeffs[i] = taper_[p.degree(i)];
+        for (unsigned i=0; i<wdim; ++i)
+            wshape[i] = weight.span(i)/2U;
+        ArrayND<double>* filter = p.linearFilter(&coeffs[0], nTerms,
+                                                 wshape, wdim);
+        filterAtTheCenter_ = filter->valueAt(wshape, wdim);
+
+        // Put the filter into the buffer
+        buf_->clear();
+        for (unsigned i=0; i<wdim; ++i)
+            wshape[i] = buf_->span(i) - wshape[i];
+        filter->rotate(&wshape[0], wdim, buf_);
+
+        // Deposit the filter with the engine
+        engine_->depositFilter(slotId_, buf_->data(),
+                               buf_->shapeData(), buf_->rank());
+
+        // The self-contribution is nontrivial if we are mirroring the data.
+        // We need it in order to perform cross-validation correctly.
+        if (mirrorData_)
+            calculateSelfContribution(*filter);
+
+        delete filter;
+    }
+
+    template <unsigned MaxDeg>
+    inline KDEFilterND<MaxDeg>::~KDEFilterND()
+    {
+        delete selfContrib_;
+        engine_->discardFilter(slotId_);
+    }
+
+    template <unsigned MaxDeg>
+    inline double KDEFilterND<MaxDeg>::taper(const unsigned degree) const
+    {
+        if (degree < taper_.size())
+            return taper_[degree];
+        else
+            return 0.0;
+    }
+
+    template <unsigned MaxDeg>
+    template <typename Tin, unsigned StackLen, unsigned StackDim,
+              typename Tout, unsigned StackLen2, unsigned StackDim2>
+    void KDEFilterND<MaxDeg>::filter(
+        const ArrayND<Tin,StackLen,StackDim>& in,
+        ArrayND<Tout,StackLen2,StackDim2>* out) const
+    {
+        if (!in.isCompatible(dataShape_)) throw std::invalid_argument(
+            "In npstat::KDEFilterND::filter: "
+            "incompatible shape of the input array");
+        assert(out);
+        if (!out->isCompatible(dataShape_)) throw std::invalid_argument(
+            "In npstat::KDEFilterND::filter: "
+            "incompatible shape of the output array");
+
+        const unsigned long len = in.length();
+        const unsigned rank = in.rank();
+        unsigned* idx = &idxBuffer_[0];
+
+        if (mirrorData_)
+            in.multiMirror(buf_);
+        else
+        {
+            const Tin* data = in.data();
+            buf_->clear();
+            for (unsigned long ipt=0; ipt<len; ++ipt)
+            {
+                in.convertLinearIndex(ipt, idx, rank);
+                buf_->value(idx, rank) = data[ipt];
+            }
+        }
+
+        double* bufdat = const_cast<double*>(buf_->data());
+        engine_->convolveWithDeposit(slotId_, bufdat, bufdat,
+                                     buf_->shapeData(), buf_->rank());
+
+        Tout* data = const_cast<Tout*>(out->data());
+        for (unsigned long ipt=0; ipt<len; ++ipt)
+        {
+            out->convertLinearIndex(ipt, idx, rank);
+            data[ipt] = buf_->value(idx, rank);
+        }
+    }
+
+    template <unsigned MaxDeg>
+    void KDEFilterND<MaxDeg>::calculateSelfContribution(
+        const ArrayND<double>& filter)
+    {
+        assert(selfContrib_ == 0);
+        selfContrib_ = new ArrayND<double>(dataShape_);
+        const unsigned rank = selfContrib_->rank();
+        unsigned *idx = &idxBuffer_[0];
+        const unsigned long len = selfContrib_->length();
+        const unsigned long maxcycle = 1UL << rank;
+        std::vector<unsigned> mirbuf(2U*rank);
+        unsigned* mirror = &mirbuf[0];
+        unsigned* filterCenter = mirror + rank;
+        const unsigned *dshape = buf_->shapeData();
+        const unsigned *datashape = &dataShape_[0];
+        const unsigned *filterShape = filter.shapeData();
+
+        for (unsigned i=0; i<rank; ++i)
+            filterCenter[i] = filterShape[i]/2U;
+
+        for (unsigned long effpt=0; effpt<len; ++effpt)
+        {
+            selfContrib_->convertLinearIndex(effpt, idx, rank);
+
+            long double sum = 0.0;
+            for (unsigned long icycle=0UL; icycle<maxcycle; ++icycle)
+            {
+                bool insideFilter = true;
+                for (unsigned i=0; i<rank && insideFilter; ++i)
+                {
+                    if (icycle & (1UL << i))
+                        mirror[i] = dshape[i] - idx[i] - 1U;
+                    else
+                        mirror[i] = idx[i];
+                    unsigned delta = mirror[i] - idx[i];
+                    if (delta > datashape[i])
+                        delta = dshape[i] - delta;
+                    mirror[i] = filterCenter[i] + delta;
+                    if (mirror[i] >= filterShape[i])
+                        insideFilter = false;
+                }
+                if (insideFilter)
+                    sum += filter.value(mirror, rank);
+            }
+
+            selfContrib_->linearValue(effpt) = sum;
+        }
+    }
+
+    template <unsigned MaxDeg>
+    inline double KDEFilterND<MaxDeg>::selfContribution(
+        const unsigned* index, const unsigned indexLen) const
+    {
+        if (mirrorData_)
+            return selfContrib_->valueAt(index, indexLen);
+        else
+            return filterAtTheCenter_;
+    }
+
+    template <unsigned MaxDeg>
+    inline double KDEFilterND<MaxDeg>::linearSelfContribution(
+        const unsigned long index) const
+    {
+        if (mirrorData_)
+            return selfContrib_->linearValueAt(index);
+        else
+            return filterAtTheCenter_;
+    }
+}

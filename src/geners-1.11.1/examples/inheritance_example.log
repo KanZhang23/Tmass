@@ -1,0 +1,57 @@
+SerializableBase constructor for object # 0
+SerializableDerivedA constructor
+SerializableBase constructor for object # 1
+SerializableDerivedB constructor
+SerializableBase constructor for object # 2
+SerializableDerivedB constructor
+SerializableDerivedC constructor
+SerializableBase constructor for object # 3
+SerializableDerivedA constructor
+SerializableBase constructor for object # 4
+SerializableDerivedB constructor
+SerializableBase constructor for object # 5
+SerializableDerivedB constructor
+SerializableDerivedC constructor
+SerializableBase constructor for object # 6
+SerializableDerivedB constructor
+SerializableBase constructor for object # 7
+SerializableDerivedB constructor
+SerializableDerivedC constructor
+SerializableBase constructor for object # 8
+SerializableDerivedB constructor
+SerializableBase constructor for object # 9
+SerializableDerivedB constructor
+SerializableDerivedC constructor
+SerializableBase constructor for object # 10
+SerializableDerivedB constructor
+SerializableBase constructor for object # 11
+SerializableDerivedB constructor
+SerializableDerivedB destructor
+SerializableBase destructor for object # 11
+SerializableDerivedB destructor
+SerializableBase destructor for object # 10
+SerializableDerivedB destructor
+SerializableBase destructor for object # 8
+SerializableDerivedC destructor
+SerializableDerivedB destructor
+SerializableBase destructor for object # 9
+SerializableDerivedB destructor
+SerializableBase destructor for object # 6
+SerializableDerivedC destructor
+SerializableDerivedB destructor
+SerializableBase destructor for object # 7
+SerializableDerivedA destructor
+SerializableBase destructor for object # 3
+SerializableDerivedB destructor
+SerializableBase destructor for object # 4
+SerializableDerivedC destructor
+SerializableDerivedB destructor
+SerializableBase destructor for object # 5
+SerializableDerivedA destructor
+SerializableBase destructor for object # 0
+SerializableDerivedB destructor
+SerializableBase destructor for object # 1
+SerializableDerivedC destructor
+SerializableDerivedB destructor
+SerializableBase destructor for object # 2
+PASS inheritance_example (exit status: 0)

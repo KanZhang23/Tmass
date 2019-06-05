@@ -1,0 +1,4 @@
+
+Usage: dump_qmc [-s nSkip] [-i interlacing] dim nPrint
+
+PASS dump_qmc (exit status: 0)

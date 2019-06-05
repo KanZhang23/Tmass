@@ -1,0 +1,91 @@
+This directory contains example scripts which illustrate the use of "hs"
+tcl extension. The files with extension .tcl should be sourced into
+a running wish. The following files should be present in this directory:
+
+2d_histos.tcl       | This example illustrates different options for
+                    | drawing two-dimensional histograms.
+                    |
+3d_histo.tcl        | This example shows how to create and slice
+                    | a three-dimensional histogram
+                    |
+comments.tcl        | Some examples of comments and labels using different
+                    | fonts.
+                    |
+ellipses.tcl        | An example which draws a bunch of colored ellipses.
+                    |
+epsf.tcl            | An example which imports a plot into itself several
+                    | times using EPS format.
+                    |
+example_utils.tcl   | Various utility procedures used by other scripts.
+                    |
+fft_aliasing.tcl    | This example demostrates some FFT aliasing effects.
+                    | It can be easily adapted to plot Fourier transforms
+                    | of various functions.
+                    |
+fft_basis.tcl       | This example shows the time and frequency domain
+                    | representations of basis functions (single-bin peaks).
+                    |
+fft_example.tcl     | Example which illustrates the usage of FFT-related
+                    | commands. The hs extension has to be compiled with
+                    | CERNLIB for this example to work properly.
+                    |
+fill_styles.tcl     | This example illustrates 1d histogram fill styles
+                    | available in Histo-Scope.
+                    |
+first.tcl           | A simple example which shows how to load the extension,
+                    | make a histogram, and display it.
+                    |
+fit_example_0.tcl   | A very simple fitting example which sets up a fit
+                    | and starts the fit tuner GUI.
+                    |
+fit_example_1.tcl   | More complicated fitting example which sets up
+                    | a simultaneous fit of 4 datasets and starts the fit
+                    | tuner GUI.
+                    |
+fit_example_2.tcl   | Example of an unbinned maximum likelihood fit.
+                    |
+fit_example_3.tcl   | This example fits 2d Gaussian mixture with a sum of
+                    | 2d template histograms.
+                    |
+gui_tools.tcl       | This example illustrates the GUI tools built into
+                    | the hs extension: histogram browser, function browser,
+                    | histogram slicer, and fit tuner.
+                    |
+hscompare           | This stand-alone script can be used to compare
+                    | histograms stored in two or more Histo-Scope files.
+                    | The code finds identically binned histograms with
+                    | the same titles, figures out how different they are
+                    | in several different norms, and displays a GUI
+                    | which allows easy histogram sorting by the magnitude
+                    | of their dissimilarity. Needs the BLT extension.
+                    |
+hs_example.tcl      | An example which illustrates creation of 1d histograms,
+                    | 2d histograms, ntuples, and plot animation.
+                    |
+hswish              | A simple stand-alone script which allows you to load
+                    | and use several Histo-Scope whose names are provided
+                    | on the command line. Needs the rdl extension.
+                    |
+kernel_1d.tcl       | This script illustrates one-dimensional kernel density
+                    | reconstruction.
+                    |
+latex_colors.tcl    | The 68 standard colors known to dvips.
+                    |
+latex.tcl           | This example illustrates creation of comments in LaTeX.
+                    |
+line_styles.tcl     | This example illustrates 1d histogram line styles.
+                    |
+marker_styles.tcl   | This script illustrates marker styles available for
+                    | ntuple plots.
+                    |
+overlays.tcl        | This example illustrates various types of ntuple
+                    | plots and shows how to display several curves in one
+                    | window.
+                    |
+README              | This file.
+                    |
+triangle.tcl        | This example illustrates how different coordinate 
+                    | systems can be used in the single object drawing.
+
+Igor Volobouev
+07/27/2003

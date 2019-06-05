@@ -1,0 +1,961 @@
+#!/bin/sh -f
+# the next line restarts using wish \
+exec wish "$0" ${1+"$@"}
+
+# Script version 
+global hscompare_version
+set hscompare_version 1.1
+
+# Get rid of the main window for now
+wm withdraw .
+
+# Check that we have BLT
+package require BLT
+
+# Unfortunately, the BLT package had some recent changes
+# which led to some incompatibilities in its interface...
+global hiertable_class hiertable_namespace
+if {[llength [info commands ::blt::treeview]] > 0} {
+    # This is a newer BLT version
+    set hiertable_class TreeView
+    set hiertable_namespace tv
+} else {
+    # This is an older BLT version
+    set hiertable_class Hiertable
+    set hiertable_namespace Hiertable
+}
+
+# BLT extension wants to be "smart" and loads
+# its code selectively, only when the first object in
+# a class is created. So, we need a dummy hiertable
+# object in order to overwrite certain BLT defaults.
+blt::hiertable .junk
+destroy .junk
+
+# Change some default BLT bindings
+bind $hiertable_class <ButtonPress-2> {
+    set blt::${hiertable_namespace}::cursor [%W cget -cursor]
+    %W configure -cursor hand1
+    %W scan mark [expr %x / 10] [expr %y / 10]
+}
+bind $hiertable_class <B2-Motion> {
+    %W scan dragto [expr [ensure_non_negative %x] / 10] \
+	    [expr [ensure_non_negative %y] / 10]
+}
+
+# The list of colors must be the same as in the hs::modify_overlay_style
+# function
+global colorlist
+set colorlist {
+    red green3 blue1 magenta cyan brown\
+	DarkOrange LightGoldenrod4 blue4 green cyan4 yellow\
+	DarkViolet CornflowerBlue green4 salmon goldenrod black
+}
+
+proc hscompare_usage {} {
+    puts stderr ""
+    puts stderr "Usage: [file tail [info script]] file1.hs file2.hs ..."
+    puts stderr ""
+}
+
+if {$argc < 2} {
+    hscompare_usage
+    exit 1
+}
+
+# Parse input arguments
+global filelist nfiles pattern old_pattern
+set filelist {}
+set nfiles 0
+set pattern *
+for {set i 0} {$i < $argc} {incr i} {
+    set arg [lindex $argv $i]
+    if {[string equal $arg "-p"]} {
+	incr i
+	if {$i < $argc} {
+	    set pattern [lindex $argv $i]
+	} else {
+	    puts stderr "Switch \"-p\" requires an argument"
+            exit 1
+	}
+    } elseif {![file readable $arg]} {
+	puts stderr "Can't read file \"$arg\""
+	exit 1
+    } else {
+	lappend filelist $arg
+	incr nfiles
+    }
+}
+set old_pattern $pattern
+
+if {$nfiles > [llength $colorlist]} {
+    puts stderr "Too many input files. Please use [llength $colorlist] at most."
+    exit 1
+} elseif {$nfiles < 2} {
+    hscompare_usage
+    exit 1
+}
+
+# Load the Histo-Scope package
+package require hs
+hs::initialize "Hs compare"
+
+global next_uid_global_uid
+set next_uid_global_uid 0
+proc next_uid {} {
+    global next_uid_global_uid
+    incr next_uid_global_uid
+}
+
+# Read in the data
+puts -nonewline "Loading data files into memory... "
+flush stdout
+for {set i 0} {$i < $nfiles} {incr i} {
+    set file [lindex $filelist $i]
+    hs::read_file $file "File$i"
+}
+puts "Done"
+
+option add *Background grey85
+
+frame .tile -height 4
+pack .tile -side top -fill x
+
+global histodim
+set histodim 1
+frame .roof
+label .roof.type -text " Plot type:"
+radiobutton .roof.1d -text "1d"\
+	-variable histodim -value 1 -selectcolor firebrick\
+	-command set_histo_dim -activebackground grey85 \
+	-activeforeground black
+radiobutton .roof.2d -text "2d"\
+	-variable histodim -value 2 -selectcolor firebrick\
+	-command set_histo_dim -activebackground grey85 \
+	-activeforeground black
+checkbutton .roof.help -text " Help " -background grey85 -indicatoron 0 \
+	-activeforeground black -variable help_button_variable \
+	-command show_help
+
+pack .roof -side top -fill x
+pack .roof.type .roof.1d .roof.2d -side left -padx 4 -pady 1
+pack .roof.help -side right -padx 14
+
+frame .match
+pack .match -side top -fill x
+frame .match.gr
+pack .match.gr -side left -padx 2
+label .match.spacer -text ""
+pack .match.spacer -side left -fill x
+label .match.gr.label -text " Titles match:"
+entry .match.gr.entry -width 22 -textvariable pattern \
+        -background white -selectforeground black -selectborderwidth 0
+bind .match.gr.entry <KeyPress-Return> {
+    global pattern old_pattern
+    if {![string equal $pattern $old_pattern]} {
+	set old_pattern $pattern
+	set_histo_dim
+    }
+}
+global search_pattern
+label .match.gr.label_s -text " Search:"
+entry .match.gr.entry_s -width 22 -textvariable search_pattern \
+        -background white -selectforeground black -selectborderwidth 0
+bind .match.gr.entry_s <KeyPress-Return> {
+    global search_pattern
+    select_title $search_pattern
+}
+grid .match.gr.label -row 0 -column 0 -padx 2 -pady 2 -sticky e
+grid .match.gr.entry -row 0 -column 1 -padx 2 -pady 2 -sticky w
+grid .match.gr.label_s -row 1 -column 0 -padx 2 -pady 2 -sticky e
+grid .match.gr.entry_s -row 1 -column 1 -padx 2 -pady 2 -sticky w
+set search_pattern ""
+
+global show_overlayed show_difference show_mean_abs_difference
+set show_overlayed 1
+set show_difference 0
+set show_mean_abs_difference 0
+frame .ceiling
+label .ceiling.show -text " Show:"
+checkbutton .ceiling.over -text "Combo" -variable show_overlayed \
+	-selectcolor firebrick -activebackground grey85 \
+	-activeforeground black -command {
+    global show_overlayed show_difference show_mean_abs_difference
+    if {$show_overlayed == 0 && $show_difference == 0 && $show_mean_abs_difference == 0} {
+	if {[string equal [.ceiling.diff cget -state] disabled]} {
+	    set show_mean_abs_difference 1
+	} else {
+	    set show_difference 1
+	}
+    }
+}
+checkbutton .ceiling.diff -text "Diff " -variable show_difference \
+	-selectcolor firebrick -activebackground grey85 \
+	-activeforeground black  -command {    
+    global show_overlayed show_difference show_mean_abs_difference
+    if {$show_overlayed == 0 && $show_difference == 0 && $show_mean_abs_difference == 0} {
+	set show_overlayed 1
+    }
+}
+checkbutton .ceiling.xor -text "<|Diff|> " -variable show_mean_abs_difference \
+	-selectcolor firebrick -activebackground grey85 \
+	-activeforeground black  -command {    
+    global show_overlayed show_difference show_mean_abs_difference
+    if {$show_overlayed == 0 && $show_difference == 0 && $show_mean_abs_difference == 0} {
+	set show_overlayed 1
+    }
+}
+pack .ceiling -side top -fill x
+pack .ceiling.show .ceiling.over .ceiling.diff .ceiling.xor \
+	-side left -padx 4 -pady 1
+if {$nfiles > 2} {
+    .ceiling.diff configure -state disabled
+}
+
+proc show_help {} {
+    # Simulate normal button behavior in a checkbutton
+    global show_help_oldbind
+    set show_help_oldbind [bind . <ButtonRelease-1>]
+    bind . <ButtonRelease-1> {
+	global help_button_variable show_help_oldbind
+	set help_button_variable 0
+	bind . <ButtonRelease-1> $show_help_oldbind
+    }
+    set w .help_window
+    if {[winfo exists $w]} {
+	wm deiconify $w
+	blt::winop raise $w
+	update
+	return
+    }
+    # Create the help window
+    toplevel $w
+    wm withdraw $w
+    frame $w.top
+    text $w.top.text -yscrollcommand [list $w.top.sb set] \
+	    -selectbackground grey85 -selectborderwidth 0 \
+	    -selectforeground black -height 20 -width 60 -wrap word
+    insert_help_text $w.top.text
+    $w.top.text configure -state disabled
+    scrollbar $w.top.sb -command [list $w.top.text yview]
+    grid $w.top.text -row 0 -column 0 -sticky ewns
+    grid $w.top.sb -row 0 -column 1 -sticky ns
+    grid columnconfigure $w.top 0 -weight 1
+    grid rowconfigure $w.top 0 -weight 1
+    frame $w.bottom
+    button $w.bottom.dismiss -text "Dismiss" -activeforeground black\
+	    -command [list destroy $w]
+    pack $w.bottom.dismiss -side top -padx 4 -pady 4
+    grid $w.top -row 0 -column 0 -sticky ewns
+    grid $w.bottom -row 1 -column 0 -sticky ewns
+    grid rowconfigure $w 0 -weight 1
+    grid columnconfigure $w 0 -weight 1
+    # Show the window
+    update idletasks
+    set x [expr [winfo screenwidth $w]/2 - [winfo reqwidth $w]/2 - [winfo vrootx $w]]
+    set y [expr [winfo screenheight $w]/2 - [winfo reqheight $w]/2 - [winfo vrooty $w]]
+    wm geom $w +$x+$y
+    wm title $w "[file tail [info script]] help"
+    wm protocol $w WM_DELETE_WINDOW [list destroy $w]
+    wm deiconify $w
+    return
+}
+
+proc insert_help_text {textwidget} {
+
+    global hscompare_version
+    set scriptname [file tail [info script]]
+
+    set font [$textwidget cget -font]
+    $textwidget tag configure boldface -font \
+	    "[lrange $font 0 1] bold" -foreground firebrick
+
+    $textwidget insert end "This is the $scriptname script,\
+	    version $hscompare_version.\n\n"
+    $textwidget insert end "$scriptname finds identically binned histograms with\
+	    the same titles in two or more Histo-Scope files. When matches are\
+	    found, dissimilarity coefficients are calculated for each pair of\
+	    histograms with the same title. Defining the norm of a histogram\
+            A as |A| = Sum over all bins (abs(A_i)), the dissimilarity\
+	    coefficients for two\
+            histograms A and B are defined as follows:"
+    $textwidget insert end "\n\nD_rel" boldface \
+	    " = |A - B| / (|A| +|B|). This coefficient\
+	    is the ratio of the non-overlapping histogram area to the sum of\
+	    the two areas. It is useful when you are interested in relative\
+	    changes between the plots."
+    $textwidget insert end "\n\nD_scale" boldface \
+	    " is the same as D_rel, but after\
+	    normalization of the two histograms to the same area.\
+	    D_scale is sensitive to the\
+            difference of histogram shapes independently of\
+	    the number of entries."
+    $textwidget insert end "\n\nD_abs" boldface \
+	    " = |A - B| / (number of bins). This is\
+	    the average absolute difference between the bin contents\
+	    of the two histograms. This coefficient is usually more useful\
+	    than chi-square because it puts less emphasis on the deviations\
+	    due to outliers and depends more on the common trend."
+    $textwidget insert end "\n\nFor more than two histograms the dissimilarity\
+	    coefficients are defined as the highest dissimilarity between\
+	    any two. By default, histograms are sorted by\
+	    the dissimilarity coefficient \"D_rel\" in decreasing order.\
+	    The sorting can be changed by clicking on the\
+	    coefficient name at the top of the list. The plots can also\
+	    be sorted alphabetically by name."
+    $textwidget insert end "\n\nDouble-click on a histogram\
+	    title in the list to display a window with one or more\
+	    histograms. You can also use the up and down arrow keys\
+	    on your keyboard to navigate between the titles and\
+	    the \"Enter\" key to view the plots. The three buttons \"Combo\",\
+	    \"Diff\", and \"<|Diff|>\" determine which histograms will be\
+	    displayed:"
+    $textwidget insert end "\n\nCombo" boldface\
+	    " -- histograms with same names from\
+	    the different files are plotted on top of each other\
+	    (for 2d histograms, next to each other). The colors of 1d histograms\
+	    will correspond to the colors of the file names shown just below the\
+	    list of titles."
+    $textwidget insert end "\n\nDiff" boldface\
+	    " -- only available when comparing\
+	    two files. It displays bin-by-bin difference of the two\
+	    matched histograms."
+    $textwidget insert end "\n\n\<|Diff|>" boldface\
+	    " -- display the average absolute\
+	    difference between the histograms."
+    $textwidget insert end "\n\nThe "
+    $textwidget insert end "\"Titles match\"" boldface\
+	    " entry can be used to\
+	    reduce the list of histogram names currently displayed\
+	    by the GUI to the ones matching the pattern. The match is\
+	    established using the same rules as for the tcl \"string match\"\
+	    command. The "
+    $textwidget insert end "\"Search\"" boldface\
+	    " entry highlights one of the histograms\
+	    in the list whose title matches the provided pattern. Emacs affictionados\
+	    should not forget to add a star to their patterns."
+    $textwidget insert end "\n\nPlease send bug reports to igv@lbl.gov."
+    return
+}
+
+# Procedure for sorting columns
+proc SortColumn {column} {
+    global plots_hiertable
+    $plots_hiertable selection clearall
+    set old [$plots_hiertable sort cget -column]
+    if {[string equal $old $column]} {
+        set decreasing [$plots_hiertable sort cget -decreasing]
+        set decreasing [expr !$decreasing]
+    } else {
+        set decreasing 0
+    }
+    switch $column {
+        plottitle {
+            set sortmode ascii
+        }
+        default {
+            set sortmode real
+        }
+    }
+    $plots_hiertable sort configure -column $column \
+            -decreasing $decreasing -mode $sortmode
+    blt::busy hold .
+    update
+    blt::busy release .
+    return
+}
+
+proc select_title {patt} {
+    global plots_hiertable title_list_shown
+    set match_found 0
+    foreach {count title} $title_list_shown {
+	if {[string match $patt $title]} {
+	    set match_found 1
+	    break
+	}
+    }
+    $plots_hiertable selection clearall
+    if {$match_found} {
+	set ind [lindex [$plots_hiertable find \
+		-name $count -count 1 0 end] 0]
+	$plots_hiertable see -anchor c $ind
+	$plots_hiertable focus $ind
+	$plots_hiertable selection set $ind
+    }
+    return
+}
+
+proc plot_number_from_index {index} {
+    global plots_hiertable hiertable_class
+    if {[string equal $hiertable_class "Hiertable"]} {
+	set plotnumber [$plots_hiertable get $index]
+    } else {
+	set plotnumber [lindex [$plots_hiertable get -full $index] 1]
+    }
+    set plotnumber
+}
+
+proc show_selected {} {
+    global plots_hiertable
+    set index [$plots_hiertable curselection]
+    if {[string equal "" $index]} return
+    set plotnumber [plot_number_from_index $index]
+    if {![string is integer -strict $plotnumber]} return
+    global titles_lookup histodim colorlist
+    global difference_histos average_difference_histos
+    global show_overlayed show_difference show_mean_abs_difference
+    set title $titles_lookup($plotnumber,${histodim}d)
+
+    # Make the difference histos if necessary
+    global idpairs${histodim}d
+    set idlist [set idpairs${histodim}d($title)]
+    set id_len [llength $idlist]
+    foreach {id1 id2} $idlist break
+    if {$show_difference} {
+	# There may be only two plots in the list
+	if {[info exists difference_histos($title,$histodim)]} {
+	    set diff_id $difference_histos($title,$histodim)
+	} else {
+	    set diff_id [[[hs::calc $id1] - [hs::calc $id2]] id]
+	    if {$histodim == 1} {
+		hs::change_title $diff_id "${title}, red - green"
+	    } else {
+		hs::change_title $diff_id "${title}, left - right"
+	    }
+	    hs::change_uid_and_category $diff_id \
+		    [next_uid] "Hs_Compare_Diff"
+	    set difference_histos($title,$histodim) $diff_id
+	    hs::calc purge
+	}
+    }
+    if {$show_mean_abs_difference} {
+	if {[info exists average_difference_histos($title,$histodim)]} {
+	    set xor_id $average_difference_histos($title,$histodim)
+	} else {
+	    if {$id_len == 2} {
+		set xor_id [[[[hs::calc $id1] - [hs::calc $id2]] abs] id]
+		if {$histodim == 1} {
+		    hs::change_title $xor_id "${title}, |red - green|"
+		} else {
+		    hs::change_title $xor_id "${title}, |left - right|"
+		}
+	    } else {
+		set sum [[hs::calc [lindex $idlist 0]] /+/]
+		hs::reset [$sum id]
+		for {set i 0} {$i < $id_len} {incr i} {
+		    for {set j [expr {$i + 1}]} {$j < $id_len} {incr j} {
+			set id_i [lindex $idlist $i]
+			set id_j [lindex $idlist $j]
+			set sum [$sum + [[[hs::calc $id_i] - [hs::calc $id_j]] abs]]
+		    }
+		}
+		set count [expr {($id_len * ($id_len - 1)) / 2}].0
+		set xor_id [[$sum / $count] id]
+		hs::change_title $xor_id "${title}, <|difference|>"
+	    }
+	    hs::change_uid_and_category $xor_id \
+		    [next_uid] "Hs_Compare_Diff"
+	    set average_difference_histos($title,$histodim) $xor_id
+	    hs::calc purge
+	}
+    }
+
+    # Show the plot(s)
+    if {$histodim == 1} {
+	if {$show_overlayed} {
+	    set id0 [lindex $idpairs1d($title) 0]
+	    foreach {xlabel ylabel} [hs::1d_hist_labels $id0] {}
+	    hs::overlay ov -xlabel $xlabel -ylabel $ylabel\
+		    -geometry 600x450+0+0 -legend off
+	    for {set i 0} {$i < $id_len} {incr i} {
+		hs::overlay ov add [lindex $idpairs1d($title) $i]\
+			-color [lindex $colorlist $i]
+	    }
+	}
+	if {$id_len == 2} {
+	    if {$show_overlayed && $show_difference && $show_mean_abs_difference} {
+		hs::multiplot m1 add ov 0,0 -geometry 600x800+0+0 \
+		    -title $title \
+		    add $diff_id 0,1 -color blue \
+		    add $xor_id 0,2 -color black \
+		    show clear
+		hs::overlay ov clear
+	    } elseif {$show_overlayed && $show_difference} {
+		hs::multiplot m1 add ov 0,0 -geometry 600x800+0+0 \
+		    -title $title \
+		    add $diff_id 0,1 -color blue \
+		    show clear
+		hs::overlay ov clear
+	    } elseif {$show_overlayed && $show_mean_abs_difference} {
+		hs::multiplot m1 add ov 0,0 -geometry 600x800+0+0 \
+		    -title $title \
+		    add $xor_id 0,1 -color black \
+		    show clear
+		hs::overlay ov clear
+	    } elseif {$show_difference && $show_mean_abs_difference} {
+		hs::multiplot m1 -geometry 600x800+0+0 -title $title \
+		    add $diff_id 0,0 -color blue \
+		    add $xor_id 0,1 -color black \
+		    show clear
+	    } elseif {$show_overlayed} {
+		hs::overlay ov show clear
+	    } elseif {$show_difference} {
+		hs::show_histogram $diff_id -geometry 600x450+0+0 -color blue
+	    } elseif {$show_mean_abs_difference} {
+		hs::show_histogram $xor_id -geometry 600x450+0+0
+	    }
+	} else {
+	    # There will be no difference plot
+	    if {$show_overlayed && $show_mean_abs_difference} {
+		hs::multiplot m1 -title $title show clear \
+			add ov 0,0 -geometry 600x800+0+0 \
+			add $xor_id 0,1 -color black
+		hs::overlay ov clear
+	    } elseif {$show_overlayed} {
+		hs::overlay ov show clear
+	    } elseif {$show_mean_abs_difference} {
+		hs::show_histogram $xor_id -geometry 600x450+0+0
+	    }
+	}
+    } else {
+	if {$id_len == 2} {
+            # Title changes on the fly seem to confuse the Histo-Scope client...
+            # if {$show_difference} {
+            #     if {$show_overlayed} {
+            #         hs::change_title $diff_id "${title}, left - right"
+            #     } else {
+            #         hs::change_title $diff_id "${title}, red - green"
+            #     }
+            # }
+            # if {$show_mean_abs_difference} {
+            #     if {$show_overlayed} {
+            #         hs::change_title $xor_id "${title}, |left - right|"
+            #     } else {
+            #         hs::change_title $xor_id "${title}, |red - green|"
+            #     }
+            # }
+	    if {$show_overlayed && $show_difference && $show_mean_abs_difference} {
+		hs::multiplot mp -geometry 800x800+0+0 \
+		    -title $title \
+		    show clear \
+		    add $id1 0,0 \
+		    add $id2 1,0 \
+		    add $diff_id 0,1 \
+		    add $xor_id 1,1
+	    } elseif {$show_overlayed && $show_difference} {
+		hs::multiplot mp -geometry 800x800+0+0 \
+		    -title $title \
+		    show clear \
+		    add $id1 0,0 \
+		    add $id2 1,0 \
+		    add $diff_id 0,1
+	    } elseif {$show_overlayed && $show_mean_abs_difference} {
+		hs::multiplot mp -geometry 800x800+0+0 \
+		    -title $title \
+		    show clear \
+		    add $id1 0,0 \
+		    add $id2 1,0 \
+		    add $xor_id 0,1
+	    } elseif {$show_difference && $show_mean_abs_difference} {
+		hs::multiplot mp -geometry 800x400+0+0 \
+		    -title "${title}, (red - green) and |red - green|" \
+		    show clear \
+		    add $diff_id 0,0 \
+		    add $xor_id 1,0
+	    } elseif {$show_overlayed} {
+		hs::multiplot mp -geometry 800x400+0+0 \
+		    -title $title \
+		    show clear \
+		    add $id1 0,0 \
+		    add $id2 1,0
+	    } elseif {$show_difference} {
+		hs::show_histogram $diff_id -geometry 500x500+0+0 \
+			-title "${title}, red - green"
+	    } elseif {$show_mean_abs_difference} {
+		hs::show_histogram $xor_id -geometry 500x500+0+0 \
+			-title "${title}, |red - green|"
+	    }
+	} else {
+	    # There will be no difference plot
+	    if {!$show_overlayed} {
+		hs::show_histogram $xor_id -geometry 500x500+0+0
+	    } else {
+		set plotlist $idlist
+		set plotlist_len $id_len
+		if {$show_mean_abs_difference} {
+		    lappend plotlist $xor_id
+		    incr plotlist_len
+		}
+		if {$plotlist_len <= 4} {
+		    set xlen 2
+		} elseif {$plotlist_len <= 9} {
+		    set xlen 3
+		} elseif {$plotlist_len <= 16} {
+		    set xlen 4
+		} elseif {$plotlist_len <= 25} {
+		    set xlen 5
+		} else {
+		    error "can't show: too many plots"
+		}
+		set i 0
+		foreach id $plotlist {
+		    set y [expr $i / $xlen]
+		    set x [expr $i % $xlen]
+		    hs::multiplot mp add $id $x,$y
+		    incr i
+		}
+		hs::multiplot mp -geometry 800x800+0+0 \
+			-title $title show clear
+	    }
+	}
+    }
+    return
+}
+
+# Change blt::Hiertable bindings
+proc hiertable_normal_bindings {widget} {
+    # Default bindings
+    global hiertable_class
+    if {[string equal $hiertable_class "Hiertable"]} {
+	blt::Hiertable::Init $widget
+    } else {
+	blt::tv::Initialize $widget
+    }
+
+    # Disable the highlighting features
+    $widget bind Entry <Enter> {}
+    $widget bind Entry <Leave> {}    
+    $widget button bind all <Enter> {}
+    $widget button bind all <Leave> {}
+    return
+}
+
+# The table of plots
+frame .top
+pack .top -side top -expand yes -fill both
+set w .top
+global plots_hiertable
+set plots_hiertable $w.box
+scrollbar $w.scroll -command "$plots_hiertable yview"
+blt::hiertable $plots_hiertable -height 249 -hideroot yes \
+	-yscrollcommand "$w.scroll set" \
+	-selectmode single -flat yes \
+	-icons {} -activeicons {}
+$plots_hiertable entry configure root -label "#"
+$plots_hiertable column insert end diss_rel -text " D_rel " -justify right
+$plots_hiertable column insert end diss_scale -text "D_scale" -justify right
+$plots_hiertable column insert end diss_abs -text " D_abs " -justify right
+$plots_hiertable column insert end plottitle -text "Plot title" -justify left
+$plots_hiertable column configure treeView -hide 1
+hiertable_normal_bindings $plots_hiertable
+foreach column [lrange [$plots_hiertable column names] 1 end] {
+    $plots_hiertable column configure $column \
+            -command [list SortColumn $column]
+}
+$plots_hiertable sort auto yes
+SortColumn diss_rel
+SortColumn diss_rel
+pack $w.box -side left -fill both -expand 1
+pack $w.scroll -side right -fill y
+
+# Change the .match.gr.entry select background color
+# to match that of the table of plots
+.match.gr.entry configure -selectbackground [$plots_hiertable cget -selectbackground]
+.match.gr.entry_s configure -selectbackground [$plots_hiertable cget -selectbackground]
+
+# File names
+for {set i 0} {$i < $nfiles} {incr i} {
+    label .f$i -text [lindex $filelist $i] \
+	-foreground [lindex $colorlist $i] -anchor center
+    pack .f$i -side top -pady 1 -fill x
+}
+
+puts -nonewline "Matching plot titles... "
+flush stdout
+
+# Get the list of titles
+set ids_and_titles {}
+for {set i 0} {$i < $nfiles} {incr i} {
+    set idlist [hs::list_items "" "File${i}/..." 1]
+    foreach id $idlist {
+	set title [hs::title $id]
+	if {[info exists idarray($i,$title)]} {
+	    if {![info exists warningarray($i,$title)]} {
+		set warningarray($i,$title) 1
+		puts "WARNING: More than one histogram with title \"$title\"\
+			was found in file [lindex $filelist $i]. Only\
+			the first histogram with this title will be used."
+	    }
+	} else {
+	    set idarray($i,$title) $id
+	}
+	lappend ids_and_titles [list $title $id]
+    }
+}
+set unique_titles [lsort -unique -index 0 $ids_and_titles]
+
+# Find titles which exist in each file
+global idpairs1d idpairs2d
+set titles1d_unsorted {}
+set titles2d_unsorted {}
+foreach sublist $unique_titles {
+    foreach {title id1} $sublist {}
+    set tmplist {}
+    if {[string equal [hs::type $id1] HS_1D_HISTOGRAM]} {
+	set nbins [hs::1d_hist_num_bins $id1]
+	foreach {lolim uplim} [hs::1d_hist_range $id1] {}
+	for {set i 0} {$i < $nfiles} {incr i} {
+	    if {[info exists idarray($i,$title)]} {
+		set id2 $idarray($i,$title)
+		if {[string equal [hs::type $id2] HS_1D_HISTOGRAM]} {
+		    foreach {lolim2 uplim2} [hs::1d_hist_range $id2] {}
+		    if {[hs::1d_hist_num_bins $id2] == $nbins && \
+			    $lolim2 == $lolim && $uplim2 == $uplim} {
+			lappend tmplist $id2
+		    }
+		}
+	    }
+        }
+	if {[llength $tmplist] == $nfiles} {
+	    set idpairs1d($title) $tmplist
+	    lappend titles1d_unsorted $title
+	}
+    } elseif {[string equal [hs::type $id1] HS_2D_HISTOGRAM]} {
+        foreach {n_x_bins n_y_bins} [hs::2d_hist_num_bins $id1] {}
+	foreach {x_min x_max y_min y_max} [hs::2d_hist_range $id1] {}
+	for {set i 0} {$i < $nfiles} {incr i} {
+	    if {[info exists idarray($i,$title)]} {
+		set id2 $idarray($i,$title)
+		if {[string equal [hs::type $id2] HS_2D_HISTOGRAM]} {
+		    foreach {n_x_bins2 n_y_bins2} [hs::2d_hist_num_bins $id2] {}
+		    foreach {x_mi2 x_ma2 y_mi2 y_ma2} [hs::2d_hist_range $id2] {}
+		    if {$n_x_bins == $n_x_bins2 && $n_y_bins == $n_y_bins2 && \
+			    $x_min == $x_mi2 && $x_max == $x_ma2 && \
+			    $y_min == $y_mi2 && $y_max == $y_ma2} {
+			lappend tmplist $id2
+			hs::change_title $id2 [lindex $filelist $i]
+		    }
+		}
+            }
+        }
+	if {[llength $tmplist] == $nfiles} {
+	    set idpairs2d($title) $tmplist
+	    lappend titles2d_unsorted $title
+	}
+    }
+}
+puts "Done"
+
+# Calculate the dissimilarity coefficients and sort by them
+set n_histos [expr [llength $titles1d_unsorted] + \
+	[llength $titles2d_unsorted]]
+puts -nonewline "Calculating dissimilarity\
+	coefficients for $n_histos histograms... "
+flush stdout
+
+global titles_lookup
+set progress_counter 0
+set progress_percentage 0
+foreach htype {1d 2d} {
+    global titles$htype
+    set titles$htype {}
+    set count 1
+    foreach title [set titles${htype}_unsorted] {
+	set max_dissimilarity_abs 0.0
+	set max_dissimilarity_rel 0.0
+	set max_dissimilarity_scale 0.0
+	set idlist [set idpairs${htype}($title)]
+	set id_len [llength $idlist]
+	if {[string equal $htype 1d]} {
+	    set numbins [hs::1d_hist_num_bins [lindex $idlist 0]].0
+	} else {
+	    foreach {nx ny} [hs::2d_hist_num_bins [lindex $idlist 0]] {}
+	    set numbins [expr {$nx * $ny}].0
+	}
+	for {set i 0} {$i < $id_len} {incr i} {
+	    for {set j [expr {$i + 1}]} {$j < $id_len} {incr j} {
+		set id1 [lindex $idlist $i]
+		set id2 [lindex $idlist $j]
+		set h1 [hs::calc $id1]
+		set h2 [hs::calc $id2]
+		set diff_integ [[[$h1 - $h2] abs] sum]
+		# Calculate D_abs
+		set dissim_abs [expr {$diff_integ / $numbins}]
+		if {$dissim_abs > $max_dissimilarity_abs} {
+		    set max_dissimilarity_abs $dissim_abs
+		}
+		# Calculate D_rel
+		set integ1 [[$h1 abs] sum]
+		set integ2 [[$h2 abs] sum]
+		set normfactor [expr {($integ1 + $integ2) * 1.0}]
+		if {$normfactor == 0.0} {
+		    set dissim_rel 0.0
+		} else {
+		    set dissim_rel [expr {$diff_integ / $normfactor}]
+		}
+		if {$dissim_rel > $max_dissimilarity_rel} {
+		    set max_dissimilarity_rel $dissim_rel
+		}
+		# Calculate D_scale
+		if {$integ1 == 0.0 && $integ2 == 0.0} {
+		    set dissim_scale 0.0
+		} elseif {$integ1 == 0.0 || $integ2 == 0.0} {
+		    set dissim_scale 1.0
+		} else {
+		    set scale1 [expr {0.5 / $integ1}]
+		    set scale2 [expr {0.5 / $integ2}]
+		    set dissim_scale [[[[$h1 * $scale1] - [$h2 * $scale2]] abs] sum]
+		    if {$dissim_scale > 1.0} {
+			set dissim_scale 1.0
+		    }
+		}
+		if {$dissim_scale > $max_dissimilarity_scale} {
+		    set max_dissimilarity_scale $dissim_scale
+		}
+	    }
+	}
+	hs::calc purge
+
+	# Truncate the precision to some reasonable values
+	set max_dissimilarity_rel [format "%7.4f" $max_dissimilarity_rel]
+	set max_dissimilarity_abs [format "%7.3f" $max_dissimilarity_abs]
+	set max_dissimilarity_scale [format "%7.4f" $max_dissimilarity_scale]
+
+	lappend titles$htype $count $max_dissimilarity_rel \
+		$max_dissimilarity_abs $max_dissimilarity_scale $title
+	set titles_lookup($count,$htype) $title
+	incr count
+
+	# Try to update the progress indicator
+	global env
+	if {[info exists env(TERM)]} {
+	    if {[string equal $env(TERM) "xterm"]} {
+		incr progress_counter
+		set percentage_done [expr {($progress_counter * 100) / $n_histos}]
+		if {$percentage_done > $progress_percentage} {
+		    set progress_percentage $percentage_done
+		    set report "${progress_percentage}%"
+		    set len [string length $report]
+		    puts -nonewline $report
+		    flush stdout
+		    puts -nonewline "\[${len}D"
+		}
+	    }
+	}
+    }
+}
+puts "Done"
+
+proc set_histo_dim {} {
+    global histodim plots_hiertable pattern
+    global titles${histodim}d title_list_shown
+    set insert_list {}
+    set title_list_shown {}
+    foreach {count d_rel d_abs d_scale title} [set titles${histodim}d] {
+	if {[string match $pattern $title]} {
+	    lappend insert_list $count -data [list \
+		    diss_rel $d_rel\
+		    diss_scale $d_scale\
+		    diss_abs $d_abs\
+		    plottitle "    $title"]
+	    lappend title_list_shown $count $title
+	}
+    }
+    $plots_hiertable selection clearall
+    $plots_hiertable delete root
+    eval $plots_hiertable insert end $insert_list
+    return
+}
+
+proc move_down {} {
+    global plots_hiertable hiertable_namespace
+    set index [$plots_hiertable curselection]
+    if {[string equal "" $index]} {return 0}
+    set plotnumber [plot_number_from_index $index]
+    if {![string is integer -strict $plotnumber]} {return 0}
+    if {$plotnumber == [plot_number_from_index down]} {return 0}
+    blt::${hiertable_namespace}::MoveFocus $plots_hiertable down
+    if {[set blt::${hiertable_namespace}::space]} {
+        $plots_hiertable selection toggle focus
+        return 0
+    }
+    return 1
+}
+
+proc move_up {} {
+    global plots_hiertable hiertable_namespace
+    set index [$plots_hiertable curselection]
+    if {[string equal "" $index]} {return 0}
+    set plotnumber [plot_number_from_index $index]
+    if {![string is integer -strict $plotnumber]} {return 0}
+    if {$plotnumber == [plot_number_from_index up]} {return 0}
+    blt::${hiertable_namespace}::MoveFocus $plots_hiertable up
+    if {[set blt::${hiertable_namespace}::space]} {
+	$plots_hiertable selection toggle focus
+        return 0
+    }
+    return 1
+}
+
+proc ensure_non_negative {x} {
+    if {$x < 0} {
+	set x 0
+    }
+    set x
+}
+
+bind $plots_hiertable <ButtonPress-1> {focus $plots_hiertable}
+bind $plots_hiertable <Double-1> show_selected
+bind $plots_hiertable <KeyPress-Return> show_selected
+
+frame .bottom
+pack .bottom -fill x -pady 4
+set buttonwidth 10
+button .bottom.e -text "Exit" -width $buttonwidth -command exit \
+	-activebackground red -activeforeground white
+button .bottom.n -text "Next" -width $buttonwidth \
+	-activebackground gray95 -activeforeground black \
+	-command {if [move_down] show_selected}
+button .bottom.p -text "Previous" -width $buttonwidth \
+	-activebackground gray95 -activeforeground black \
+	-command {if [move_up] show_selected}
+button .bottom.c -text "Close All Plots" -width $buttonwidth \
+	-activebackground gray95 -activeforeground black \
+	-command hs::close_all_windows
+blt::table .bottom \
+	0,0 .bottom.p -padx {8 3} -fill x \
+	0,1 .bottom.n -padx {3 8} -fill x \
+	1,0 .bottom.c -padx {8 3} -pady 2 -fill x \
+	1,1 .bottom.e -padx {3 8} -pady 2 -fill x
+set_histo_dim
+
+puts -nonewline "Starting the GUI... "
+flush stdout
+
+# Run Histo-Scope client
+# hs::histoscope_hidden
+hs::histoscope 1
+hs::wait_num_scopes > 0
+hs::periodic_update 200
+
+# Show the interface window
+update idletasks
+wm title . {hscompare}
+set x [expr [winfo screenwidth .]/2 - [winfo reqwidth .]/2 - [winfo vrootx .]]
+set y [expr [winfo screenheight .]/2 - [winfo reqheight .]/2 - [winfo vrooty .]]
+wm geom . +$x+$y
+wm deiconify .
+wm protocol . WM_DELETE_WINDOW exit
+puts "Done"
+puts "Double-click on the title to see the plots or use arrow keys and press \"Enter\""
+
+# Produce an interactive prompt if we can load the rdl package
+if {![catch {package require rdl}]} {
+    catch {rdl::read_history}
+    rename ::exit ::_history_write_exit
+    proc ::exit {{status 0}} {
+        catch {rdl::write_history}
+        ::_history_write_exit $status
+    }
+    rdl::interact 1
+}

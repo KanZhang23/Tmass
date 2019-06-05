@@ -1,0 +1,501 @@
+#include <cmath>
+#include <stdexcept>
+#include <algorithm>
+
+#include "geners/GenericIO.hh"
+#include "geners/IOException.hh"
+
+namespace npstat {
+    template <typename Numeric, typename Precise>
+    inline void WeightedSampleAccumulator<Numeric,Precise>::reset()
+    {
+        data_.clear();
+        wsum_ = 0.0L;
+        wsumsq_ = 0.0L;
+        maxWeight_ = 0.0;
+        callCount_ = 0UL;
+        sorted_ = true;
+    }
+
+    template <typename Numeric, typename Precise>
+    inline void WeightedSampleAccumulator<Numeric,Precise>::accumulate(
+        const Numeric& value, const double weight)
+    {
+        if (weight < 0.0) throw std::invalid_argument(
+            "In npstat::WeightedSampleAccumulator::accumulate: "
+            "weight must be non-negative");
+        ++callCount_;
+        if (weight > 0.0)
+        {
+            data_.push_back(std::pair<Numeric,double>(value, weight));
+            sorted_ = false;
+            if (weight > maxWeight_)
+                maxWeight_ = weight;
+            const long double w = weight;
+            wsum_ += w;
+            wsumsq_ += w*w;
+        }
+    }
+
+    template <typename Numeric, typename Precise>
+    inline void WeightedSampleAccumulator<Numeric,Precise>::accumulate(
+        const WeightedSampleAccumulator& acc)
+    {
+        const unsigned long accsiz = acc.data_.size();
+        if (accsiz)
+        {
+            data_.reserve(data_.size() + accsiz);
+            std::copy(acc.data_.begin(), acc.data_.end(),
+                      std::back_inserter(data_));
+            wsum_ += acc.wsum_;
+            wsumsq_ += acc.wsumsq_;
+            sorted_ = false;
+            callCount_ += acc.callCount_;
+            if (acc.maxWeight_ > maxWeight_)
+                maxWeight_ = acc.maxWeight_;
+        }
+    }
+
+    template <typename Numeric, typename Precise>
+    template<typename Pair>
+    inline void WeightedSampleAccumulator<Numeric,Precise>::accumulate(
+        const Pair* values, const unsigned long n)
+    {
+        if (n)
+        {
+            assert(values);
+            data_.reserve(data_.size() + n);
+            for (unsigned long i=0; i<n; ++i)
+                accumulate(values[i].first, values[i].second);
+        }
+    }
+
+    template <typename Numeric, typename Precise>
+    bool WeightedSampleAccumulator<Numeric,Precise>::operator==(
+        const WeightedSampleAccumulator& r) const
+    {
+        return wsum_ == r.wsum_ &&
+               wsumsq_ == r.wsumsq_ &&
+               maxWeight_ == r.maxWeight_ &&
+               callCount_ == r.callCount_ &&
+               sorted_ == r.sorted_ && 
+               data_ == r.data_;
+    }
+
+    template <typename Numeric, typename Precise>
+    inline bool WeightedSampleAccumulator<Numeric,Precise>::operator!=(
+        const WeightedSampleAccumulator& r) const
+    {
+        return !(*this == r);
+    }
+
+    template <typename Numeric, typename Precise>
+    template <typename Num2>
+    WeightedSampleAccumulator<Numeric,Precise>&
+    WeightedSampleAccumulator<Numeric,Precise>::operator*=(const Num2& r)
+    {
+        const unsigned long n = data_.size();
+        if (n)
+        {
+            std::pair<Numeric,double>* d = &data_[0];
+            for (unsigned long i=0; i<n; ++i)
+                d[i].first *= r;
+            if (r < Num2())
+                sorted_ = false;
+        }
+        return *this;
+    }
+
+    template <typename Numeric, typename Precise>
+    template <typename Num2>
+    WeightedSampleAccumulator<Numeric,Precise>&
+    WeightedSampleAccumulator<Numeric,Precise>::operator/=(const Num2& r)
+    {
+        const unsigned long n = data_.size();
+        if (n)
+        {
+            std::pair<Numeric,double>* d = &data_[0];
+            for (unsigned long i=0; i<n; ++i)
+                d[i].first /= r;
+            if (r < Num2())
+                sorted_ = false;
+        }
+        return *this;
+    }
+
+    template <typename Numeric, typename Precise>
+    WeightedSampleAccumulator<Numeric,Precise>&
+    WeightedSampleAccumulator<Numeric,Precise>::scaleWeights(const double r)
+    {
+        if (r < 0.0) throw std::invalid_argument(
+            "In npstat::WeightedSampleAccumulator::scaleWeights: "
+            "weight scale factor must be non-negative");
+        if (r > 0.0)
+        {
+            const long double longr = r;
+            wsum_ *= longr;
+            wsumsq_ *= longr*longr;
+            maxWeight_ *= r;
+            const unsigned long n = data_.size();
+            if (n)
+            {
+                std::pair<Numeric,double>* d = &data_[0];
+                for (unsigned long i=0; i<n; ++i)
+                    d[i].second *= r;
+            }
+        }
+        else
+        {
+            const unsigned long c = callCount_;
+            reset();
+            callCount_ = c;
+        }
+        return *this;
+    }
+
+    template <typename Numeric, typename Precise>
+    inline void WeightedSampleAccumulator<Numeric,Precise>::sort() const
+    {
+        if (!sorted_)
+        {
+            WeightedSampleAccumulator* p = 
+                const_cast<WeightedSampleAccumulator*>(this);
+            std::sort(p->data_.begin(), p->data_.end());
+            p->sorted_ = true;
+        }
+    }
+
+    template <typename Numeric, typename Precise>
+    inline Numeric WeightedSampleAccumulator<Numeric,Precise>::min() const
+    {
+        if (!data_.empty())
+        {
+            typename std::vector<std::pair<Numeric,double> >::const_iterator pos = 
+                std::min_element(data_.begin(), data_.end());
+            return pos->first;
+        }
+        else
+            return Numeric();
+    }
+
+    template <typename Numeric, typename Precise>
+    inline Numeric WeightedSampleAccumulator<Numeric,Precise>::max() const
+    {
+        if (!data_.empty())
+        {
+            typename std::vector<std::pair<Numeric,double> >::const_iterator pos = 
+                std::max_element(data_.begin(), data_.end());
+            return pos->first;
+        }
+        else
+            return Numeric();
+    }
+
+    template <typename Numeric, typename Precise>
+    inline double WeightedSampleAccumulator<Numeric,Precise>::averageWeight() const
+    {
+        const unsigned long n = data_.size();
+        if (!n) throw std::runtime_error(
+            "In npstat::WeightedSampleAccumulator::averageWeight: "
+            "no data accumulated");
+        return static_cast<double>(wsum_/n);
+    }
+
+    template <typename Numeric, typename Precise>
+    inline double WeightedSampleAccumulator<Numeric,Precise>::sumOfWeights() const
+    {
+        return static_cast<double>(wsum_);
+    }
+
+    template <typename Numeric, typename Precise>
+    Precise WeightedSampleAccumulator<Numeric,Precise>::mean() const
+    {
+        const unsigned long n = data_.size();
+        if (!n) throw std::runtime_error(
+            "In npstat::WeightedSampleAccumulator::mean: "
+            "no data accumulated");
+        Precise sum = Precise();
+        const std::pair<Numeric,double>* d = &data_[0];
+        for (unsigned long i=0; i<n; ++i)
+            sum += d[i].first * d[i].second;
+        return sum / wsum_;
+    }
+
+    template <typename Numeric, typename Precise>
+    Precise WeightedSampleAccumulator<Numeric,Precise>::stdev2(
+        const bool isMeanUncertainty) const
+    {
+        const unsigned long n = data_.size();
+        if (!n) throw std::runtime_error(
+            "In npstat::WeightedSampleAccumulator::stdev2: "
+            "no data accumulated");
+        if (n > 1UL)
+        {
+            const Precise m(mean());
+            const long double one = 1.0L;
+            Precise sumsq = Precise();
+            const std::pair<Numeric,double>* d = &data_[0];
+            for (unsigned long i=0; i<n; ++i)
+            {
+                const Precise delta = d[i].first - m;
+                sumsq += delta*delta*d[i].second;
+            }
+            const long double effco = wsum_*wsum_/wsumsq_;
+            if (effco <= one)
+                return Precise();
+            const Precise sigsq = sumsq / wsum_;
+            if (sigsq <= static_cast<Precise>(0))
+                return Precise();
+            else
+                return std::sqrt(sigsq*(isMeanUncertainty ? one : effco)/
+                                 (effco - one));
+        }
+        else
+            return Precise();
+    }
+
+    template <typename Numeric, typename Precise>
+    double WeightedSampleAccumulator<Numeric,Precise>::count() const
+    {
+        if (!data_.empty())
+            return static_cast<double>(wsum_*wsum_/wsumsq_);
+        else
+            return 0.0;
+    }
+
+    template <typename Numeric, typename Precise>
+    inline Precise
+    WeightedSampleAccumulator<Numeric,Precise>::meanUncertainty() const
+    {
+        return stdev2(true);
+    }
+
+    template <typename Numeric, typename Precise>
+    inline Precise
+    WeightedSampleAccumulator<Numeric,Precise>::stdev() const
+    {
+        return stdev2(false);
+    }
+
+    template <typename Numeric, typename Precise>
+    Precise WeightedSampleAccumulator<Numeric,Precise>::noThrowMean(
+        const Precise& valueIfNoData) const
+    {
+        if (data_.empty())
+            return valueIfNoData;
+        else
+            return mean();
+    }
+
+    template <typename Numeric, typename Precise>
+    Precise WeightedSampleAccumulator<Numeric,Precise>::noThrowStdev(
+        const Precise& valueIfNoData) const
+    {
+        if (data_.empty())
+            return valueIfNoData;
+        else
+            return stdev();
+    }
+
+    template <typename Numeric, typename Precise>
+    Precise WeightedSampleAccumulator<Numeric,Precise>::noThrowMeanUncertainty(
+        const Precise& valueIfNoData) const
+    {
+        if (data_.empty())
+            return valueIfNoData;
+        else
+            return meanUncertainty();
+    }
+
+    template <typename Numeric, typename Precise>
+    double WeightedSampleAccumulator<Numeric,Precise>::weightBelow(
+        const Numeric x) const
+    {
+        if (data_.empty())
+            return 0.0;
+        sort();
+        const std::pair<Numeric,double> search(x, 0.0);
+        const std::size_t iabove = lower_bound(data_.begin(), data_.end(), search) -
+                                   data_.begin();
+        if (iabove == data_.size())
+            return wsum_;
+        long double wsum = 0.0L;
+        for (std::size_t i=0; i<iabove; ++i)
+            wsum += data_[i].second;
+        return wsum;
+    }
+
+    template <typename Numeric, typename Precise>
+    double WeightedSampleAccumulator<Numeric,Precise>::cdf(
+        const Numeric x) const
+    {
+        const unsigned long sz = data_.size();
+        if (!sz) throw std::runtime_error(
+            "In npstat::WeightedSampleAccumulator::cdf: no data accumulated");
+
+        if (sz == 1U)
+        {
+            if (x < data_[0].first)
+                return 0.0;
+            else if (data_[0].first < x)
+                return 1.0;
+            else
+                return 0.5;
+        }
+
+        sort();
+        const std::pair<Numeric,double>* data = &data_[0];
+        if (x <= data[0].first)
+            return 0.0;
+        if (data[sz - 1UL].first <= x)
+            return 1.0;
+        const std::pair<Numeric,double> search(x, 0.0);
+        const std::size_t iabove = lower_bound(data_.begin(), data_.end(), search) -
+                                   data_.begin();
+        const std::size_t ibelow = iabove - 1;
+        long double wsum = 0.0L;
+        for (std::size_t i=0; i<ibelow; ++i)
+            wsum += data[i].second;
+        double wstep = data[ibelow].second/2.0;
+        wsum += wstep;
+        wstep += data[iabove].second/2.0;
+        const Numeric step = data[iabove].first - data[ibelow].first;
+        assert(step > Numeric());
+        wsum += (x - data[ibelow].first)*wstep/step;
+        double cdf = wsum/wsum_;
+        if (cdf < 0.0)
+            cdf = 0.0;
+        else if (cdf > 1.0)
+            cdf = 1.0;
+        return cdf;
+    }
+
+    // We want the result here to be consistent with SampleAccumulator
+    // in case all weights are equal
+    template <typename Numeric, typename Precise>
+    Numeric WeightedSampleAccumulator<Numeric,Precise>::quantile(
+        const double x) const
+    {
+        if (!(x >= 0.0 && x <= 1.0)) throw std::invalid_argument(
+            "In npstat::WeightedSampleAccumulator::quantile: "
+            "cdf argument outside of [0, 1] interval");
+        const unsigned long n = data_.size();
+        if (!n) throw std::runtime_error(
+            "In npstat::WeightedSampleAccumulator::quantile: "
+            "no data accumulated");
+        if (n == 1UL)
+            return data_[0].first;
+        sort();
+        const std::pair<Numeric,double>* d = &data_[0];
+        if (x == 1.0)
+            return d[n - 1UL].first;
+        const long double sumneeded = wsum_*x;
+        long double wbelow = d[0].second;
+        if (sumneeded <= wbelow/2.0L)
+            return d[0].first;
+        long double sumbelow = 0.0L;
+        long double sumabove = wbelow;
+        for (unsigned long i=1UL; i<n; ++i)
+        {
+            const long double wabove = d[i].second;
+            const long double dmin = sumbelow + wbelow/2.0L;
+            const long double step = (wbelow + wabove)/2.0L;
+            if (sumneeded < dmin + step)
+            {
+                const long double delta = sumneeded - dmin;
+                const double frac = static_cast<double>(delta/step);
+                return d[i - 1UL].first + (d[i].first - d[i - 1UL].first)*frac;
+            }
+            sumbelow = sumabove;
+            sumabove += wabove;
+            wbelow = wabove;
+        }
+        return d[n - 1UL].first;
+    }
+
+    template <typename Numeric, typename Precise>
+    Numeric WeightedSampleAccumulator<Numeric,Precise>::median() const
+    {
+        return quantile(0.5);
+    }
+
+    template <typename Numeric, typename Precise>
+    bool WeightedSampleAccumulator<Numeric,Precise>::write(std::ostream& of) const
+    {
+        gs::write_pod(of, wsum_);
+        gs::write_pod(of, wsumsq_);
+        gs::write_pod(of, maxWeight_);
+        gs::write_pod(of, callCount_);
+        gs::write_pod(of, sorted_);
+
+        // Direct writing of data_ array will be inefficient: the code will 
+        // write out the class name for every element of the pair. For now,
+        // split the info into two vectors.
+        if (maxWeight_ > 0.0)
+        {
+            const unsigned long n = data_.size();
+            assert(n);
+            std::vector<Numeric> coords;
+            std::vector<double> weights;
+            coords.reserve(n);
+            weights.reserve(n);
+            const std::pair<Numeric,double>* d = &data_[0];
+            for (unsigned long i=0; i<n; ++i)
+            {
+                coords.push_back(d[i].first);
+                weights.push_back(d[i].second);
+            }
+            return gs::write_item(of, coords, true) && gs::write_item(of, weights, true);
+        }
+        else
+            return !of.fail();
+    }
+
+    template <typename Numeric, typename Precise>
+    void WeightedSampleAccumulator<Numeric,Precise>::restore(
+        const gs::ClassId& id, std::istream& in, WeightedSampleAccumulator* acc)
+    {
+        typedef WeightedSampleAccumulator<Numeric,Precise> MyType;
+
+        static const gs::ClassId current(gs::ClassId::makeId<MyType>());
+        current.ensureSameId(id);
+
+        assert(acc);
+        acc->data_.clear();
+        gs::read_pod(in, &acc->wsum_);
+        gs::read_pod(in, &acc->wsumsq_);
+        gs::read_pod(in, &acc->maxWeight_);
+        gs::read_pod(in, &acc->callCount_);
+        gs::read_pod(in, &acc->sorted_);
+        if (in.fail()) throw gs::IOReadFailure(
+            "In npstat::WeightedSampleAccumulator::restore: "
+            "input stream failure");
+
+        if (acc->maxWeight_ > 0.0)
+        {
+            std::vector<Numeric> coords;
+            std::vector<double> weights;
+            gs::restore_item(in, &coords, true);
+            gs::restore_item(in, &weights, true);
+            if (in.fail()) throw gs::IOReadFailure(
+                "In npstat::WeightedSampleAccumulator::restore: "
+                "input stream failure");
+            const unsigned long n = coords.size();
+            if (n != weights.size()) throw gs::IOInvalidData(
+                "In npstat::WeightedSampleAccumulator::restore: "
+                "invalid sample data");
+            acc->data_.reserve(n);
+            for (unsigned long i=0; i<n; ++i)
+                acc->data_.push_back(std::pair<Numeric,double>(
+                                         coords[i], weights[i]));
+        }
+    }
+
+    template <typename Numeric, typename Precise>
+    const char* WeightedSampleAccumulator<Numeric,Precise>::classname()
+    {
+        static const std::string myClass(gs::template_class_name<Numeric,Precise>(
+                                             "npstat::WeightedSampleAccumulator"));
+        return myClass.c_str();
+    }
+}

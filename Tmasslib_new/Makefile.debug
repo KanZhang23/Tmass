@@ -1,0 +1,83 @@
+#
+# Where Tcl libraries are stored?
+#
+TCL_LIB_DIR = /usr/lib/x86_64-linux-gnu
+TCL_INCLUDE_DIR = /usr/include/tcl8.6
+include /usr/lib/x86_64-linux-gnu/tclConfig.sh
+
+#
+# Where is the CDF jet corrections code?
+#
+JET_CORR_DIR = /home/igv/TopJes/JetUser
+
+#
+# Where is various other local code (Histo-Scope, etc)
+#
+LOCAL_BASE = /usr/local
+
+
+COFILES = jet_info.o simple_kinematics.o ordered_tree.o ordered_tree_api.o \
+         solve_top.o ttbar_phase_space.o sobol.o scrambled_sobol.o n_d_mask.o \
+         matrel_mahlon_parke.o wgrid.o lhapdf_interface.o \
+         p_struct_function.o topmass_integrator.o parameter_grid.o \
+         quartic_lib.o convolute_breit_wigner.o permutations.o \
+         matrel_kleiss_stirling.o matrel_interface.o n_d_random.o \
+         range_lookup.o linear_interpolator_2d.o norm_accumulator.o \
+         linear_interpolator_1d.o best_leptonic_nuz.o dpolin.o std.o \
+         hadside_error_matrix.o leptonic_side_errors.o \
+         sym_eigensys.o tag_probability_weight.o cernlib_replacement.o \
+         range_lookup_flt.o topmass_norm.o twidth.o bw_polynomial.o \
+         mc_topmass_integrator.o mc_integrator_priors.o unused.o rpoly.o \
+         single_jet_probs.o halton.o generate_ttbar_pt.o sobol_f.o \
+         ellipse_intersection.o leptonic_side_mask.o \
+         linear_interpolator_nd.o linear_interpolator_nd_api.o \
+         cdf_2d.o cdf_2d_api.o \
+         ordered_tree_collection.o cdf_3d.o cdf_3d_api.o parton_syserr.o \
+         solve_top_api.o solve_for_jes.o tfs_2015.o
+
+FOFILES = matrel.o
+
+INCLUDES = -I$(TCL_INCLUDE_DIR) -I$(LOCAL_BASE)/include \
+           -I$(JET_CORR_DIR) -I.
+
+DEFS = -DUSE_TCL_STUBS
+
+OPTIMIZE = -g
+
+CFLAGS = -fPIC $(OPTIMIZE) $(INCLUDES) $(DEFS) \
+         -Wall -Wmissing-prototypes -W -Werror -Wno-unused-parameter \
+         -Wno-implicit-fallthrough -Wno-strict-aliasing
+
+CXXFLAGS = -std=c++11 $(OPTIMIZE) $(INCLUDES) -Wall -W -Werror
+
+FFLAGS = $(OPTIMIZE) $(TCL_SHLIB_CFLAGS) -Wall -Wno-unused-dummy-argument
+
+%.o : %.c
+	gcc -c $(CFLAGS) -fPIC -MD $< -o $@
+	@sed -i 's,\($*\.o\)[:]*\(.*\),$@: $$\(wildcard\2\)\n\1:\2,g' $*.d
+
+%.o : %.cc
+	g++ -c $(CXXFLAGS) -fPIC -MD $< -o $@
+	@sed -i 's,\($*\.o\)[:]*\(.*\),$@: $$\(wildcard\2\)\n\1:\2,g' $*.d
+
+%.o : %.f
+	gfortran -c $(FFLAGS) $< -o $@
+
+all: configurables libtopmass.so
+
+configurables:
+	(cd Configurables; make -f Makefile.debug)
+
+libtopmass.so: $(FOFILES) $(COFILES) Configurables/libconfigurables.a
+	rm -f libtopmass.so
+	g++ -std=c++11 $(OPTIMIZE) -shared -o $@ $(COFILES) $(FOFILES) \
+             Configurables/libconfigurables.a \
+             -L/usr/lib -lgfortran -lLHAPDF \
+             -L$(LOCAL_BASE)/lib -L$(TCL_LIB_DIR) $(TCL_STUB_LIB_FLAG) \
+             -lnpstat -lkstest -lgeners -llapack -lblas -lbz2 -lz -lfftw3 -lm
+
+clean:
+	(cd Configurables; make -f Makefile.debug clean)
+	rm -f *.o *.d *.a *.so *~
+
+-include $(COFILES:.o=.d)

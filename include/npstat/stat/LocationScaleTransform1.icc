@@ -1,0 +1,36 @@
+#include "geners/GenericIO.hh"
+#include "geners/IOException.hh"
+
+namespace npstat {
+    template<class LocationFunctor, class ScaleFunctor>
+    bool LocationScaleTransform1<LocationFunctor,ScaleFunctor>::write(
+        std::ostream& os) const
+    {
+        gs::write_pod(os, param_);
+        gs::write_pod(os, paramMin_);
+        gs::write_pod(os, paramMax_);
+        return gs::write_item(os, loc_) && gs::write_item(os, scale_);
+    }
+
+    template<class LocationFunctor, class ScaleFunctor>
+    LocationScaleTransform1<LocationFunctor,ScaleFunctor>*
+    LocationScaleTransform1<LocationFunctor,ScaleFunctor>::read(
+        const gs::ClassId& id, std::istream& is)
+    {
+        static const gs::ClassId myClassId(
+            gs::ClassId::makeId<LocationScaleTransform1<LocationFunctor,ScaleFunctor> >());
+        myClassId.ensureSameName(id);
+        myClassId.ensureSameVersion(id);
+
+        double p, pmin, pmax;
+        gs::read_pod(is, &p);
+        gs::read_pod(is, &pmin);
+        gs::read_pod(is, &pmax);
+        CPP11_auto_ptr<LocationFunctor> loc = gs::read_item<LocationFunctor>(is);
+        CPP11_auto_ptr<ScaleFunctor> s = gs::read_item<ScaleFunctor>(is);
+        CPP11_auto_ptr<LocationScaleTransform1> ptr(
+            new LocationScaleTransform1(*loc, *s, pmin, pmax));
+        ptr->setParameter(0U, p);
+        return ptr.release();
+    }
+}

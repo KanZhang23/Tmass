@@ -1,0 +1,52 @@
+
+The tests in this directory do not follow the standard tcl test setup.
+Instead, this directory contains a collection of scripts which test
+the hs extension data fitting procedures on the NIST Statistical
+Reference Datasets (StRD) for nonlinear regression. StRDs and their
+purpose are described at http://www.itl.nist.gov/div898/strd/
+
+The tests can be run interactively using the script "strd_interactive.tcl"
+or in batch mode using the script "strd_batch.tcl". In the interactive
+mode, the tests are performed one at a time, possibly with the help of
+the fit tuner GUI. Please run the script "strd_interactive.tcl"
+without any arguments to see its usage instruction. In the batch mode,
+the tests are run all at once. In this mode, the test results are
+written into two files: strd_results.hs and strd_results.txt. The file
+strd_results.hs will contain an ntuple which can be used to examine
+obtained parameters and their errors in all tests together with
+certified values from NIST. The file strd_results.txt will contain
+a table of test statuses. An example table line looks like this:
+
+Dataset name     Start 1      Start 2      Start 3 
+------------    ---------    ---------    ---------
+      BoxBOD    FAIL/FAIL    pass/pass    pass/pass
+
+For each dataset, the fitting is performed using three different
+starting points in the parameter space: far from the certified
+solution (Start 1), closer to the certified solution (Start 2), and
+exactly at the certified solution (Start 3). The obtained parameters
+and their errors are compared to the certified values. The status of
+parameter value comparison is written as the first element (before
+the slash) in each "Start" column. A dataset passes the parameter
+comparison if all fitted parameter values pass the comparison.
+The status of error comparison is written as the second element (after
+the slash) in each "Start" column. All fitted parameter errors must
+pass for the dataset to pass.
+
+A fit parameter passes the test if the absolute difference between
+the fitted value and the certified value does not exceed a certain
+fraction of the certified error. This fraction is defined by the value
+of "max_value_deviation" variable which is set at the beginning of the
+"strd_batch.tcl" script. A parameter error passes the test if the
+absolute difference between the fitted error and the certified error
+does not exceed a certain fraction of the certified error. This
+fraction is defined by the value of "max_error_deviation" variable
+also set at the beginning of the "strd_batch.tcl" script. The values
+of "max_value_deviation" and "max_error_deviation" are currently set
+to 0.1 and 0.2, respectively. These bounds seem to be reasonable,
+especially taking into account the fact that the hs extension does not
+use analytic derivatives.
+
+The file "strd_reference_results.txt" lists the results of StRD tests
+obtained on a 64-bit Intel PC running Fedora 17 Linux.
+

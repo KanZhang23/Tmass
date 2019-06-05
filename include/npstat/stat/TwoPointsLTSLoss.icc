@@ -1,0 +1,225 @@
+#include <climits>
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/stat/DensityScanND.hh"
+#include "npstat/nm/LinearMapper1d.hh"
+
+namespace npstat {
+    template <unsigned MaxDim, unsigned MaxReplace, unsigned MaxDeg>
+    void TwoPointsLTSLoss<MaxDim,MaxReplace,MaxDeg>::initialize(
+        const ArrayND<double>& in)
+    {
+        expectedShape_ = in.shape();
+        ArrayND<double> weight(expectedShape_);
+        const unsigned dim = weight.rank();
+        if (!(dim && dim == wFcn_->dim())) throw std::invalid_argument(
+            "In npstat::TwoPointsLTSLoss::initialize: "
+            "incompatible input array dimensionality");
+        if (dim > MaxDim) throw std::out_of_range(
+            "In npstat::TwoPointsLTSLoss::initialize: "
+            "input array dimensionality is too high");
+        if (degree_ > MaxDeg) throw std::out_of_range(
+            "In npstat::TwoPointsLTSLoss::initialize: "
+            "polynomial degree is too high");
+        const unsigned long len = weight.length();
+        if (!(dim > 1U || len > 3UL)) throw std::invalid_argument(
+            "In npstat::TwoPointsLTSLoss::initialize: "
+            "not enough elements in the array of weights");
+
+        assert(polyPairs_ == 0);
+        polyPairs_ = new ArrayND<Poly*>(makeShape(len, len));
+        polyPairs_->clear();
+
+        ArrayND<double> *weight2 = 0;
+        if (fixStripes_ && dim > 1U)
+        {
+            polyLines_ = new ArrayND<Poly*>(makeShape(len, dim));
+            polyLines_->clear();
+            weight2 = new ArrayND<double>(expectedShape_);
+        }
+
+        unsigned ind1[MaxDim];
+        std::vector<LinearMapper1d> maps;
+        maps.reserve(dim);
+        for (unsigned long i=0; i<len; ++i)
+        {
+            weight.convertLinearIndex(i, ind1, dim);
+            maps.clear();
+            for (unsigned idim=0; idim<dim; ++idim)
+                maps.push_back(LinearMapper1d(1.0, -1.0*ind1[idim]));
+            DensityScanND<LinearMapper1d> scan(*wFcn_, maps);
+            weight.functorFill(scan);
+            weight.linearValue(i) = 0.0;
+
+            // Form the two points weight
+            double oldvalue = 0.0;
+            unsigned long prevInd = ULONG_MAX;
+            for (unsigned long j=0; j<len; ++j)
+            {
+                if (i == j)
+                    continue;
+
+                if (prevInd != ULONG_MAX)
+                    weight.linearValue(prevInd) = oldvalue;
+                prevInd = j;
+                oldvalue = weight.linearValue(prevInd);
+
+                weight.linearValue(j) = 0.0;
+                polyPairs_->at(i, j) = new Poly(degree_, weight);
+            }
+            assert(prevInd != ULONG_MAX);
+            weight.linearValue(prevInd) = oldvalue;
+
+            if (polyLines_)
+            {
+                for (unsigned long idim=0; idim<dim; ++idim)
+                {
+                    *weight2 = weight;
+                    unsigned ind2[MaxDim];
+                    for (unsigned j=0; j<dim; ++j)
+                        ind2[j] = ind1[j];
+                    const unsigned span = in.span(idim);
+                    for (unsigned j=0; j<span; ++j)
+                    {
+                        ind2[idim] = j;
+                        weight2->value(ind2, dim) = 0.0;
+                    }
+                    polyLines_->at(i, idim) = new Poly(degree_, *weight2);
+                }
+            }
+        }
+
+        delete weight2;
+    }
+
+    template <unsigned MaxDim, unsigned MaxReplace, unsigned MaxDeg>
+    TwoPointsLTSLoss<MaxDim,MaxReplace,MaxDeg>::~TwoPointsLTSLoss()
+    {
+        if (polyLines_)
+        {
+            unsigned long len = polyLines_->length();
+            for (unsigned long i=0; i<len; ++i)
+                delete polyLines_->linearValue(i);
+            delete polyLines_;
+        }
+        if (polyPairs_)
+        {
+            unsigned long len = polyPairs_->length();
+            for (unsigned long i=0; i<len; ++i)
+                delete polyPairs_->linearValue(i);
+            delete polyPairs_;
+        }
+        delete wFcn_;
+    }
+
+    template <unsigned MaxDim, unsigned MaxReplace, unsigned MaxDeg>
+    LocalLoss TwoPointsLTSLoss<MaxDim,MaxReplace,MaxDeg>::operator()(
+        const ArrayND<double>& in, const unsigned* indexInWindow,
+        const unsigned* indexInDataset, BlockReplacement* block) const
+    {
+        assert(indexInWindow);
+        assert(indexInDataset);
+        assert(block);
+
+        const unsigned dim = in.rank();
+        const unsigned long len = in.length();
+
+        block->reset(indexInDataset, dim);
+
+        if (!polyPairs_)
+            (const_cast<TwoPointsLTSLoss*>(this))->initialize(in);
+        if (!in.isCompatible(expectedShape_)) throw std::invalid_argument(
+            "In npstat::TwoPointsLTSLoss::operator(): "
+            "incompatible shape of the input array");
+
+        LocalLoss result;
+        PointReplacement<MaxDim> pr;
+        pr.coord = block->idx;
+        long double bestFinalChisq = 1.0e2000L;
+
+        const unsigned long ipt = in.linearIndex(indexInWindow, dim);
+        unsigned local[MaxDim];
+        for (unsigned long ignore=0; ignore<len; ++ignore)
+        {
+            if (ignore == ipt)
+                continue;
+
+            const Poly* polyUsed = (*polyPairs_)(ipt, ignore);
+            const unsigned ncoeffs = polyUsed->nTerms();
+            if (coeffs_.size() < ncoeffs)
+                coeffs_.resize(ncoeffs);
+            polyUsed->calculateCoeffs(in, 0, 0, &coeffs_[0], ncoeffs);
+
+            long double sumsq = 0.0;
+            double improvement = -1.0, improvedvalue = 0.0;
+            for (unsigned long i=0; i<len; ++i)
+            {
+                if (i == ignore)
+                    continue;
+                in.convertLinearIndex(i, local, dim);
+                const double fitted = polyUsed->series(&coeffs_[0], ncoeffs,
+                                                       local, dim);
+                const double diff = in.linearValue(i) - fitted;
+                sumsq += diff*diff;
+                if (i == ipt)
+                {
+                    improvement = diff*diff;
+                    improvedvalue = fitted;
+                }
+            }
+            if (sumsq - improvement < bestFinalChisq)
+            {
+                result.improvement = improvement;
+                result.value = sumsq;
+                pr.improvedValue = improvedvalue;
+                bestFinalChisq = sumsq - improvement;
+            }
+        }
+
+        if (polyLines_)
+            for (unsigned idim=0; idim<dim; ++idim)
+            {
+                const Poly* polyUsed = (*polyLines_)(ipt, idim);
+                const unsigned ncoeffs = polyUsed->nTerms();
+                if (coeffs_.size() < ncoeffs)
+                    coeffs_.resize(ncoeffs);
+                polyUsed->calculateCoeffs(in, 0, 0, &coeffs_[0], ncoeffs);
+
+                long double sumsq = 0.0;
+                double improvement = -1.0, improvedvalue = 0.0;
+                for (unsigned long i=0; i<len; ++i)
+                {
+                    in.convertLinearIndex(i, local, dim);
+                    bool useThisPoint = i == ipt;
+                    for (unsigned j=0; j<dim; ++j)
+                        if (j != idim)
+                            if (local[j] != indexInWindow[j])
+                                useThisPoint = true;
+                    if (!useThisPoint)
+                        continue;
+                    const double fitted = polyUsed->series(&coeffs_[0], ncoeffs,
+                                                           local, dim);
+                    const double diff = in.linearValue(i) - fitted;
+                    sumsq += diff*diff;
+                    if (i == ipt)
+                    {
+                        improvement = diff*diff;
+                        improvedvalue = fitted;
+                    }
+                }
+                if (sumsq - improvement < bestFinalChisq)
+                {
+                    result.improvement = improvement;
+                    result.value = sumsq;
+                    pr.improvedValue = improvedvalue;
+                    bestFinalChisq = sumsq - improvement;
+                }
+            }
+
+        block->replacement[0] = pr;
+        block->nReplacements = 1U;
+
+        return result;
+    }
+}

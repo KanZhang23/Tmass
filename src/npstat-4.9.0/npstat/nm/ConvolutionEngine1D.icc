@@ -1,0 +1,163 @@
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    template <typename Real>
+    void ConvolutionEngine1D::setFilter(const Real* data,
+                                        const unsigned dataLen,
+                                        const unsigned shift)
+    {
+        if (dataLen != dataLen_) throw std::invalid_argument(
+            "In npstat::ConvolutionEngine1D::setFilter: "
+            "incompatible filter size");
+        assert(data);
+        for (unsigned i=0; i<dataLen; ++i)
+            in[i] = data[(i+shift) % dataLen];
+        fftw_execute(pf);
+
+        const unsigned nComplex = dataLen/2 + 1;
+        for (unsigned i=0; i<nComplex; ++i)
+        {
+            filterImage[i][0] = out[i][0];
+            filterImage[i][1] = out[i][1];
+        }
+        validFilter_ = true;
+    }
+
+    template <typename Real>
+    void ConvolutionEngine1D::depositFilter(
+        const unsigned long tag, const Real* data,
+        const unsigned dataLen, const unsigned shift)
+    {
+        if (dataLen != dataLen_) throw std::invalid_argument(
+            "In npstat::ConvolutionEngine1D::depositFilter: "
+            "incompatible filter size");
+        assert(data);
+        for (unsigned i=0; i<dataLen; ++i)
+            in[i] = data[(i+shift) % dataLen];
+        fftw_execute(pf);
+
+        FourierImage* newImage = new FourierImage(out, dataLen/2 + 1);
+
+        FilterMap::iterator it = filterMap_.find(tag);
+        if (it != filterMap_.end())
+        {
+            delete it->second;
+            it->second = newImage;
+        }
+        else
+            filterMap_.insert(std::make_pair(tag, newImage));
+    }
+
+    template <typename Real1, typename Real2>
+    void ConvolutionEngine1D::convolveWithImage(const fftw_complex* image,
+                                                const Real1* data,
+                                                Real2* result,
+                                                const unsigned dataLen,
+                                                const unsigned shift)
+    {
+        if (dataLen != dataLen_) throw std::invalid_argument(
+            "In npstat::ConvolutionEngine1D::convolveWithImage: "
+            "incompatible data size");
+        assert(data);
+        assert(result);
+
+        // Transform forward
+        for (unsigned i=0; i<dataLen; ++i)
+            in[i] = data[(i+shift) % dataLen];
+        fftw_execute(pf);
+
+        // Multiply the images
+        multiplyTransforms(out, image, out, dataLen/2 + 1);
+
+        // Transform back
+        fftw_execute(pb);
+
+        // Get the result
+        const double nbins = dataLen;
+        for (unsigned i=0; i<dataLen; ++i)
+            result[i] = in[i]/nbins;
+    }
+
+    template <typename Real1, typename Real2>
+    void ConvolutionEngine1D::deconvolveImage(const fftw_complex* image,
+                                              const Real1* data,
+                                              Real2* result,
+                                              const unsigned dataLen,
+                                              const unsigned shift)
+    {
+        if (dataLen != dataLen_) throw std::invalid_argument(
+            "In npstat::ConvolutionEngine1D::deconvolveImage: "
+            "incompatible data size");
+        assert(data);
+        assert(result);
+
+        // Transform forward
+        for (unsigned i=0; i<dataLen; ++i)
+            in[i] = data[(i+shift) % dataLen];
+        fftw_execute(pf);
+
+        // Divide the images
+        divideTransforms(out, image, out, dataLen/2 + 1);
+
+        // Transform back
+        fftw_execute(pb);
+
+        // Get the result
+        const double nbins = dataLen;
+        for (unsigned i=0; i<dataLen; ++i)
+            result[i] = in[i]/nbins;
+    }
+
+    template <typename Real1, typename Real2>
+    void ConvolutionEngine1D::convolveWithFilter(const Real1* data,
+                                                 Real2* result,
+                                                 const unsigned dataLen,
+                                                 const unsigned shift)
+    {
+        if (!validFilter_) throw std::runtime_error(
+            "In npstat::ConvolutionEngine1D::convolveWithFilter: "
+            "filter has not been set");
+        convolveWithImage(filterImage, data, result, dataLen, shift);
+    }
+
+    template <typename Real1, typename Real2>
+    void ConvolutionEngine1D::deconvolveFilter(const Real1* data,
+                                               Real2* result,
+                                               const unsigned dataLen,
+                                               const unsigned shift)
+    {
+        if (!validFilter_) throw std::runtime_error(
+            "In npstat::ConvolutionEngine1D::deconvolveFilter: "
+            "filter has not been set");
+        deconvolveImage(filterImage, data, result, dataLen, shift);
+    }
+
+    template <typename Real1, typename Real2>
+    void ConvolutionEngine1D::convolveWithDeposit(const unsigned long tag,
+                                                  const Real1* data,
+                                                  Real2* result,
+                                                  const unsigned dataLen,
+                                                  const unsigned shift)
+    {
+        FilterMap::iterator it = filterMap_.find(tag);
+        if (it == filterMap_.end()) throw std::invalid_argument(
+            "In npstat::ConvolutionEngine1D::convolveWithDeposit: "
+            "filter tag not found");
+        convolveWithImage(it->second->image(), data, result, dataLen, shift);
+    }
+
+    template <typename Real1, typename Real2>
+    void ConvolutionEngine1D::deconvolveDeposit(const unsigned long tag,
+                                                const Real1* data,
+                                                Real2* result,
+                                                const unsigned dataLen,
+                                                const unsigned shift)
+    {
+        FilterMap::iterator it = filterMap_.find(tag);
+        if (it == filterMap_.end()) throw std::invalid_argument(
+            "In npstat::ConvolutionEngine1D::deconvolveDeposit: "
+            "filter tag not found");
+        deconvolveImage(it->second->image(), data, result, dataLen, shift);
+    }
+}

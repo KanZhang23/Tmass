@@ -1,0 +1,499 @@
+#include <cmath>
+#include <limits>
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    namespace Private {
+        // The following class is used to perform an initial guess
+        // of a censored quantile for the KDTree data
+        template<class Point, class Numeric>
+        class EmpiricalCensoredQuantileEstimateT :
+            public AbsVisitor<Point, double>
+        {
+        public:
+            inline EmpiricalCensoredQuantileEstimateT(
+                const KDTree<Point,Numeric>& dataTree,
+                const QuadraticOrthoPolyND& poly,
+                const Functor1<double,Point>& regressedValue,
+                const Functor1<CensoringInfo,Point>& censoringInfo,
+                const double q, const double valueLimit,
+                const bool positiveTailPassing,
+                double* coords, const double* scale,
+                const double* location, const unsigned dim)
+                : dataTree_(dataTree), poly_(poly),
+                  regressedValue_(regressedValue),
+                  censoringInfo_(censoringInfo),
+                  q_(q), valueLimit_(valueLimit),
+                  coords_(coords), scale_(scale),
+                  location_(location), dim_(dim),
+                  positiveTailPassing_(positiveTailPassing) {}
+
+            inline void clear() {assert(0);}
+            inline double result() {return acc_.quantile(q_);}
+            void process(const Point& value);
+
+            inline double count() const {return acc_.count();}
+            inline double resultUncertainty() const
+                {return quantileDeterminationUncertainty(acc_, q_);}
+
+        private:
+            WeightedSampleAccumulator<double> acc_;
+            const KDTree<Point,Numeric>& dataTree_;
+            const QuadraticOrthoPolyND& poly_;
+            const Functor1<double,Point>& regressedValue_;
+            const Functor1<CensoringInfo,Point>& censoringInfo_;
+            const double q_;
+            const double valueLimit_;
+            double* coords_;
+            const double* scale_;
+            const double* location_;
+            const unsigned dim_;
+            const bool positiveTailPassing_;
+        };
+
+        template<class Point, class Numeric>
+        void EmpiricalCensoredQuantileEstimateT<Point,Numeric>::process(
+            const Point& value)
+        {
+            for (unsigned i=0; i<dim_; ++i)
+            {
+                const double x = static_cast<double>(
+                    value[dataTree_.pointIndex(i)]);
+                coords_[i] = x*scale_[i] + location_[i];
+            }
+            const double w = poly_.weight()->density(coords_, dim_);
+            if (w > 0.0)
+            {
+                const CensoringInfo& cinfo(censoringInfo_(value));
+
+                // Apply the cut
+                const double cutoff = cinfo.cutoff;
+                const double y = (this->regressedValue_)(value);
+                if (y < cutoff && positiveTailPassing_)
+                    return;
+                if (y > cutoff && !positiveTailPassing_)
+                    return;
+
+                // Account for the observed point
+                acc_.accumulate(y, w);
+
+                // Account for the unobserved points
+                const double eff = cinfo.efficiency;
+                if (!(eff > 0.0 && eff <= 1.0)) throw std::domain_error(
+                    "In npstat::EmpiricalCensoredQuantileEstimateT::process: "
+                    "invalid efficiency");
+                const double unobserved = (1.0 - eff)/eff;
+                if (unobserved > 0.0)
+                {
+                    const double wsplit = positiveTailPassing_ ?
+                        (1.0 - eff - q_)/(1.0 - eff) : (q_ - eff)/(1.0 - eff);
+                    if (wsplit > 0.0)
+                    {
+                        acc_.accumulate(cutoff, unobserved*w*wsplit);
+                        acc_.accumulate(valueLimit_,unobserved*w*(1.0-wsplit));
+                    }
+                    else
+                        acc_.accumulate(cutoff, unobserved*w);
+                }
+            }
+        }
+
+        // The following class is used to perform an initial guess
+        // of a censored quantile for histogram data
+        template <typename Numeric, typename Num2>
+        class EmpiricalCensoredQuantileEstimateI : 
+            public AbsArrayProjector<Numeric, double>
+        {
+        public:
+            inline EmpiricalCensoredQuantileEstimateI(
+                const QuadraticOrthoPolyND& poly,
+                const ArrayND<Num2>& efficiency,
+                const ArrayND<Num2>& cutoff,
+                const HistoAxis& lastAxis,
+                const double q,
+                const double valueLimit,
+                double* coords,
+                const double* scale,
+                const double* location,
+                const unsigned dim,
+                const bool positiveTailPassing)
+                : poly_(poly), efficiency_(efficiency),
+                  cutoff_(cutoff), lastAxis_(lastAxis),
+                  q_(q), valueLimit_(valueLimit),
+                  coords_(coords), scale_(scale),
+                  location_(location), dim_(dim), zero_(),
+                  positiveTailPassing_(positiveTailPassing) {}
+
+            inline void clear() {assert(0);}
+            inline double result() {return acc_.quantile(q_);}
+            void process(const unsigned *index, unsigned indexLen,
+                         unsigned long linearIndex, const Numeric& value);
+
+            inline double count() const {return acc_.count();}
+            inline double resultUncertainty() const
+                {return quantileDeterminationUncertainty(acc_, q_);}
+
+        private:
+            WeightedSampleAccumulator<double> acc_;
+            const QuadraticOrthoPolyND& poly_;
+            const ArrayND<Num2>& efficiency_;
+            const ArrayND<Num2>& cutoff_;
+            const HistoAxis& lastAxis_;
+            const double q_;
+            const double valueLimit_;
+            double* coords_;
+            const double* scale_;
+            const double* location_;
+            const unsigned dim_;
+            const Numeric zero_;
+            const bool positiveTailPassing_;
+        };
+
+        template <typename Numeric, typename Num2>
+        void EmpiricalCensoredQuantileEstimateI<Numeric,Num2>::process(
+            const unsigned *index, const unsigned indexLen,
+            unsigned long /* linearIndex */, const Numeric& value)
+        {
+            if (value > zero_)
+            {
+                assert(dim_ + 1U == indexLen);
+                for (unsigned i=0; i<dim_; ++i)
+                    coords_[i] = index[i]*scale_[i] + location_[i];
+                const double w = poly_.weight()->density(coords_, dim_);
+                if (w <= 0.0)
+                    return;
+
+                const double cutoff = cutoff_.value(index, dim_);
+                const double binCenter = lastAxis_.binCenter(index[dim_]);
+                if (binCenter >= cutoff && !positiveTailPassing_)
+                    return;
+                if (binCenter <= cutoff && positiveTailPassing_)
+                    return;
+
+                // Account for this bin itself
+                acc_.accumulate(binCenter, value*w);
+
+                // Account for unobserved data
+                const double eff = efficiency_.value(index, dim_);
+                if (!(eff > 0.0 && eff <= 1.0)) throw std::domain_error(
+                    "In npstat::EmpiricalCensoredQuantileEstimateI::process: "
+                    "invalid efficiency");
+                const double unobserved = value*(1.0 - eff)/eff;
+                if (unobserved > 0.0)
+                {
+                    const double wsplit = positiveTailPassing_ ?
+                        (1.0 - eff - q_)/(1.0 - eff) : (q_ - eff)/(1.0 - eff);
+                    if (wsplit > 0.0)
+                    {
+                        acc_.accumulate(cutoff, unobserved*w*wsplit);
+                        acc_.accumulate(valueLimit_,unobserved*w*(1.0-wsplit));
+                    }
+                    else
+                        acc_.accumulate(cutoff, unobserved*w);
+                }
+            }
+        }
+    }
+}
+
+
+namespace npstat {
+    template<class Point, class Numeric>
+    CensoredQuantileRegressionOnKDTree<
+        Point,Numeric>::CensoredQuantileRegressionOnKDTree(
+            const KDTree<Point,Numeric>& dataTree,
+            const Functor1<double,Point>& regressedValue,
+            const Functor1<CensoringInfo,Point>& censoringInfo,
+            const QuadraticOrthoPolyND& poly,
+            const double quantile, const double valueLimit)
+            : QuantileRegressionOnKDTree<Point,Numeric>(dataTree,
+                                                        regressedValue,
+                                                        poly, quantile),
+              censoringInfo_(censoringInfo),
+              valueLimit_(valueLimit)
+    {
+        // Make sure that the "valueLimit" argument is meaningful
+        const std::vector<Point>& points = dataTree.inputPoints();
+        const unsigned long npt = points.size();
+        const Point* pt = &points[0];
+        double minResponse = std::numeric_limits<double>::max();
+        double maxResponse = -minResponse;
+        for (unsigned long i=0; i<npt; ++i)
+        {
+            const double v = regressedValue(pt[i]);
+            if (v > maxResponse)
+                maxResponse = v;
+            if (v < minResponse)
+                minResponse = v;
+        }
+        if (valueLimit_ > maxResponse)
+            positiveTailPassing_ = false;
+        else if (valueLimit_ < minResponse)
+            positiveTailPassing_ = true;
+        else
+            throw std::invalid_argument(
+                "In npstat::CensoredQuantileRegressionOnKDTree constructor: "
+                "invalid valueLimit argument");
+    }
+
+    template<class Point, class Numeric>
+    double CensoredQuantileRegressionOnKDTree<
+        Point,Numeric>::empiricalQuantile(double* err, double* pnpoints)
+    {
+        Private::EmpiricalCensoredQuantileEstimateT<Point,Numeric> eq(
+            this->dataTree_, this->poly_, this->regressedValue_,
+            censoringInfo_, this->quantile_, valueLimit_,
+            positiveTailPassing_, &this->coords_[0], &this->scale_[0],
+            &this->location_[0], this->mydim_);
+        this->dataTree_.visitInBox(eq, this->regressionBox_);
+        *err = eq.resultUncertainty();
+        *pnpoints = eq.count();
+        return eq.result();
+    }
+
+    template<class Point, class Numeric>
+    void CensoredQuantileRegressionOnKDTree<Point,Numeric>::process(
+        const Point& value)
+    {
+        const unsigned nCoeffs = this->coeffs_.size();
+        double* coords = &this->coords_[0];
+
+        for (unsigned i=0; i<this->mydim_; ++i)
+        {
+            const double x = static_cast<double>(
+                value[this->dataTree_.pointIndex(i)]);
+            coords[i] = x*this->scale_[i] + this->location_[i];
+        }
+
+        const double w = this->poly_.weight()->density(coords, this->mydim_);
+        if (w > 0.0)
+        {
+            const CensoringInfo& cinfo(censoringInfo_(value));
+
+            // Apply the cut
+            const double cutoff = cinfo.cutoff;
+            const double y = (this->regressedValue_)(value);
+            if (y < cutoff && positiveTailPassing_)
+                return;
+            if (y > cutoff && !positiveTailPassing_)
+                return;
+
+            // Subsequent logic works as follows. For each point observed
+            // with efficiency "eff", there are 1/eff - 1 unobserved points.
+            //
+            // If we observe values below cutoff, this looks like
+            // a standard problem with censored survival times.
+            // In this case, if the quantile we are looking for is less
+            // than efficiency, we place all unobserved points at the
+            // cutoff. If the quantile we are looking for is higher
+            // than the efficiency, we place a fraction of unobserved
+            // points at the cutoff. This fraction is (q - eff)/(1 - eff).
+            // The rest of unobserved points we place, essentially,
+            // at +Infinity (practically, at maxResponse_).
+            //
+            // If we observe values above cutoff, the following is done.
+            // If the quantile we are looking for is higher than 1 - eff,
+            // all unobserved points are placed at the cutoff. If the
+            // quantile is lower than 1 - eff, we need to place a fraction
+            // of the unobserved points at the cutoff and a fraction at
+            // -Infinity (practically, at minResponse_). The fraction
+            // placed at the cutoff is (1 - eff - q)/(1 - eff).
+
+            // Account for the observed point
+            const double pval = this->poly_.series(
+                coords, this->mydim_, &this->coeffs_[0], nCoeffs);
+            double delta = y - pval;
+            this->loss_ += w*(delta > 0.0 ? delta*this->quantile_ :
+                              -delta*this->onemq_);
+
+            // Account for the unobserved points
+            const double eff = cinfo.efficiency;
+            if (!(eff > 0.0 && eff <= 1.0)) throw std::domain_error(
+                "In npstat::CensoredQuantileRegressionOnKDTree::process: "
+                "invalid efficiency");
+            const double unobserved = (1.0 - eff)/eff;
+            if (unobserved > 0.0)
+            {
+                const double wsplit = positiveTailPassing_ ?
+                    (1.0 - eff - this->quantile_)/(1.0 - eff) :
+                    (this->quantile_ - eff)/(1.0 - eff);
+                long double uloss = 0.0L;
+                delta = cutoff - pval;
+                if (wsplit > 0.0)
+                {
+                    uloss += wsplit*(delta > 0.0 ? delta*this->quantile_ :
+                                     -delta*this->onemq_);
+                    delta = valueLimit_ - pval;
+                    uloss += (1.0-wsplit)*(delta > 0.0 ? delta*this->quantile_:
+                                           -delta*this->onemq_);
+                }
+                else
+                    uloss += (delta > 0.0 ? delta*this->quantile_ :
+                              -delta*this->onemq_);
+                this->loss_ += w*uloss*unobserved;
+            }
+        }
+    }
+
+    template <typename Numeric, typename Num2>
+    CensoredQuantileRegressionOnHisto<Numeric,Num2
+        >::CensoredQuantileRegressionOnHisto(const HistoND<Numeric>& histo,
+                                             const ArrayND<Num2>& efficiency,
+                                             const ArrayND<Num2>& cutoff,
+                                             const QuadraticOrthoPolyND& poly,
+                                             const double quantile,
+                                             const double valueLimit)
+        : QuantileRegressionOnHisto<Numeric>(histo, poly, quantile),
+          efficiency_(efficiency),
+          cutoff_(cutoff),
+          valueLimit_(valueLimit)
+    {
+        // Verify compatibility of the array shapes
+        const unsigned thisdim = this->mydim_;
+        if (thisdim != efficiency.rank()) throw std::invalid_argument(
+            "In npstat::CensoredQuantileRegressionOnHisto constructor: "
+            "incompatible rank of the efficiency array");
+        for (unsigned idim=0; idim<thisdim; ++idim)
+            if (efficiency.span(idim) != histo.binContents().span(idim))
+                throw std::invalid_argument(
+                    "In npstat::CensoredQuantileRegressionOnHisto constructor:"
+                    " incompatible dimensionality of the efficiency array");
+        if (!efficiency.isShapeCompatible(cutoff))
+            throw std::invalid_argument(
+                "In npstat::CensoredQuantileRegressionOnHisto constructor: "
+                "incompatible dimensionality of the cutoff array");
+
+        // Check that valueLimit argument is reasonable
+        if (valueLimit_ <= this->lastAxis_.min())
+            positiveTailPassing_ = true;
+        else if (valueLimit_ >= this->lastAxis_.max())
+            positiveTailPassing_ = false;
+        else
+            throw std::invalid_argument(
+                "In npstat::CensoredQuantileRegressionOnHisto constructor: "
+                "invalid valueLimit argument");
+    }
+
+    template <typename Numeric, typename Num2>
+    void CensoredQuantileRegressionOnHisto<Numeric,Num2>::process(
+        const unsigned *index, const unsigned indexLen,
+        const unsigned long /* linearIndex */, const Numeric& binValue)
+    {
+        if (binValue > this->zero_)
+        {
+            const unsigned thisdim = this->mydim_;
+            if (indexLen != thisdim + 1U) throw std::invalid_argument(
+                "In npstat::CensoredQuantileRegressionOnHisto::process: "
+                "invalid index dimensionality");
+            const unsigned nCoeffs = this->coeffs_.size();
+            double* coords = &this->coords_[0];
+
+            for (unsigned i=0; i<thisdim; ++i)
+                coords[i] = index[i]*this->scale_[i] + this->location_[i];
+
+            const double w = this->poly_.weight()->density(
+                coords, thisdim);
+            if (w <= 0.0)
+                return;
+
+            const double cutoff = cutoff_.value(index, thisdim);
+            double binCenter = this->lastAxis_.binCenter(index[thisdim]);
+
+            double leftEdge = binCenter - this->halfbin_;
+            if (leftEdge >= cutoff && !positiveTailPassing_)
+                return;
+
+            double rightEdge = binCenter + this->halfbin_;
+            if (rightEdge <= cutoff && positiveTailPassing_)
+                return;
+
+            // Adjust bin edges in case the cutoff falls inside this bin
+            double value = binValue;
+            double binwidth = 2.0*this->halfbin_;
+            if (cutoff > leftEdge && cutoff < rightEdge)
+            {
+                if (positiveTailPassing_)
+                    leftEdge = cutoff;
+                else
+                    rightEdge = cutoff;
+                binwidth = rightEdge - leftEdge;
+                binCenter = (rightEdge + leftEdge)/2.0;
+
+                // Do we adjust the bin value? This depends on whether
+                // the cut was already applied or not when the histogram
+                // was filled. Here, we assume that the cut was already
+                // applied and, therefore, adjustment of the value is not
+                // necessary. If this is not the case, uncomment the line
+                // below.
+                //
+                // value *= binwidth/(2.0*this->halfbin_);
+                //
+            }
+
+            const double pval = this->poly_.series(
+                coords, thisdim, &this->coeffs_[0], nCoeffs);
+
+            // Account for this bin itself
+            if (leftEdge >= pval)
+                this->loss_ += value*(binCenter - pval)*this->quantile_*w;
+            else if (rightEdge <= pval)
+                this->loss_ += value*(pval - binCenter)*this->onemq_*w;
+            else
+            {
+                // The fitted value is inside the bin. We need to
+                // split the bin itself into two parts.
+                const double centerBelow = (pval + leftEdge)/2.0;
+                const double fracBelow = (pval - leftEdge)/binwidth;
+                const double centerAbove = (pval + rightEdge)/2.0;
+                const double fracAbove = 1.0 - fracBelow;
+                const double sum = 
+                    fracAbove*(centerAbove - pval)*this->quantile_ +
+                    fracBelow*(pval - centerBelow)*this->onemq_;
+                this->loss_ += sum*value*w;
+            }
+
+            // Account for unobserved data
+            const double eff = efficiency_.value(index, thisdim);
+            if (!(eff > 0.0 && eff <= 1.0)) throw std::domain_error(
+                "In npstat::CensoredQuantileRegressionOnHisto::process: "
+                "invalid efficiency value");
+            const double unobserved = value*(1.0 - eff)/eff;
+            if (unobserved > 0.0)
+            {
+                const double wsplit = positiveTailPassing_ ?
+                    (1.0 - eff - this->quantile_)/(1.0 - eff) :
+                    (this->quantile_ - eff)/(1.0 - eff);
+                long double uloss = 0.0L;
+                double delta = cutoff - pval;
+                if (wsplit > 0.0)
+                {
+                    uloss += wsplit*(delta > 0.0 ? delta*this->quantile_ :
+                                     -delta*this->onemq_);
+                    delta = valueLimit_ - pval;
+                    uloss += (1.0-wsplit)*(delta > 0.0 ? delta*this->quantile_:
+                                           -delta*this->onemq_);
+                }
+                else
+                    uloss += (delta > 0.0 ? delta*this->quantile_ :
+                              -delta*this->onemq_);
+                this->loss_ += w*uloss*unobserved;
+            }
+        }
+    }
+
+    template <typename Numeric, typename Num2>
+    double CensoredQuantileRegressionOnHisto<Numeric,Num2>::empiricalQuantile(
+        double* err, double* pnpoints)
+    {
+        Private::EmpiricalCensoredQuantileEstimateI<Numeric,Num2> eq(
+            this->poly_, efficiency_, cutoff_,
+            this->lastAxis_, this->quantile_, valueLimit_,
+            &this->coords_[0], &this->scale_[0],
+            &this->location_[0], this->mydim_, positiveTailPassing_);
+        this->histo_.binContents().processSubrange(eq, this->binBox_);
+        *err = eq.resultUncertainty();
+        *pnpoints = eq.count();
+        return eq.result();
+    }
+}

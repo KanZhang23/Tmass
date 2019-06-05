@@ -1,0 +1,21 @@
+1. Tau polarization.
+
+fixed! 2. Do we need Mt-dependent ttbar Pt model?
+
+3. We need a model for the "prob_to_acquire_jet" and "prob_to_loose_parton"
+   functions.
+
+4. Validation of the priors.
+
+5. Fix the pull width correction in the background model.
+
+6. Can we include events without b tags?
+
+fixed! 7. Switch to sigma units in JES
+
+8. Fix Sobol sequences
+
+fixed! 9. Check how the leptonic side solutions are chosen when the
+       leptonic side b is "extra".
+
+10. Work out normalization factors for pt/Et transfer function.

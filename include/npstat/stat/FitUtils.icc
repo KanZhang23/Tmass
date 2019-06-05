@@ -1,0 +1,119 @@
+#include <cmath>
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/nm/GaussLegendreQuadrature.hh"
+
+namespace npstat {
+    template<typename Numeric,class Axis>
+    double densityFitLogLikelihood1D(const HistoND<Numeric,Axis>& histo,
+                                     const unsigned char* binMask,
+                                     const unsigned maskLength,
+                                     const AbsDistribution1D& density,
+                                     const double minlog,
+                                     double* workBuffer,
+                                     const unsigned workBufferLength,
+                                     const unsigned nQuad,
+                                     double* densityArea,
+                                     double* totalBinCount)
+    {
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::densityFitLogLikelihood1D: "
+            "input histogram must be one-dimensional");
+        if (maskLength != histo.nBins()) throw std::invalid_argument(
+            "In npstat::densityFitLogLikelihood1D: "
+            "incompatible mask length");
+        if (workBufferLength < maskLength) throw std::invalid_argument(
+            "In npstat::densityFitLogLikelihood1D: "
+            "insufficient work space");
+        assert(binMask);
+        assert(workBuffer);
+
+        const Axis& axis = histo.axis(0);
+        const double minDensity = exp(minlog);
+        const GaussLegendreQuadrature glq(nQuad >= 2U ? nQuad : 2U);
+        const DensityFunctor1D df(density);
+
+        const Numeric* hdata = histo.binContents().data();
+        const Numeric zero = static_cast<Numeric>(0);
+        long double sum = 0.0L, binsum = 0.0L;
+        for (unsigned i=0; i<maskLength; ++i)
+            if (binMask[i])
+            {
+                const double xleft = axis.leftBinEdge(i);
+                const double binwidth = axis.binWidth(i);
+                assert(binwidth > 0.0);
+                const double xright = xleft + binwidth;
+
+                switch (nQuad)
+                {
+                case 0U:
+                    workBuffer[i] = density.cdf(xright) - density.cdf(xleft);
+                    break;
+
+                case 1U:
+                    workBuffer[i] = density.density(xleft+0.5*binwidth)*binwidth;
+                    break;
+
+                default:
+                    workBuffer[i] = glq.integrate(df, xleft, xright);
+                    break;
+                }
+
+                sum += workBuffer[i];
+                if (hdata[i] < zero) throw std::invalid_argument(
+                    "In npstat::densityFitLogLikelihood1D: "
+                    "negative density value detected");
+                binsum += hdata[i];
+            }
+
+        if (binsum == 0.0L)
+            return 0.0;
+
+        if (sum == 0.0L)
+            return binsum*(minlog - 1.0);
+
+        const double scaleFactor = binsum/sum;
+        long double logli = 0.0L;
+        for (unsigned i=0; i<maskLength; ++i)
+            if (binMask[i] && hdata[i])
+            {
+                const double nExpected = workBuffer[i]*scaleFactor;
+                if (nExpected > minDensity)
+                    logli += hdata[i]*log(nExpected);
+                else
+                    logli += hdata[i]*minlog;
+            }
+
+        if (densityArea)
+            *densityArea = sum;
+        if (totalBinCount)
+            *totalBinCount = binsum;
+
+        return logli - binsum;
+    }
+
+
+    template<typename Numeric>
+    double unbinnedLogLikelihood1D(const Numeric* samplePonts,
+                                   const unsigned nSamplePonts,
+                                   const AbsDistribution1D& density,
+                                   const double minlog)
+    {
+        long double logli = 0.0L;
+        if (nSamplePonts)
+        {
+            assert(samplePonts);
+            const double minDensity = exp(minlog);
+            for (unsigned i=0; i<nSamplePonts; ++i)
+            {
+                const double d = density.density(samplePonts[i]);
+                if (d > minDensity)
+                    logli += log(d);
+                else
+                    logli += minlog;
+            }
+        }
+        return logli;
+    }
+}

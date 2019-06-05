@@ -1,0 +1,75 @@
+<title>Getting Started</title>
+<h1>
+Part I - Using the Histo-Scope Program
+</h1>
+
+<h2>
+<a name="1">Getting Started with Histo-Scope
+</a><br>
+</h2>
+<p>
+The Histo-Scope program is the "scope" part of the tool.  It can be run
+independently or invoked directly from a user's program.  If you are not 
+using the workstation console display, and have instead used telnet or 
+rlogin to access the host system, you will need to let the operating system
+know which display you are using:<a href="HistoScopeV3_fn.html#fn0">[1]</a> <p>
+Set the DISPLAY environment variable:<p>
+<p>
+	% <i>setenv DISPLAY</i><i> devicename:0</i><p>
+<p>
+
+For example, <i>setenv DISPLAY fnpspc.fnal.gov:0</i> tells the X software on a
+Unix host to use your X display fnpspc.fnal.gov.<p>
+<p>
+Next, set up Histo-Scope by typing:<a href="HistoScopeV3_fn.html#fn1">[2]</a>
+<p>
+<p>
+        % <i>setup histo</i><p>
+<p>
+And, if running Histo-Scope directly, type:<p>
+<p>
+	% <i>histo</i><p>
+<p>
+
+You should shortly see Histo-Scope's Main Window pop up.  If you experience 
+any problems with starting or running Histo-Scope please refer to the sections 
+on <A HREF="histo_release.html"><b>Release Notes</b></A> and <A
+HREF="histo_release.html#8"><b>Setup</b></A>.  If invoking Histo-Scope from your own program, 
+please refer to<A HREF="histo_pt3.html"> <b>Part III</A> - Histo-Scope Library Subroutines</b> in this guide.<p>
+<p>
+Optionally, if you want to view a Histo-Scope data file, you can specify this
+file to open on the Histo-Scope command line.  If you would like to specify an
+HBOOK file to open on the command line, preceed the HBOOK filename with "-hbook
+".   For example, on Unix:<p>
+<p>
+% <i>histo histoFile.hs</i><p>
+% <i>histo -hbook hbookfile.hst</i><p>
+
+<p>
+
+When listing an hbook file on the Histo-Scope command line, you can also
+specify a blocksize to use to open the file by preceeding the block size with
+"-blocksize ".  For example:<p>
+<p>
+% <i>histo -hbook hbookfile.hst -blocksize  1024</i><p>
+
+Another command line option is to specify a clientid causing Histo-Scope
+to connect directly to a client process that is currently running.  The
+clientid is the string which is passed to hs_initialize in your client program.
+You can optionally specify a hostname by including the -rhost argument and a
+username by including the -ruser argument.  These options are only required
+if your client is running on a remote host or under another username.
+<p>
+% <i>histo -clientid clientname -rhost hostname -ruser username</i><p>
+
+You can also specify a configuration file to open automatically by using the 
+-config argument.  This will re-load a previously saved configuration file
+which contains commands for opening windows, scaling plots, adjusting plot
+appearances, setting slider positions, etc. For further information, see page
+21. 
+<p>
+% <i>histo -config file.cfg </i><p>
+
+The -clientid and -config arguments can be used together.  Histo-Scope would
+first connect to the client process and then the configuration file would be
+read.

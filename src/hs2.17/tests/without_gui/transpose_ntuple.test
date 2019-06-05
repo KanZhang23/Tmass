@@ -1,0 +1,28 @@
+test transpose_ntuple-1.1 {test of ntuple transposition} {} {
+    set data {
+        {1 2 3}
+        {4 5 6}
+        {7 8 9}
+        {10 11 12}
+        {13 14 15}
+    }
+    set id1 [hs::create_ntuple [next_uid] "Test ntuple 1" "tests" {a b c}]
+    foreach row $data {
+        hs::fill_ntuple $id1 $row
+    }
+    set id2 [hs::create_ntuple [next_uid] "Test ntuple 2" "tests" {r0 r1 r2 r3 r4}]
+    foreach row [hs::M $data t] {
+        hs::fill_ntuple $id2 $row
+    }
+    set id3 [hs::transpose_ntuple [next_uid] "Test ntuple 2" "tests" $id1]
+    verify_similarity $id2 $id3 0
+} {}
+
+catch {unset id1}
+catch {unset id2}
+catch {unset id3}
+catch {unset data}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

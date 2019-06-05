@@ -1,0 +1,279 @@
+#include <cmath>
+#include <cstdio>
+#include <iostream>
+#include <algorithm>
+
+#include "Minuit2/MnUserParameters.h"
+#include "Minuit2/FunctionMinimum.h"
+#include "Minuit2/MnSimplex.h"
+
+#include "npstat/interfaces/MinuitQuantileRegressionNDFcn.hh"
+
+#include "npstat/stat/HistoNDCdf.hh"
+#include "npstat/nm/BoxNDScanner.hh"
+
+namespace {
+    class BoxShifter
+    {
+    public:
+        BoxShifter(const npstat::BoxND<double>& regBox)
+            : protoBox_(regBox)
+        {
+            const unsigned n = protoBox_.size();
+            for (unsigned i=0; i<n; ++i)
+            {
+                const double mp = protoBox_[i].midpoint();
+                protoBox_[i] -= mp;
+            }
+        }
+
+        virtual ~BoxShifter() {}
+
+        template <typename Numeric>
+        void adjust(const std::vector<Numeric>& coords,
+                    npstat::BoxND<Numeric>* box) const
+        {
+            assert(box);
+            box->copyFrom(protoBox_);
+            *box += coords;
+        }
+
+    protected:
+        npstat::BoxND<double> protoBox_;
+    };
+
+
+    class BoxAdjuster : public BoxShifter
+    {
+    public:
+        template <typename NumHisto>
+        BoxAdjuster(const npstat::BoxND<double>& regBox,
+                    const npstat::HistoND<NumHisto>& predictorHisto,
+                    const double minimalSampleFraction)
+            : BoxShifter(regBox),
+              cdf(0),
+              regbuf(regBox.size()),
+              minFrac(minimalSampleFraction)
+        {
+            assert(minFrac <= 1.0);
+            const unsigned dim = regBox.size();
+            assert(dim == predictorHisto.dim());
+            for (unsigned i=0; i<dim; ++i)
+                regbuf[i] = 0.5*regBox[i].length();
+            cdf = new npstat::HistoNDCdf(predictorHisto, &regbuf[0], dim);
+        }
+
+        virtual ~BoxAdjuster() {delete cdf;}
+
+        template <typename Numeric>
+        void adjust(const std::vector<Numeric>& coords,
+                    npstat::BoxND<Numeric>* box) const
+        {
+            assert(box);
+            tempBox = protoBox_;
+            tempBox += coords;
+            if (cdf->boxCoverage(tempBox) < minFrac)
+            {
+                std::copy(coords.begin(), coords.end(), regbuf.begin());
+                cdf->coveringBox(minFrac, &regbuf[0], regbuf.size(), &tempBox);
+            }
+            box->copyFrom(tempBox);
+        }
+
+    private:
+        npstat::HistoNDCdf *cdf;
+        mutable npstat::BoxND<double> tempBox;
+        mutable std::vector<double> regbuf;
+        double minFrac;
+    };
+
+
+    template <class Numeric, typename Num2, unsigned StackL2, unsigned StackD2>
+    bool localQuantileRegressionAtAPoint(
+        npstat::QuantileRegressionBase<Numeric>& reg, const double upFactor,
+        const unsigned maxdeg, std::vector<double>& coeffs,
+        const unsigned long idx, const double* weightCenter,
+        npstat::ArrayND<Num2,StackL2,StackD2>* result)
+    {
+        const unsigned mnStrategy = 1U;
+        const unsigned maxUpCycles = 16;
+        const unsigned dim = reg.dim();
+
+        // Guess c0
+        double c0 = 0.0, errc0 = 0.0, nPoints = 0.0, errfit0 = 0.0;
+        reg.empiricalC0(&c0, &errc0, &nPoints);
+        assert(nPoints > 0.0);
+        assert(errc0 >= 0.0);
+
+        // Remember the initial result
+        {
+            coeffs[0] = c0;
+            const double fit = reg.getPoly().series(
+                weightCenter, dim, &coeffs[0], 1U);
+            result->linearValue(idx) = static_cast<Numeric>(fit);
+            if (fit && c0)
+                errfit0 = errc0*fabs(fit/c0);
+            else
+                errfit0 = errc0;
+        }
+
+        // If there is no natural scatter in the sample, we should be done
+        // here (unless, of course, there was a problem in the "empiricalC0"
+        // method -- e.g., due to excessive round-offs).
+        if (errfit0 == 0.0)
+            return true;
+
+        // The simplex method of Minuit is, unfortunately, rather
+        // capricious. We will try to change the definition of "up"
+        // until the fit converges.
+        double up = upFactor*0.1*errfit0/sqrt(nPoints);
+        bool allConverged = false;
+
+        for (unsigned iup=0U; iup<maxUpCycles && !allConverged; ++iup, up*=2.0)
+        {
+            // Build the Minuit interface
+            npsi::MinuitQuantileRegressionNDFcn<Numeric> fcn(reg, maxdeg, up);
+            ROOT::Minuit2::MnUserParameters upar;
+            char parname[12];
+            for (unsigned i=0; i<fcn.nParameters(); ++i)
+            {
+                sprintf(parname, "p%u", i);
+                upar.Add(parname, 0.0, 0.1);
+            }
+            ROOT::Minuit2::MnSimplex simplex(fcn, upar, mnStrategy);
+
+            // Initialize the parameters
+            simplex.SetValue(0U, c0);
+            simplex.SetError(0U, 2.0*errc0);
+
+            const unsigned npara = fcn.nParameters();
+            for (unsigned i=1U; i<npara; ++i)
+            {
+                simplex.SetValue(i, 0.0);
+                simplex.SetError(i, 0.1);
+            }
+
+            ROOT::Minuit2::FunctionMinimum min(simplex());
+            if (min.IsValid())
+            {
+                allConverged = true;
+
+                // Get the fitted coefficients
+                assert(coeffs.size() >= npara);
+                for (unsigned i=0; i<npara; ++i)
+                    coeffs[i] = simplex.Value(i);
+
+                // Calculate the regression value at the center
+                // of the weight function
+                const double fit = reg.getPoly().series(
+                    weightCenter, dim, &coeffs[0], npara);
+
+                // Fill out the result
+                result->linearValue(idx) = static_cast<Numeric>(fit);
+            }
+        }
+
+        return allConverged;
+    }
+
+
+    template
+    <
+        typename Numeric,
+        typename Num2, unsigned StackLen2, unsigned StackDim2,
+        class RegressionBoxAdjuster
+    >
+    void minuitQuantileRegressionImpl(
+        npstat::QuantileRegressionBase<Numeric>& reg,
+        const unsigned maxdeg, npstat::ArrayND<Num2,StackLen2,StackDim2>* result,
+        const npstat::BoxND<Numeric>& resultBox,
+        const RegressionBoxAdjuster& adjuster,
+        const unsigned nreport,
+        const double upFactor)
+    {
+        const unsigned dim = reg.dim();
+        assert(result);
+        assert(result->rank() == dim);
+        const unsigned long arrlen = result->length();
+
+        // Useful buffers
+        std::vector<double> coeffs((dim + 1U)*(dim + 2U)/2U);
+        std::vector<Numeric> coords(dim);
+        npstat::BoxND<Numeric> box;
+
+        // It is assumed that we use the center of the weight function
+        // to calculate the value of the regression polynomial
+        std::vector<double> center(dim);
+        for (unsigned i=0; i<dim; ++i)
+            center[i] = reg.getPoly().boundingBox()[i].midpoint();
+
+        // Scan the array of results
+        for (npstat::BoxNDScanner<Numeric> scanner(resultBox, result->shape());
+             scanner.isValid(); ++scanner)
+        {
+            const unsigned long idx = scanner.state();
+
+            // Establish the regression box
+            scanner.getCoords(&coords[0], dim);
+            adjuster.adjust(coords, &box);
+            reg.setRegressionBox(box);
+
+            // Run the standard fitting sequence
+            const bool converged = localQuantileRegressionAtAPoint(
+                reg, upFactor, maxdeg, coeffs, idx, &center[0], result);
+            if (!converged)
+            {
+                std::cerr << "ERROR in minuitQuantileRegressionImpl: "
+                          << " fit failed to converge at";
+                for (unsigned i = 0; i<dim; ++i)
+                    std::cerr << ' ' << coords[i];
+                std::cerr << std::endl;
+            }
+
+            if (nreport)
+                if (idx % nreport == 0)
+                {
+                    std::cout << "minuitQuantileRegressionImpl : processed "
+                              << idx + 1UL << " point" << (idx ? "s" : "")
+                              << " out of " << arrlen << '\n';
+                    std::cout.flush();
+                }
+        }
+    }
+}
+
+
+namespace npsi {
+    template <typename Numeric,
+              typename Num2, unsigned StackLen2, unsigned StackDim2>
+    void minuitQuantileRegression(
+        npstat::QuantileRegressionBase<Numeric>& reg,
+        const unsigned maxdeg, npstat::ArrayND<Num2,StackLen2,StackDim2>* result,
+        const npstat::BoxND<Numeric>& resultBox, const unsigned nreport,
+        const double upFactor)
+    {
+        BoxShifter adj(reg.getPoly().boundingBox());
+        minuitQuantileRegressionImpl(reg, maxdeg, result, resultBox,
+                                     adj, nreport, upFactor);
+    }
+
+    template 
+    <
+        typename Numeric,
+        typename Num2, unsigned StackLen2, unsigned StackDim2,
+        typename NumHisto
+    >
+    void minuitQuantileRegressionIncrBW(
+        npstat::QuantileRegressionBase<Numeric>& reg,
+        const unsigned maxdeg, npstat::ArrayND<Num2,StackLen2,StackDim2>* result,
+        const npstat::BoxND<Numeric>& resultBox, 
+        const npstat::HistoND<NumHisto>& predictorHisto,
+        const double minimalSampleFraction,
+        const unsigned nreport, const double upFactor)
+    {
+        BoxAdjuster adj(reg.getPoly().boundingBox(),
+                        predictorHisto, minimalSampleFraction);
+        minuitQuantileRegressionImpl(reg, maxdeg, result, resultBox,
+                                     adj, nreport, upFactor);
+    }
+}

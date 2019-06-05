@@ -1,0 +1,631 @@
+#include <utility>
+#include <cassert>
+#include <climits>
+#include <stdexcept>
+#include <cmath>
+#include <sstream>
+
+#include "geners/IOException.hh"
+#include "geners/mapIO.hh"
+
+#include "npstat/nm/OrthoPolyND.hh"
+#include "npstat/stat/mirrorWeight.hh"
+
+namespace npstat {
+    template <unsigned MaxDeg>
+    template <unsigned StackLen, unsigned StackDim>
+    PolyFilterND* LocalPolyFilterND<MaxDeg>::buildFilter(
+        const ArrayND<double,StackLen,StackDim>& w,
+        const unsigned* center,
+        const double* steps, unsigned nSteps)
+    {
+        OrthoPolyND<MaxDeg> p(maxDegree_, w, steps, nSteps);
+        const unsigned nTerms = p.nTerms();
+        std::vector<double> coeffs(nTerms);
+        for (unsigned i=0; i<nTerms; ++i)
+            coeffs[i] = taper_[p.degree(i)];
+        return p.linearFilter(&coeffs[0], nTerms, center, w.rank());
+    }
+
+    // The filters we are going to create will have different
+    // number of bins depending on the filter location. Imagine
+    // yourself data rectangle overlapping with the rectangle
+    // of symmetrized weights. Then clip the rectangle of weights
+    // so that everything outside data rectangle is removed.
+    // This is how the filters are shaped.
+    //
+    template <unsigned MaxDeg>
+    template <unsigned StackLen, unsigned StackDim>
+    void LocalPolyFilterND<MaxDeg>::createFiltersLoop(
+        const unsigned level, unsigned long idxData,
+        const ArrayND<double,StackLen,StackDim>& weight,
+        ArrayRange& range, unsigned* center,
+        const double* steps, const unsigned nSteps)
+    {
+        const unsigned dataLen = bins_.span(level);
+        const unsigned n_kernel = weight.span(level);
+        const unsigned n_half = n_kernel/2;
+        const unsigned dim = bins_.rank();
+        const unsigned long stride = bins_.strides()[level];
+
+        for (unsigned i=0; i<dataLen; ++i)
+        {
+            // Figure out where is the center of the weight
+            if (i < n_half)
+                center[level] = i;
+            else
+                center[level] = n_half;
+
+            // Figure out the min and max indices of the weight
+            if (i < n_half)
+            {
+                unsigned n_use = n_half + i + 1;
+                if (n_use > dataLen)
+                    n_use = dataLen;
+                range[level].setBounds(n_half - i, n_half - i + n_use);
+            }
+            else if (i + n_half >= dataLen)
+            {
+                const unsigned n_use = dataLen + n_half - i;
+                assert(n_use <= dataLen);
+                range[level].setBounds(0, n_use);
+            }
+            else
+                range[level].setBounds(0, n_kernel);
+
+            if (level == dim - 1U)
+            {
+                // This is the last level. Construct the PolyFilterND objects.
+                PolyFilterND* poly;
+                if (weight.length() == range.rangeSize())
+                {
+                    if (centerFilter_ == 0)
+                    {
+                        centerFilter_ = buildFilter(weight, center,
+                                                    steps, nSteps);
+                        unique_.insert(std::make_pair(range, centerFilter_));
+                    }
+                    poly = centerFilter_;
+                }
+                else
+                {
+                    typename PolyMap::const_iterator it = unique_.find(range);
+                    if (it == unique_.end())
+                    {
+                        ArrayND<double,StackLen,StackDim> w(weight, range);
+                        poly = buildFilter(w, center, steps, nSteps);
+                        unique_.insert(std::make_pair(range, poly));
+                    }
+                    else
+                        poly = it->second;
+                }
+                bins_.linearValue(idxData) = poly;
+                for (unsigned idim=0; idim<dim; ++idim)
+                    filterCenters_[idxData*dim + idim] = center[idim];
+            }
+            else
+                createFiltersLoop(level+1, idxData, weight,
+                                  range, center, steps, nSteps);
+            idxData += stride;
+        }
+    }
+
+    template <unsigned MaxDeg>
+    template <unsigned MaxDeg2>
+    bool LocalPolyFilterND<MaxDeg>::operator==(
+        const LocalPolyFilterND<MaxDeg2>& r) const
+    {
+        if (maxDegree_ != r.maxDegree_)
+            return false;
+        for (unsigned i=0; i<=maxDegree_; ++i)
+            if (taper_[i] != r.taper_[i])
+                return false;
+        if (wshape_ != r.wshape_)
+            return false;
+        if (filterCenters_ != r.filterCenters_)
+            return false;
+        if (*centerFilter_ != *r.centerFilter_)
+            return false;
+        if (unique_.size() != r.unique_.size())
+            return false;
+        if (dataShape() != r.dataShape())
+             return false;
+        const unsigned long len = bins_.length();
+        for (unsigned long i=0; i<len; ++i)
+            if (*bins_.linearValue(i) != *r.bins_.linearValue(i))
+                return false;
+        PolyMap::const_iterator ri = r.unique_.begin();
+        for (PolyMap::const_iterator it=unique_.begin(); it != unique_.end();
+             ++it, ++ri)
+        {
+            if (it->first != ri->first)
+                return false;
+            if (*it->second != *ri->second)
+                return false;
+        }
+        return true;
+    }
+
+    template <unsigned MaxDeg>
+    template <typename T, unsigned StackLen, unsigned StackDim>
+    LocalPolyFilterND<MaxDeg>::LocalPolyFilterND(
+        const double* itaper, unsigned maxDegree,
+        const ArrayND<T,StackLen,StackDim>& inweight,
+        const ArrayShape& dataShape)
+        : taper_(0), wshape_(inweight.shape()), bins_(dataShape),
+          centerFilter_(0), maxDegree_(maxDegree)
+    {
+        bins_.clear();
+
+        taper_ = new double[maxDegree + 1];
+        if (itaper)
+            copyBuffer(taper_, itaper, maxDegree+1);
+        else
+            for (unsigned i=0; i<=maxDegree; ++i)
+                taper_[i] = 1.0;
+
+        // Build the complete weight shape
+        const unsigned wdim = inweight.rank();
+        if (bins_.rank() != wdim) throw std::invalid_argument(
+            "In npstat::LocalPolyFilterND::constructor: "
+            "weight and data arrays have incompatible dimensionalities");
+        if (!wdim) throw std::invalid_argument(
+            "In npstat::LocalPolyFilterND::constructor: "
+            "can not filter zero-dimensional data");
+        for (unsigned i=0; i<wdim; ++i)
+            wshape_[i] = 2*wshape_[i] - 1;
+
+        // Build the complete weight by mirroring the single
+        // hyperoctant weight in all possible ways
+        ArrayND<double,StackLen,StackDim> weight(wshape_);
+        Private::mirrorWeight(inweight, &weight);
+
+        // Build useful step sizes for each dimension
+        std::vector<double> steps(wdim);
+        for (unsigned i=0; i<wdim; ++i)
+            steps[i] = 1.0/sqrt(1.0*wshape_[i]);
+
+        // Resize appropriately the array of filter centers
+        filterCenters_.resize(bins_.length()*wdim);
+        indexBuf_.resize(wdim);
+
+        // Cycle over data bins and create the filters as necessary
+        ArrayRange range(wdim);
+        ArrayShape center(wdim);
+        createFiltersLoop(0U, 0UL, weight, range, &center[0], &steps[0], wdim);
+    }
+
+    template <unsigned MaxDeg>
+    LocalPolyFilterND<MaxDeg>::~LocalPolyFilterND()
+    {
+        for (typename PolyMap::const_iterator it = unique_.begin();
+             it != unique_.end(); ++it)
+            delete it->second;
+        delete [] taper_;
+    }
+
+    template <unsigned MaxDeg>
+    LocalPolyFilterND<MaxDeg>::LocalPolyFilterND()
+        : taper_(0), centerFilter_(0), maxDegree_(0)
+    {
+    }
+
+    template <unsigned MaxDeg>
+    inline std::string LocalPolyFilterND<MaxDeg>::generateClassName()
+    {
+        std::ostringstream os;
+        os << "npstat::LocalPolyFilterND<" << MaxDeg << '>';
+        return os.str();
+    }
+
+    template <unsigned MaxDeg>
+    inline const char* LocalPolyFilterND<MaxDeg>::classname()
+    {
+        static const std::string myClass(generateClassName());
+        return myClass.c_str();
+    }
+
+    template <unsigned MaxDeg>
+    bool LocalPolyFilterND<MaxDeg>::write(std::ostream& os) const
+    {
+        typedef std::map<PolyFilterND*, ArrayRange> InverseMap;
+
+        gs::write_pod(os, maxDegree_);
+        gs::write_pod_array(os, taper_, maxDegree_+1U);
+        gs::write_pod_vector(os, wshape_);
+        gs::write_pod_vector(os, filterCenters_);
+        const unsigned long len = bins_.length();
+        unsigned long centerF = len;
+        const PolyFilterND* const* data = bins_.data();
+        for (unsigned long i=0; i<len; ++i)
+            if (data[i] == centerFilter_)
+            {
+                centerF = i;
+                break;
+            }
+        assert(centerF < len);
+        gs::write_pod(os, centerF);
+        gs::write_item(os, unique_);
+
+        // The only thing left to write is bins_
+        gs::write_pod_vector(os, bins_.shape());
+        InverseMap imap;
+        for (PolyMap::const_iterator it=unique_.begin(); it!=unique_.end(); ++it)
+            imap[it->second] = it->first;
+        std::vector<ArrayRange> lookup(bins_.length());
+        for (unsigned long i=0; i<len; ++i)
+            lookup[i] = imap[bins_.linearValue(i)];
+        gs::write_item(os, lookup);
+
+        return !os.fail();
+    }
+
+    template <unsigned MaxDeg>
+    LocalPolyFilterND<MaxDeg>* LocalPolyFilterND<MaxDeg>::read(
+        const gs::ClassId& id, std::istream& in)
+    {
+        typedef LocalPolyFilterND<MaxDeg> MyType;
+
+        static const gs::ClassId myId(gs::ClassId::makeId<MyType>());
+        myId.ensureSameId(id);
+
+        CPP11_auto_ptr<MyType> obj(new MyType());
+        gs::read_pod(in, &obj->maxDegree_);
+        obj->taper_ = new double[obj->maxDegree_+1U];
+        gs::read_pod_array(in, obj->taper_, obj->maxDegree_+1U);
+        gs::read_pod_vector(in, &obj->wshape_);
+        gs::read_pod_vector(in, &obj->filterCenters_);
+        unsigned long centerF = 0;
+        gs::read_pod(in, &centerF);
+        gs::restore_item(in, &obj->unique_);
+        ArrayShape binShape;
+        gs::read_pod_vector(in, &binShape);
+        std::vector<ArrayRange> lookup;
+        gs::restore_item(in, &lookup);
+        if (!in.fail())
+        {
+            obj->bins_ = ArrayND<PolyFilterND*>(binShape);
+            const unsigned long len = lookup.size();
+            if (!(len == obj->bins_.length()))
+                throw gs::IOInvalidData("In npstat::LocalPolyFilterND::read: "
+                                        "data is corrupted");
+            for (unsigned long i=0; i<len; ++i)
+                obj->bins_.linearValue(i) = obj->unique_[lookup[i]];
+            obj->centerFilter_ = obj->bins_.linearValueAt(centerF);
+        }
+        if (in.fail())
+            throw gs::IOReadFailure("In npstat::LocalPolyFilterND::read: "
+                                    "input stream failure");
+        return obj.release();
+    }
+
+    template <unsigned MaxDeg>
+    template <typename Tin, unsigned StackLen, unsigned StackDim>
+    long double LocalPolyFilterND<MaxDeg>::filterInnerLoop(
+        const unsigned level, const ArrayND<Tin,StackLen,StackDim>& in,
+        const PolyFilterND& poly, const unsigned* ishift,
+        unsigned long idxData, unsigned long idxPoly) const
+    {
+        const unsigned imax = poly.span(level);
+        const unsigned shift = ishift[level];
+        long double sum = 0.0L;
+        if (level == poly.rank() - 1)
+        {
+            const Tin* x = in.data() + (idxData + shift);
+            const double* w = poly.data() + idxPoly;
+            for (unsigned i=0; i<imax; ++i)
+                sum += x[i]*w[i];
+        }
+        else
+        {
+            const unsigned long mystride = poly.strides()[level];
+            const unsigned long datastride = in.strides()[level];
+            idxData += datastride*shift;
+            for (unsigned i=0; i<imax; ++i)
+            {
+                sum += filterInnerLoop(level+1, in, poly, ishift,
+                                       idxData, idxPoly);
+                idxData += datastride;
+                idxPoly += mystride;
+            }
+        }
+        return sum;
+    }
+
+    template <unsigned MaxDeg>
+    template <typename Tin, unsigned StackLen, unsigned StackDim,
+              typename Tout, unsigned StackLen2, unsigned StackDim2>
+    void LocalPolyFilterND<MaxDeg>::filterLoop(
+        const unsigned level, unsigned long idxData,
+        const ArrayND<Tin,StackLen,StackDim>& in,
+        ArrayND<Tout,StackLen2,StackDim2>* out,
+        unsigned* shift) const
+    {
+        const unsigned dataLen = bins_.span(level);
+        const bool isLastLevel = (level == bins_.rank() - 1);
+        const unsigned long stride = bins_.strides()[level];
+        const unsigned n_half = wshape_[level]/2;
+
+        for (unsigned i=0; i<dataLen; ++i)
+        {
+            if (i < n_half)
+                shift[level] = 0;
+            else
+                shift[level] = i - n_half;
+
+            if (isLastLevel)
+                out->linearValue(idxData) = static_cast<Tout>(
+                    filterInnerLoop(0U, in, *bins_.data()[idxData],
+                                    shift, 0UL, 0UL));
+            else
+                filterLoop(level+1, idxData, in, out, shift);
+            idxData += stride;
+        }
+    }
+
+    template <unsigned MaxDeg>
+    void LocalPolyFilterND<MaxDeg>::matrixInnerLoop(
+        const unsigned level, Matrix<double>* out,
+        const unsigned long rowNumber,
+        const PolyFilterND& poly, const unsigned* ishift,
+        unsigned long idxData, unsigned long idxPoly) const
+    {
+        const unsigned imax = poly.span(level);
+        const unsigned shift = ishift[level];
+        if (level == poly.rank() - 1)
+        {
+            const double* w = poly.data() + idxPoly;
+            double* row = (*out)[rowNumber] + idxData + shift;
+            for (unsigned i=0; i<imax; ++i)
+                row[i] += w[i];
+        }
+        else
+        {
+            const unsigned long mystride = poly.strides()[level];
+            const unsigned long datastride = bins_.strides()[level];
+            idxData += datastride*shift;
+            for (unsigned i=0; i<imax; ++i)
+            {
+                matrixInnerLoop(level+1, out, rowNumber, poly, ishift,
+                                idxData, idxPoly);
+                idxData += datastride;
+                idxPoly += mystride;
+            }
+        }
+    }
+
+    template <unsigned MaxDeg>
+    void LocalPolyFilterND<MaxDeg>::matrixLoop(
+        const unsigned level, unsigned long idxData,
+        Matrix<double>* out, unsigned* shift) const
+    {
+        const unsigned dataLen = bins_.span(level);
+        const bool isLastLevel = (level == bins_.rank() - 1);
+        const unsigned long stride = bins_.strides()[level];
+        const unsigned n_half = wshape_[level]/2;
+
+        for (unsigned i=0; i<dataLen; ++i)
+        {
+            if (i < n_half)
+                shift[level] = 0;
+            else
+                shift[level] = i - n_half;
+
+            if (isLastLevel)
+                matrixInnerLoop(0U, out, idxData, *bins_.data()[idxData],
+                                shift, 0UL, 0UL);
+            else
+                matrixLoop(level+1, idxData, out, shift);
+            idxData += stride;
+        }
+    }
+
+    template <unsigned MaxDeg>
+    template <class Triplet>
+    void LocalPolyFilterND<MaxDeg>::sparseMatrixInnerLoop(
+        const unsigned level, std::vector<Triplet>* out,
+        const unsigned long rowNumber,
+        const PolyFilterND& poly, const unsigned* ishift,
+        unsigned long idxData, unsigned long idxPoly) const
+    {
+        const unsigned imax = poly.span(level);
+        const unsigned shift = ishift[level];
+        if (level == poly.rank() - 1)
+        {
+            const double* w = poly.data() + idxPoly;
+            for (unsigned i=0; i<imax; ++i)
+                if (w[i])
+                {
+                    const unsigned col = idxData + shift + i;
+                    const unsigned r = rowNumber;
+                    out->push_back(Triplet(r, col, w[i]));
+                }
+        }
+        else
+        {
+            const unsigned long mystride = poly.strides()[level];
+            const unsigned long datastride = bins_.strides()[level];
+            idxData += datastride*shift;
+            for (unsigned i=0; i<imax; ++i)
+            {
+                sparseMatrixInnerLoop(level+1, out, rowNumber, poly, ishift,
+                                      idxData, idxPoly);
+                idxData += datastride;
+                idxPoly += mystride;
+            }
+        }
+    }
+
+    template <unsigned MaxDeg>
+    template <class Triplet>
+    void LocalPolyFilterND<MaxDeg>::sparseMatrixLoop(
+        const unsigned level, unsigned long idxData,
+        std::vector<Triplet>* out, unsigned* shift) const
+    {
+        const unsigned dataLen = bins_.span(level);
+        const bool isLastLevel = (level == bins_.rank() - 1);
+        const unsigned long stride = bins_.strides()[level];
+        const unsigned n_half = wshape_[level]/2;
+
+        for (unsigned i=0; i<dataLen; ++i)
+        {
+            if (i < n_half)
+                shift[level] = 0;
+            else
+                shift[level] = i - n_half;
+
+            if (isLastLevel)
+                sparseMatrixInnerLoop(0U, out, idxData, *bins_.data()[idxData],
+                                      shift, 0UL, 0UL);
+            else
+                sparseMatrixLoop(level+1, idxData, out, shift);
+            idxData += stride;
+        }
+    }
+
+    template <unsigned MaxDeg>
+    inline double LocalPolyFilterND<MaxDeg>::taper(const unsigned degree) const
+    {
+        if (degree <= maxDegree_)
+            return taper_[degree];
+        else
+            return 0.0;
+    }
+
+    template <unsigned MaxDeg>
+    inline const PolyFilterND& LocalPolyFilterND<MaxDeg>::getFilter(
+        const unsigned* index, const unsigned lenIndex) const
+    {
+        return *bins_.valueAt(index, lenIndex);
+    }
+
+    template <unsigned MaxDeg>
+    inline const PolyFilterND& LocalPolyFilterND<MaxDeg>::linearGetFilter(
+        const unsigned long index) const
+    {
+        return *bins_.linearValueAt(index);
+    }
+
+    template <unsigned MaxDeg>
+    inline Matrix<double> LocalPolyFilterND<MaxDeg>::getFilterMatrix() const
+    {
+        const unsigned long len = bins_.length();
+        if (len*len > UINT_MAX) throw std::runtime_error(
+            "In npstat::LocalPolyFilterND::getFilterMatrix: "
+            "this filter is too large to be represented by a dense matrix");
+        Matrix<double> m(len, len, 0);
+        matrixLoop(0U, 0UL, &m, &indexBuf_[0]);
+        return m;
+    }
+
+    template <unsigned MaxDeg>
+    template <class Triplet>
+    CPP11_auto_ptr<std::vector<Triplet> >
+    LocalPolyFilterND<MaxDeg>::sparseFilterTriplets() const
+    {
+        CPP11_auto_ptr<std::vector<Triplet> > pt(new std::vector<Triplet>());
+        sparseMatrixLoop(0U, 0UL, pt.get(), &indexBuf_[0]);
+        return pt;
+    }
+
+    template <unsigned MaxDeg>
+    template <typename Tin, unsigned StackLen, unsigned StackDim,
+              typename Tout, unsigned StackLen2, unsigned StackDim2>
+    void LocalPolyFilterND<MaxDeg>::filter(
+        const ArrayND<Tin,StackLen,StackDim>& in,
+        ArrayND<Tout,StackLen2,StackDim2>* out) const
+    {
+        if (!in.isShapeCompatible(bins_)) throw std::invalid_argument(
+            "In npstat::LocalPolyFilterND::filter: "
+            "input array shape is not compatible with this filter");
+        assert(out);
+        if (!out->isShapeCompatible(bins_)) throw std::invalid_argument(
+            "In npstat::LocalPolyFilterND::filter: "
+            "output array shape is not compatible with this filter");
+        filterLoop(0U, 0UL, in, out, &indexBuf_[0]);
+    }
+
+    template <unsigned MaxDeg>
+    double LocalPolyFilterND<MaxDeg>::selfContribution(
+        const unsigned* idx, const unsigned dim) const
+    {
+        const unsigned long index = bins_.linearIndex(idx, dim);
+        unsigned *peak = &indexBuf_[0];
+        for (unsigned i=0; i<dim; ++i)
+            peak[i] = filterCenters_[index*dim + i];
+        return bins_.linearValue(index)->valueAt(peak, dim);
+    }
+
+    template <unsigned MaxDeg>
+    double LocalPolyFilterND<MaxDeg>::linearSelfContribution(
+        const unsigned long index) const
+    {
+        const unsigned dim = bins_.rank();
+        unsigned *peak = &indexBuf_[0];
+        for (unsigned i=0; i<dim; ++i)
+            peak[i] = filterCenters_.at(index*dim + i);
+        return bins_.linearValueAt(index)->valueAt(peak, dim);
+    }
+
+    template <unsigned MaxDeg>
+    template <typename Tout, unsigned StackLen2, unsigned StackDim2>
+    void LocalPolyFilterND<MaxDeg>::runConvolution(
+        const double w, const unsigned long linearBin,
+        ArrayND<Tout,StackLen2,StackDim2>* out,
+        unsigned* shift, unsigned* indexBuf,
+        const unsigned* zeroBuf) const
+    {
+        const PolyFilterND& filter(*bins_.linearValueAt(linearBin));
+        const unsigned dim = bins_.rank();
+
+        out->convertLinearIndex(linearBin, indexBuf, dim);
+        for (unsigned level=0; level < dim; ++level)
+        {
+            const unsigned i = indexBuf[level];
+            const unsigned n_half = wshape_[level]/2;
+            if (i < n_half)
+                shift[level] = 0;
+            else
+                shift[level] = i - n_half;
+        }
+
+        out->jointSubrangeScan(const_cast<PolyFilterND&>(filter),
+                               shift, &wshape_[0], zeroBuf, dim,
+                 addmul_left<Tout,typename PolyFilterND::value_type>(w));
+    }
+
+    template <unsigned MaxDeg>
+    template <typename Tin, unsigned StackLen, unsigned StackDim,
+              typename Tout, unsigned StackLen2, unsigned StackDim2>
+    void LocalPolyFilterND<MaxDeg>::convolve(
+        const ArrayND<Tin,StackLen,StackDim>& in,
+        ArrayND<Tout,StackLen2,StackDim2>* out) const
+    {
+        if (!in.isShapeCompatible(bins_)) throw std::invalid_argument(
+            "In npstat::LocalPolyFilterND::convolve: "
+            "input array shape is not compatible with this filter");
+        assert(out);
+        if (!out->isShapeCompatible(bins_)) throw std::invalid_argument(
+            "In npstat::LocalPolyFilterND::convolve: "
+            "output array shape is not compatible with this filter");
+        out->clear();
+
+        unsigned zerobuf[CHAR_BIT*sizeof(unsigned long)];
+        unsigned cornerbuf[CHAR_BIT*sizeof(unsigned long)];
+        unsigned indexbuf[CHAR_BIT*sizeof(unsigned long)];
+        const unsigned dim = bins_.rank();
+        for (unsigned i=0; i<dim; ++i)
+            zerobuf[i] = 0U;
+
+        const Tin zero = Tin();
+        const unsigned long arrLen = out->length();
+        for (unsigned long i=0; i<arrLen; ++i)
+        {
+            const Tin v = in.linearValueAt(i);
+            if (!(v == zero))
+                runConvolution<Tout,StackLen2,StackDim2>(
+                    static_cast<double>(v), i, out,
+                    cornerbuf, indexbuf, zerobuf);
+        }
+    }
+}

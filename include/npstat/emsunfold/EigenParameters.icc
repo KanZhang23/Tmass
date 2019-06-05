@@ -1,0 +1,56 @@
+#include <stdexcept>
+
+namespace emsunfold {
+    inline EigenParameters::EigenParameters(const double i_tol,
+                                            const double i_tailFraction,
+                                            const double i_increaseRate,
+                                            const int i_minEigenvalues,
+                                            const int i_maxEigenvalues,
+                                            const int i_maxlan,
+                                            const int i_restartScheme,
+                                            const int i_maxmv)
+      : tol_(i_tol),
+        tailFraction_(i_tailFraction),
+        increaseRate_(i_increaseRate),
+        minEigenvalues_(i_minEigenvalues),
+        maxEigenvalues_(i_maxEigenvalues),
+        maxlan_(i_maxlan),
+        restartScheme_(i_restartScheme),
+        maxmv_(i_maxmv)
+    {
+        if (tailFraction_ <= 0.0 || tailFraction_ >= 1.0)
+            throw std::invalid_argument(
+                "In emsunfold::EigenParameters constructor: "
+                "tail fraction is outside of (0, 1) range");
+        if (increaseRate_ < 0.0) throw std::invalid_argument(
+            "In emsunfold::EigenParameters constructor: "
+            "increase rate must not be negative");
+        if (minEigenvalues_ < 1) throw std::invalid_argument(
+            "In emsunfold::EigenParameters constructor: "
+            "minimum number of requested eigenvalues must be at least 1");
+        if (maxEigenvalues_ < minEigenvalues_) throw std::invalid_argument(
+            "In emsunfold::EigenParameters constructor: maximum "
+            "number of requested eigenvalues can not be less than minimum");
+        if (restartScheme_ < 1 || restartScheme_ > 5)
+            throw std::invalid_argument(
+                "In emsunfold::EigenParameters constructor: "
+                "restart scheme is outside of [1, 5] range");
+        if (maxmv_ <= 0) throw std::invalid_argument(
+            "In emsunfold::EigenParameters constructor: "
+            "max allowed number of operator-vector products must be positive");
+    }
+}
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const emsunfold::EigenParameters& p)
+{
+    os << "tolerance = " << p.tolerance()
+       << ", tailFraction = " << p.tailFraction()
+       << ", increaseRate = " << p.increaseRate()
+       << ", minEigenvalues = " << p.minEigenvalues()
+       << ", maxEigenvalues = " << p.maxEigenvalues()
+       << ", lanczosBasisSize = " << p.lanczosBasisSize()
+       << ", restartScheme = " << p.restartScheme()
+       << ", maxOperatorCalls = " << p.maxOperatorCalls();
+    return os;
+}

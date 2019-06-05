@@ -1,0 +1,48 @@
+
+The abstract class AbsUncertaintyCalculator helps computing the numerical
+integration of high dimensional integrals over [0,1)^d with estimates
+on the error bounds. The main two methods used are Pseudo Monte Carlo and
+Quasi-Monte Carlo (only digital nets).
+Pseudo Monte Carlo uses the regular Central Limit Theorem bound while
+Quasi Monte has a more technical analysis based on the Walsh-Fourier
+coefficients of the integrand (assumed to be absolutely convergent).
+The guarantee is based on the decay rate of these coefficients.
+For more details about this error bound, please refer to the references below:
+
+%   [1] Fred J. Hickernell and Lluis Antoni Jimenez Rugama, "Reliable adaptive
+%   cubature using digital sequences," 2014. Submitted for publication:
+%   arXiv:1410.8615.
+
+%   [2] Lluis Antoni Jimenez Rugama and Fred J. Hickernell, "Adaptive
+%   Multidimensional Integration Based on Rank-1 Lattices," 2014. Submitted
+%   for publication: arXiv:1411.1966.
+
+%   [3] Sou-Cheng T. Choi, Fred J. Hickernell, Yuhan Ding, Lan Jiang,
+%   Lluis Antoni Jimenez Rugama, Xin Tong, Yizhi Zhang and Xuan Zhou,
+%   GAIL: Guaranteed Automatic Integration Library (Version 2.1)
+%   [MATLAB Software], 2015. Available from http://code.google.com/p/gail/
+
+If you find this software useful, please cite
+
+@article{15HicketJim,
+  author =   {F. J. Hickernell and Ll. A. Jimenez Rugama},
+  title =    {Reliable adaptive cubature using digital sequences.},
+  journal =  {},
+  volume =   {},
+  number =   {},
+  note =     {}},
+  OPTpages = {},
+  year =     {}
+}
+
+@article{15JimetHick,
+  author =   {Ll. A. Jimenez Rugama and F. J. Hickernell},
+  title =    {Adaptive Multidimensional Integration Based on Rank-1 Lattices}
+  journal =  {},
+  volume =   {},
+  number =   {},
+  note =     {}},
+  OPTpages = {},
+  year =     {}
+}
+

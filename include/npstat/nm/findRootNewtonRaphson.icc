@@ -1,0 +1,58 @@
+#include <cmath>
+#include <cassert>
+#include <limits>
+#include <stdexcept>
+
+namespace npstat {
+    template <typename Numeric>
+    bool findRootNewtonRaphson(const PairFunctor<Numeric>& f,
+                               const Numeric rhs, const Numeric x0,
+                               const Numeric tol, Numeric* root,
+                               Numeric* deriv)
+    {
+        typedef std::pair<Numeric,Numeric> Pair;
+
+        const unsigned maxiter = 1000;
+        const unsigned maxNoProgress = 10;
+        const Numeric zero = static_cast<Numeric>(0);
+        const Numeric one = static_cast<Numeric>(1);
+        const Numeric two = static_cast<Numeric>(2);
+
+        if (tol <= std::numeric_limits<Numeric>::epsilon())
+            throw std::invalid_argument(
+                "In npstat::findRootNewtonRaphson: tolerance argument is too small");
+        assert(root);
+
+        Numeric oldx = x0;
+        Pair oldy = f(oldx);
+        oldy.first -= rhs;
+
+        unsigned noProgressCycles = 0;
+        bool converged = false;
+        for (unsigned iter=0; iter<maxiter && noProgressCycles<maxNoProgress && !converged; ++iter)
+        {
+            if (oldy.second == zero) throw std::runtime_error(
+                "In npstat::findRootNewtonRaphson: zero derivative encountered");
+
+            // Make a new guess for the solution
+            const Numeric newx = oldx - oldy.first/oldy.second;
+            Pair newy = f(newx);
+            newy.first -= rhs;
+
+            // Check for convergence            
+            converged = two*std::abs(newx - oldx)/(std::abs(newx) + std::abs(oldx) + one) < tol;
+
+            // Check that we are making progress
+            if (std::abs(newy.first) >= std::abs(oldy.first))
+                ++noProgressCycles;
+
+            oldx = newx;
+            oldy = newy;
+        }
+
+        *root = oldx;
+        if (deriv)
+            *deriv = oldy.second;
+        return converged;
+    }
+}

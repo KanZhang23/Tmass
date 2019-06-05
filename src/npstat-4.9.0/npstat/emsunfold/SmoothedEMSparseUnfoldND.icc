@@ -1,0 +1,445 @@
+#include <cmath>
+#include <algorithm>
+#include <numeric>
+
+#include "npstat/stat/StatUtils.hh"
+#include "npstat/stat/AbsUnfoldND.hh"
+
+#include "Eigen/SparseLU"
+
+namespace emsunfold {
+    namespace Private {
+        template<class Matrix>
+        inline void sparseMatTimesVector(const Matrix& mat,
+                                         const npstat::ArrayND<double>& vec,
+                                         npstat::ArrayND<double>* result)
+        {
+            typedef typename Matrix::Index index_type;
+
+            assert(result);
+            const index_type nrows = mat.rows();
+            assert(static_cast<unsigned long>(nrows) == result->length());
+            const index_type ncols = mat.cols();
+            assert(static_cast<unsigned long>(ncols) == vec.length());
+
+            const Eigen::Map<Eigen::VectorXd> evec(
+                const_cast<double*>(vec.data()), ncols);
+            Eigen::Map<Eigen::VectorXd> rvec(
+                const_cast<double*>(result->data()), nrows);
+            rvec = mat*evec;
+        }
+
+        template<class Matrix>
+        inline void rowMultiplySparseMat(const Matrix& mat,
+                                         const npstat::ArrayND<double>& row,
+                                         npstat::ArrayND<double>* result)
+        {
+            typedef typename Matrix::Index index_type;
+
+            assert(result);
+            const index_type nrows = mat.rows();
+            assert(static_cast<unsigned long>(nrows) == row.length());
+            const index_type ncols = mat.cols();
+            assert(static_cast<unsigned long>(ncols) == result->length());
+
+            const Eigen::Map<Eigen::RowVectorXd> rowvec(
+                const_cast<double*>(row.data()), nrows);
+            Eigen::Map<Eigen::RowVectorXd> rvec(
+                const_cast<double*>(result->data()), ncols);
+            rvec = rowvec*mat;
+        }
+
+        template<class Matrix>
+        inline Matrix unfoldingMatrix0(
+            const Matrix& KT, const double* unfolded,
+            const double* yhat, const double* eff)
+        {
+            typedef typename Matrix::Index index_type;
+
+            assert(unfolded);
+            assert(yhat);
+            assert(eff);
+
+            const index_type nRows = KT.rows();
+            Eigen::DiagonalMatrix<double, Eigen::Dynamic> leftDiag(nRows);
+            for (index_type i=0; i<nRows; ++i)
+                if (unfolded[i] > 0.0)
+                    leftDiag.diagonal()[i] = unfolded[i]/eff[i];
+                else
+                    leftDiag.diagonal()[i] = 0.0;
+
+            const index_type nCols = KT.cols();
+            Eigen::DiagonalMatrix<double, Eigen::Dynamic> rightDiag(nCols);
+            for (index_type i=0; i<nCols; ++i)
+                if (yhat[i] > 0.0)
+                    rightDiag.diagonal()[i] = 1.0/yhat[i];
+                else
+                    rightDiag.diagonal()[i] = 0.0;
+
+            return leftDiag * KT * rightDiag;
+        }
+
+        template<class Matrix>
+        inline void solveSparseLinearSystem(const Matrix& M,
+                                            const Matrix& rhs,
+                                            Matrix* solution)
+        {
+            typedef typename Matrix::Index index_type;
+
+            const index_type nRows = M.rows();
+            assert(nRows == M.cols());
+            assert(nRows == rhs.rows());
+            const index_type rhsCols = rhs.cols();
+            assert(solution);
+            assert(rhsCols == solution->cols());
+
+            Eigen::SparseLU<Matrix> solver;
+            solver.analyzePattern(M);
+            solver.factorize(M);
+            *solution = solver.solve(rhs);
+        }
+    }
+
+    template<class Matrix>
+    SmoothedEMSparseUnfoldND<Matrix>::SmoothedEMSparseUnfoldND(
+        const response_matrix_type& i_responseMatrix,
+        const filter_type& f,
+        const npstat::ArrayShape& obsShape,
+        const bool i_useConvolutions,
+        const bool i_smoothLastIteration,
+        const double i_convergenceEpsilon,
+        const unsigned i_maxIterations)
+        : AbsSparseUnfoldND<Matrix>(i_responseMatrix, f.dataShape(), obsShape),
+          convergenceEpsilon_(0.0),
+          lastNormfactor_(1.0),
+          maxIterations_(i_maxIterations),
+          lastIterations_(0),
+          lastEPIterations_(0),
+          smoothLast_(i_smoothLastIteration),
+          v1_(f.dataShape()),
+          yhatBuf_(obsShape),
+          unfoldedBuf_(v1_.shapeData(), v1_.rank())
+    {
+        setConvergenceEpsilon(i_convergenceEpsilon);
+        this->setFilter(&f);
+        this->useConvolutions(i_useConvolutions);
+    }
+
+    template<class Matrix>
+    void SmoothedEMSparseUnfoldND<Matrix>::setConvergenceEpsilon(
+        const double eps)
+    {
+        convergenceEpsilon_ = eps;
+        if (convergenceEpsilon_ < 0.0)
+            convergenceEpsilon_ = 0.0;
+    }
+
+    template<class Matrix>
+    bool SmoothedEMSparseUnfoldND<Matrix>::unfold(
+        const npstat::ArrayND<double>& observed,
+        const input_covariance_type* observeCovMat,
+        npstat::ArrayND<double>* unfolded,
+        output_covariance_type* unfoldedCovMat)
+    {
+        this->validateObservedShape(observed);
+        if (!observed.isDensity()) throw std::invalid_argument(
+            "In emsunfold::SmoothedEMSparseUnfoldND::unfold: "
+            "array of observations is not a valid probability density");
+
+        const unsigned lenObserved = observed.length();
+        if (observeCovMat)
+            if (static_cast<unsigned>(observeCovMat->rows()) != lenObserved)
+                throw std::invalid_argument(
+                    "In emsunfold::SmoothedEMSparseUnfoldND::unfold: "
+                    "incompatible dimensions for the covariance "
+                    "matrix of observations");
+
+        assert(unfolded);
+        unfolded->reshape(this->getUnfoldedShape());
+
+        lastNormfactor_ = 1.0;
+
+        // Set up the "previous" approximation
+        npstat::ArrayND<double>* prev = &v1_;
+
+        // Set the "next" approximation to the initial one
+        if (this->getInitialApproximation().isShapeKnown())
+            v2_ = this->getInitialApproximation();
+        else
+            this->buildUniformInitialApproximation(observed, &v2_);
+        npstat::ArrayND<double>* next = &v2_;
+
+        // Perform expectation-maximization (a.k.a. D'Agostini) iterations
+        // until convergence
+        lastIterations_ = 0U;
+        bool converged = false;
+        for (; lastIterations_<maxIterations_ && !converged; ++lastIterations_)
+        {
+            std::swap(prev, next);
+            update(observed, prev, next, true);
+            converged = npstat::AbsUnfoldND::probDelta(*prev, *next) <= 
+                        convergenceEpsilon_;
+        }
+
+        // One more cycle in case we do not want to smooth the last iteration
+        if (!smoothLast_)
+        {
+            std::swap(prev, next);
+            update(observed, prev, next, false);
+        }
+
+        // Fill out the unfolded result
+        *unfolded = *next;
+
+        if (unfoldedCovMat)
+        {
+            // We need to calculate the covariance matrix
+            // of the unfolded result
+            const response_matrix_type& K = this->responseMatrix();
+            const unsigned lenUnfolded = unfolded->length();
+
+            // yhat for the smoothed spectrum
+            const npstat::ArrayND<double>& smoothed = 
+                smoothLast_ ? *next : *prev;
+            Private::sparseMatTimesVector(K, smoothed, &yhatBuf_);
+
+            // Calculate the error propagation matrix
+            // using the smoothed spectrum yhat
+            bool conv = false;
+            const Matrix& J = errorPropagationMatrix(
+                observed.data(), lenObserved, smoothed.data(), lenUnfolded,
+                yhatBuf_.data(), lastNormfactor_, smoothLast_, maxIterations_,
+                convergenceEpsilon_, &lastEPIterations_, &conv);
+            converged = converged && conv;
+
+            if (observeCovMat)
+                *unfoldedCovMat = (J*(*observeCovMat)*J.transpose()).pruned();
+            else
+            {
+                // To construct the covariance matrix for the
+                // observations, we need the final yhat. If we
+                // had an "unsmoothed" last iteration, this yhat
+                // is different from the one calculated previously.
+                if (!smoothLast_)
+                    Private::sparseMatTimesVector(K, *next, &yhatBuf_);
+                const Eigen::Map<Eigen::VectorXd> v(
+                    const_cast<double*>(yhatBuf_.data()), lenObserved);
+                Eigen::DiagonalMatrix<double,Eigen::Dynamic> mcov(v);
+                *unfoldedCovMat = (J * mcov * J.transpose()).pruned();
+            }
+            // unfoldedCovMat->makeCompressed();
+        }
+
+        return converged;
+    }
+
+    template<class Matrix>
+    void SmoothedEMSparseUnfoldND<Matrix>::update(
+        const npstat::ArrayND<double>& observedArr,
+        const npstat::ArrayND<double>* preva, npstat::ArrayND<double>* next,
+        const bool performSmoothing) const
+    {
+        // Perform one expectation-maximization iteration
+        const response_matrix_type& K = this->responseMatrix();
+        Private::sparseMatTimesVector(K, *preva, &yhatBuf_);
+        double* yhat = const_cast<double*>(yhatBuf_.data());
+
+        const unsigned lenObserved = observedArr.length();
+        const double* observed = observedArr.data();
+        for (unsigned iobs=0; iobs<lenObserved; ++iobs)
+        {
+            if (observed[iobs] > 0.0)
+            {
+                if (yhat[iobs] <= 0.0)
+                {
+                    std::ostringstream os;
+                    os << "In emsunfold::SmoothedEMSparseUnfoldND::update: "
+                       << yhat[iobs] << " entries predicted, "
+                       << observed[iobs] << " observed for linear bin " << iobs
+                       << ". You need to change something (the response matrix,"
+                       << " the initial approximation, or the filter).";
+                    throw std::runtime_error(os.str());
+                }
+                else
+                    yhat[iobs] = observed[iobs]/yhat[iobs];
+            }
+            else
+                yhat[iobs] = 0.0;
+        }
+
+        const unsigned lenUnfolded = preva->length();
+        const double* eff = this->efficiency().data();
+        const double* prev = preva->data();
+        npstat::ArrayND<double>* ubuf = performSmoothing ? &unfoldedBuf_ : next;
+        Private::rowMultiplySparseMat(K, yhatBuf_, ubuf);
+        double* udata = const_cast<double*>(ubuf->data());
+        for (unsigned iunf=0; iunf<lenUnfolded; ++iunf)
+            udata[iunf] *= (prev[iunf]/eff[iunf]);
+
+        if (performSmoothing)
+        {
+            // Apply the smoothing procedure
+            if (this->usingConvolutions())
+                this->getFilter(true)->convolve(unfoldedBuf_, next);
+            else
+                this->getFilter(true)->filter(unfoldedBuf_, next);
+
+            // Make sure that the smoothing result is non-negative
+            // and restore normalization
+            const long double sum = unfoldedBuf_.sum<long double>();
+            npstat::normalizeArrayAsDensity(const_cast<double*>(next->data()),
+                                     lenUnfolded, 1.0L/sum, &lastNormfactor_);
+        }
+    }
+
+    template<class Matrix>
+    Matrix SmoothedEMSparseUnfoldND<Matrix>::errorPropagationMatrix(
+        const double* observed, const unsigned lenObserved,
+        const double* unfolded, const unsigned lenUnfolded,
+        const double* yHat, const double norm, const bool smoothLast,
+        const unsigned maxiter, const double convergenceEps,
+        unsigned* itersMade, bool* convergedPtr) const
+    {
+        typedef AbsSparseUnfoldingFilterND::triplet_type T;
+
+        assert(observed);
+        assert(unfolded);
+        assert(yHat);
+        assert(itersMade);
+        assert(convergedPtr);
+
+        const response_matrix_type& K = this->responseMatrix();
+        assert(static_cast<unsigned>(K.cols()) == lenUnfolded);
+        assert(static_cast<unsigned>(K.rows()) == lenObserved);
+        const Matrix KT(K.transpose());
+
+        Matrix S(lenUnfolded, lenUnfolded);
+        {
+            CPP11_auto_ptr<std::vector<T> > triplets = 
+                this->getFilter(true)->sparseFilterTriplets();
+            if (this->usingConvolutions())
+            {
+                Matrix tmp(lenUnfolded, lenUnfolded);
+                tmp.setFromTriplets(triplets->begin(), triplets->end());
+                S = tmp.transpose();
+            }
+            else
+                S.setFromTriplets(triplets->begin(), triplets->end());
+        }
+
+        S *= norm;
+
+        // The following code block takes into account dependence
+        // of the smoothing normalization factor on yhat. Note that
+        // the matrix added to the smoothing matrix can potentially
+        // be very dense. Because of this, we are going to check whether
+        // this step could be ignored.
+        {
+            double maxDelta = 0.0;
+            npstat::ArrayND<double> csums(lenUnfolded);
+            {
+                npstat::ArrayND<double> ones(lenUnfolded);
+                ones.constFill(1.0);
+                Private::rowMultiplySparseMat(S, ones, &csums);
+                maxDelta = csums.maxAbsDifference(ones);
+            }
+
+            if (maxDelta > convergenceEps)
+            {
+                const double eps2 = convergenceEps*convergenceEps/lenUnfolded;
+                const double uSum = std::accumulate(
+                    unfolded, unfolded+lenUnfolded, 0.0L);
+
+                std::vector<T> triplets;
+                for (unsigned col=0; col<lenUnfolded; ++col)
+                {
+                    const double coldelta = 1.0 - csums(col);
+                    if (fabs(coldelta) > convergenceEps)
+                    {
+                        for (unsigned irow=0; irow<lenUnfolded; ++irow)
+                        {
+                            const double v = coldelta*unfolded[irow]/uSum;
+                            if (fabs(v) > eps2)
+                                triplets.push_back(T(irow, col, v));
+                        }
+                    }
+                }
+                Matrix Splus(lenUnfolded, lenUnfolded);
+                Splus.setFromTriplets(triplets.begin(), triplets.end());
+                S += Splus;
+            }
+        }
+
+        const double* eff = this->efficiency().data();
+        const Matrix& m0 = Private::unfoldingMatrix0(KT, unfolded, yHat, eff);
+
+        npstat::ArrayND<double> obsBuf(lenObserved);
+        double* tmp = const_cast<double*>(obsBuf.data());
+        for (unsigned iobs=0; iobs<lenObserved; ++iobs)
+        {
+            if (observed[iobs] > 0.0)
+                tmp[iobs] = observed[iobs]/yHat[iobs];
+            else
+                tmp[iobs] = 0.0;
+        }
+
+        Matrix diagm(lenUnfolded, lenUnfolded);
+        {
+            std::vector<T> stuff;
+            stuff.reserve(lenUnfolded);
+            npstat::ArrayND<double> numMat(lenUnfolded);
+            Private::rowMultiplySparseMat(K, obsBuf, &numMat);
+            const double* num = numMat.data();
+            for (unsigned i=0; i<lenUnfolded; ++i)
+                if (num[i] > 0.0)
+                    stuff.push_back(T(i, i, num[i]/eff[i]));
+            diagm.setFromTriplets(stuff.begin(), stuff.end());
+        }
+
+        Matrix mat(lenUnfolded, lenUnfolded);
+        {
+            Eigen::DiagonalMatrix<double, Eigen::Dynamic> C(lenObserved);
+            for (unsigned iobs=0; iobs<lenObserved; ++iobs)
+                if (tmp[iobs] > 0.0)
+                    C.diagonal()[iobs] = tmp[iobs]/yHat[iobs];
+                else
+                    C.diagonal()[iobs] = 0.0;
+
+            Eigen::DiagonalMatrix<double, Eigen::Dynamic> L(lenUnfolded);
+            for (unsigned m=0; m<lenUnfolded; ++m)
+                if (unfolded[m] > 0.0)
+                    L.diagonal()[m] = unfolded[m]/eff[m];
+                else
+                    L.diagonal()[m] = 0.0;
+
+            mat = (L * KT * C * K).pruned();
+        }
+
+        const Matrix& SM = (S * m0).pruned();
+        const Matrix& SB = (S * (diagm - mat)).pruned();
+
+        // Come up with a solution
+        Matrix buf2(lenUnfolded, lenObserved);
+        {
+            Matrix IMSB(lenUnfolded, lenUnfolded);
+            {
+                std::vector<T> stuff;
+                stuff.reserve(lenUnfolded);
+                for (unsigned m=0; m<lenUnfolded; ++m)
+                    stuff.push_back(T(m, m, 1.0));
+                IMSB.setFromTriplets(stuff.begin(), stuff.end());
+            }
+            IMSB -= SB;
+            IMSB.makeCompressed();
+            Private::solveSparseLinearSystem(IMSB, SM, &buf2);
+        }
+
+        *itersMade = 0;
+        *convergedPtr = true;
+
+        if (smoothLast)
+            return buf2;
+        else
+            return m0 + ((diagm - mat) * buf2).pruned();
+    }
+}

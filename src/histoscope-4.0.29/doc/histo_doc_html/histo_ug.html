@@ -1,0 +1,159 @@
+<html><head><!-- This document was created from RTF source by rtftohtml version
+2.7.5 -->
+<title>Histo-Scope User's Guide
+</title>
+</head><body>
+<h1><p>
+<a name="RTFToC1">Histo-Scope V4.0 User's Guide
+</a></h1>
+<IMG ALIGN=CENTER SRC="v4_0/HScv.gif"><p>
+<em>                         <sup>Physics Analysis Tools Group</sup></em><p>
+<em></em><p>
+                            Histo-Scope <p>
+<p>
+<p>
+Software Version:	V4.0<p>
+Date:	<p>
+<pre>
+Host System Support:    DEC/ULTRIX
+                        DEC/OSF-1
+                        SGI/IRIX
+                        Sun/Solaris
+                        IBM/AIX
+<p>                       
+Graphics Support:	X-based workstation or X-Terminal
+<p>
+Prerequisite Software
+          for VAX/VMS:	TGV MultiNet	
+Optional Software:	HBOOK Version 4.22 (or later)
+<p>
+This software was produced by the Nirvana project of the Physics Analysis Tools
+Group.  The Nirvana project goal is to provide visualization tools for Fermilab
+physicists that make effective use of computer workstations and Graphical User
+Interfaces.  Histo-Scope is a pilot product  for a suite of easy to use, Motif
+based tools for physics analysis.
+<p>
+Histo-Scope  was written by:	Mark Edel, project leader
+                                Konstantine Iourha
+                                Joy Kyriakopulos
+                                Jeff Kallenbach
+                                Paul Lebrun
+                                Baolin Ren
+<p>
+User's Guide Written by Joy Kyriakopulos and Donna Reid
+
+<p>
+<A HREF="v4_0/copyright.html">Copyright</A> Status: Fermi National Accelerator Laboratory (FNAL) documents are
+                  sponsored by the U.S. Department of Energy under Contract No.
+                  DE-AC02-76CH03000.  Therefore, the U.S. Government retains a 
+                  non-exclusive, royalty-free license to publish or reproduce
+                  these documents or software for U.S. Government purposes.  
+                  All documents and software for this product are protected
+                  under the U.S. and Foreign Copyright Laws, and FNAL reserves 
+                  all rights. 
+
+<p>
+</pre><tt<<h2>
+<b>Table of Contents</b><p>
+</h2><p>
+<pre>
+<A HREF="v4_0/histo_intro.html">Introduction	                                           8<p></A>
+<A HREF="v4_0/histo_newf.html">New Features for Histo-Scope V4.0                          9<p></A>
+<A HREF="v4_0/histo_start.html"><b>Part I - Using the Histo-Scope Program                      </b><p></A>
+<A HREF="v4_0/histo_start.html#1">Getting Started with Histo-Scope                          11<p></A>
+<A HREF="v4_0/histo_usr_int.html">User Interface Overview for Beginning Motif Users         13<p></A>
+<A HREF="v4_0/histo_usng.html">Using Histo-Scope's Main Window                           20<p></A>
+<A HREF="v4_0/histo_mplot.html">Create Multiple Plot Window                               27<p></A>
+<A HREF="v4_0/histo_cnct.html">Connect to Process Window                                 29<p></A>
+<A HREF="v4_0/histo_cnct.html#1">Verifying Proper Setup of Permissions                     30<p></A>
+<A HREF="v4_0/histo_1d.html">One-Dimensional Histograms                                32<p></A>
+<A HREF="v4_0/histo_2d.html">Two-Dimensional Histograms                                35<p></A>
+<A HREF="v4_0/histo_indic.html">Indicators, Controls, and Triggers                        37<p></A>
+<A HREF="v4_0/histo_indic.html#1">Indicator Window                                          37<p></A>
+<A HREF="v4_0/histo_indic.html#2">Control Window	                                          38<p></A>
+<A HREF="v4_0/histo_indic.html#3">Trigger Window	                                          39<p></A>
+<A HREF="v4_0/histo_ntupl.html">Ntuple Window                                             40<p></A>
+<A HREF="v4_0/histo_ntupl.html#1">Time Series Plots                                         43<p></A>
+<A HREF="v4_0/histo_ntupl.html#2">XY Line Plot                                              45<p></A>
+<A HREF="v4_0/histo_ntupl.html#3">XY Scatter Plot                                           48<p></A>
+<A HREF="v4_0/histo_ntupl.html#4">XYZ Scatter Plot                                          50<p></A>
+<A HREF="v4_0/histo_ntupl.html#5">Adaptive Histogram                                        52<p></A>
+<A HREF="v4_0/histo_ntupl.html#6">Adaptive Two-Dimensional Histogram                        54<p></A>
+<A HREF="v4_0/histo_ntupl.html#7">Two-Dimensional Cell Plot                                 57<p></A>
+<A HREF="v4_0/histo_ovrly.html">Overlay Plots                                             59<p></A>
+<A HREF="v4_0/histo_set.html">Adjusting Plot Settings                                   59<p></A>
+<A HREF="v4_0/histo_set.html#1">Getting Help                                              59<p></A>
+<A HREF="v4_0/histo_set.html#2">Getting Statistics on the Data                            59<p></A>
+<A HREF="v4_0/histo_set.html#3">Setting Styles for Markers and Lines and Histograms       60<p></A>
+<A HREF="v4_0/histo_set.html#5">Showing/Hiding the Variables Legend                       62<p></A>
+<A HREF="v4_0/histo_set.html#6">Sliders: Observing the Effect of Other Ntuple Variables <p>
+         on the Plot                                      62<p></A>
+<A HREF="v4_0/histo_set.html#7">Rebinning Ntuple Data Displayed as a Histogram            63<p></A>
+<A HREF="v4_0/histo_set.html#8">Labelling of Histogram Bin Edges                          64<p></A>
+<A HREF="v4_0/histo_set.html#9">Altering Cell Size for Data Displayed as a Cell Plot      64<p></A>
+<A HREF="v4_0/histo_set.html#10">Other Views                                               65<p></A>
+<A HREF="v4_0/histo_set.html#11">Scaling and Panning the Plots                             66<p></A>
+<A HREF="v4_0/histo_set.html#12">Showing/Hiding Backplanes for 2D Histograms               66<p></A>
+<A HREF="v4_0/histo_set.html#13">Showing/Hiding Errors for Histograms                      67<p></A>
+<A HREF="v4_0/histo_set.html#14">Thickening/Lightening Scatter Plot Points                 67<p></A>
+<A HREF="v4_0/histo_set.html#15">Update Options for all Plots                              67<p></A>
+<A HREF="v4_0/histo_set.html#16">Printing a Plot                                           68<p></A>
+<A HREF="v4_0/histo_set.html#17">Generating a PostScript File of a Plot                    69<p></A>
+<A HREF="v4_0/histo_set.html#18">Showing/Hiding the Range for Indicators and Controls      70<p></A>
+<A HREF="v4_0/histo_set.html#19">Deleting a MiniPlot                                       70<p></A>
+<A HREF="v4_0/histo_set.html#20">Changing the Window Title                                 70<p></A>
+<A HREF="v4_0/histo_set.html#21">Removing an Overlayed Plot                                70<p></A>
+<A HREF="v4_0/histo_set.html#22">Closing a Plot                                            70<p></A>
+<A HREF="v4_0/histo_pt2.html"><b>Part II - </b><p>
+HSDIR Directory Tool                                      71<p>
+tohbook Tool                                              71<p></A>
+<A HREF="v4_0/histo_pt3.html"><b>Part III -</b><p>
+Histo-Scope Library Subroutines                           72<p></A>
+<A HREF="v4_0/histo_pt3.html#1">Histo-Scope Data Routines                                 73<p></A>
+<A HREF="v4_0/histo_pt3.html#2">Building and Running the Example Programs on Unix         78<p></A>
+<A HREF="v4_0/histo_exmp.html"><b>Example Programs	</b><p></A>
+<A HREF="v4_0/histo_exmp.html#1">FORTRAN                                                   80<p></A>
+<A HREF="v4_0/histo_exmp.html#2">C                                                         90<p></A>
+<A HREF="v4_0/histo_fort_api.html"><b>FORTRAN Binding Routines </b><p></A>
+<A HREF="v4_0/histo_fort_api.html#1">Routines for all Users                                    93<p></A>
+<A HREF="v4_0/histo_fort_api.html#2">Routines for HBOOK                                        95<p></A>
+<A HREF="v4_0/histo_fort_api.html#3">Histo-Scope data routines                                 95<p></A>
+<A HREF="v4_0/histo_fort_api.html#4">Item Creation Routines                                    96<p></A>
+<A HREF="v4_0/histo_fort_api.html#5">Filling Histograms/Ntuples and Setting Errors            100<p></A>
+<A HREF="v4_0/histo_fort_api.html#6">Setting Indicators, Reading Controls <p>
+and Checking Triggers                                    102<p></A>
+<A HREF="v4_0/histo_fort_api.html#7">Functions for looking up items                           103<p></A>
+<A HREF="v4_0/histo_fort_api.html#8">Functions for getting properties of all items            104<p></A>
+<A HREF="v4_0/histo_fort_api.html#9">Functions for reading/writing items from/to files        105<p></A>
+<A HREF="v4_0/histo_fort_api.html#10">Functions for managing data items                        106<p></A>
+<A HREF="v4_0/histo_fort_api.html#11">Functions for Accessing Histogram Data                   108<p></A>
+<A HREF="v4_0/histo_fort_api.html#12">Calculations on histogram data                           112<p></A>
+<A HREF="v4_0/histo_fort_api.html#13">Summing Groups of Histograms and Ntuples                 116<p></A>
+<A HREF="v4_0/histo_fort_api.html#14">Functions for accessing Ntuple data                      117<p></A>
+<A HREF="v4_0/histo_c_api.html"><b>C Binding Routines </b><p></A>
+<A HREF="v4_0/histo_c_api.html#1">Routines for all Users                                   120<p></A>
+<A HREF="v4_0/histo_c_api.html#2">Routines for HBOOK                                       122<p></A>
+<A HREF="v4_0/histo_c_api.html#3">Histo-Scope data routines                                122<p></A>
+<A HREF="v4_0/histo_c_api.html#4">Filling Histograms/Ntuples and Setting Errors            127<p></A>
+<A HREF="v4_0/histo_c_api.html#5">Setting Indicators, Reading Controls, <p>
+        and Checking Triggers                            129<p></A>
+<A HREF="v4_0/histo_c_api.html#6">Functions for looking up items:                          130<p></A>
+<A HREF="v4_0/histo_c_api.html#7">Functions for getting properties of all items            131<p></A>
+<A HREF="v4_0/histo_c_api.html#8">Functions for reading/writing items from/to files        132<p></A>
+<A HREF="v4_0/histo_c_api.html#9">Functions for managing data items                        133<p></A>
+<A HREF="v4_0/histo_c_api.html#10">Functions for accessing histogram data                   135<p></A>
+<A HREF="v4_0/histo_c_api.html#11">Calculations on histogram data                           139<p></A>
+<A HREF="v4_0/histo_c_api.html#12">Summing Groups of Histograms and Ntuples                 143<p></A>
+<A HREF="v4_0/histo_c_api.html#13">Functions for accessing Ntuple data                      145<p></A>
+<A HREF="v4_0/histo_hints.html">Hints for Programmers                                    148<p></A>
+<A HREF="v4_0/histo_release.html"><b>Release Notes </b><p></A>
+<A HREF="v4_0/histo_release.html#1">Requirements	<p></A>
+<A HREF="v4_0/histo_release.html#2">New UID parameter in all the Histo-Scope Item Creation Routines<p></A>
+<A HREF="v4_0/histo_release.html#3">HBOOK Circular Ntuple Support<p></A>
+<A HREF="v4_0/histo_release.html#4">UNIX restriction on putting Histo-Scope process in background<p></A>
+<A HREF="v4_0/histo_release.html#5">Some X-Servers do not destroy child dialog windows<p></A>
+<A HREF="v4_0/histo_release.html#6">Printer Options window<p></A>
+<A HREF="v4_0/histo_release.html#7">Floating Point Errors<p></A>
+<A HREF="v4_0/histo_release.html#8">Setting up Histo-Scope on UNIX without Fermilab's ups/upd<p></A>
+<A HREF="v4_0/histo_index.html">Index                                                     152<p></A>
+

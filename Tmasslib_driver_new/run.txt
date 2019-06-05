@@ -1,0 +1,23 @@
+./mt_test_scan.tcl data_parameters_fullscan.tcl \
+  /home/igv/TopJes/Scripts/Transfer_functions_new ttkt70_gen6_100ev.hs myscan.hs 1024 1
+
+./view_2d_probs.tcl 1 myscan.hs
+
+set dir1 = /home/igv/TopJes/Scripts/Tmasslib_LHAPDF/Configurables
+set dir2 = /home/igv/TopJes/Scripts/Tmasslib_new/Configurables
+
+cd $dir1
+foreach file (*.h *.c *.hh *.cc *.f *.tcl)
+   if !(-r $dir2/$file) then
+       echo No file $file in $dir2
+   else
+       diff $file $dir2/$file >& /dev/null
+       if ($status) then
+           echo Files $file differ
+       endif
+   endif
+end
+
+Files johnson_random.c differ
+Files sbshape.c differ
+Files topmass_utils.c differ

@@ -1,0 +1,11 @@
+
+This is the README file for the Geners package. The main purpose of
+this package is serialization and deserialization of C++ objects to/from
+binary archives, with compression and random access to stored data.
+
+The INSTALL file describes a typical installation procedure for the
+package. Some minimal package documentation can be found in the "doc"
+directory (open file "index.html" in your web browser). The code in
+the "examples" directory illustrates typical package use in considerable
+detail.
+

@@ -1,0 +1,97 @@
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    template <class T, typename TResult>
+    void QuadraticOrthoPolyND::fitLoop(
+        const T& obj, TResult (T::* tmethod)(const double*, unsigned) const,
+        const unsigned level,
+        const double* location, const double* scale, double* methodCoords,
+        long double *sum, const unsigned nCoeffs) const
+    {
+        const double xmin = box_[level].min();
+        const unsigned nIntervals = numSteps_[level];
+        const double step = box_[level].length()/nIntervals;
+        double* mono = &work_[0];
+        double* monop1 = mono + 1;
+
+        if (level == dim_ - 1U)
+        {
+            // This is the last level
+            const unsigned nmono = ((dim_+1)*(dim_+2))/2;
+            for (unsigned i=0; i<nIntervals; ++i)
+            {
+                const double x = xmin + (i + 0.5)*step;
+                monop1[level] = x;
+                methodCoords[level] = (x - location[level])/scale[level];
+                const double w = weight_->density(monop1, dim_);
+                const double f = 
+                    static_cast<double>((obj.*tmethod)(methodCoords, dim_));
+
+                if (nCoeffs == nmono)
+                {
+                    // Generate quadratic monomials
+                    unsigned imono = dim_+1;
+                    for (unsigned idim = 0; idim < dim_; ++idim)
+                        for (unsigned idim2 = idim; idim2 < dim_; ++idim2)
+                            mono[imono++] = monop1[idim]*monop1[idim2];
+                    assert(imono == nmono);
+                }
+
+                // Generate the orthogonal polynomials
+                // and accumulate scalar products
+                for (unsigned polyN=0; polyN<nCoeffs; ++polyN)
+                {
+                    long double psum = 0.0L;
+                    const double *coeffs = &coeffM_[0] + polyN*nmono;
+                    for (unsigned imono = 0U; imono <= polyN; ++imono)
+                        psum += coeffs[imono]*mono[imono];
+                    sum[polyN] += psum*w*f;
+                }
+            }
+        }
+        else
+        {
+            for (unsigned i=0; i<nIntervals; ++i)
+            {
+                const double x = xmin + (i + 0.5)*step;
+                monop1[level] = x;
+                methodCoords[level] = (x - location[level])/scale[level];
+                fitLoop(obj, tmethod, level+1U, location,
+                        scale, methodCoords, sum, nCoeffs);
+            }
+        }
+    }
+
+    template <class T, typename TResult>
+    void QuadraticOrthoPolyND::fit(
+        const T& obj, TResult (T::* tmethod)(const double*, unsigned) const,
+        const double* location, const double* scale, const unsigned nScales,
+        double* coeffs, const unsigned nCoeffs) const
+    {
+        const unsigned nmono = ((dim_+1)*(dim_+2))/2;
+        if (nScales != dim_) throw std::invalid_argument(
+            "In npstat::QuadraticOrthoPolyND::fit: "
+            "incompatible number of locations and scales");
+        assert(location);
+        assert(scale);
+        for (unsigned i=0; i<nScales; ++i)
+            if (scale[i] <= 0.0) throw std::invalid_argument(
+                "In npstat::QuadraticOrthoPolyND::fit: "
+                "all scales must be positive");
+        if (!(nCoeffs == 1U || nCoeffs == dim_ + 1U || nCoeffs == nmono))
+            throw std::invalid_argument(
+                "In npstat::QuadraticOrthoPolyND::fit: "
+                "incompatible number of polynomial coefficients");
+        assert(coeffs);
+
+        long double* sp = &sprod_[0];
+        for (unsigned i=0; i<nCoeffs; ++i)
+            sp[i] = 0.0L;
+        work_[0] = 1.0;
+        fitLoop(obj, tmethod, 0U, location, scale,
+                &buf_[0], sp, nCoeffs);
+        for (unsigned i=0; i<nCoeffs; ++i)
+            coeffs[i] = static_cast<double>(sp[i]*cellSize_);
+    }
+}

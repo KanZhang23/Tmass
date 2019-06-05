@@ -1,0 +1,43 @@
+global test_data reference_data
+set test_data [list \
+    2.0  1.0  1.0 \
+    1.0  1.5  2.0 \
+    0.0  1.0  3.0 \
+    4.0  0.5  4.0
+]
+set reference_data [list \
+    2.0  1.0  1.0  3.0  2.0 \
+    1.0  1.5  2.0  2.5  1.5 \
+    0.0  1.0  3.0  1.0  0.0 \
+]
+
+test ntuple_add_variables-1.1 {adding ntuple variables in tcl} {} {
+    set id [hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c}]
+    set idref [hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c d e}]
+    global test_data reference_data
+    hs::ntuple_block_fill $id $test_data
+    hs::ntuple_block_fill $idref $reference_data
+    set idtest [hs::ntuple_add_variables $id [next_uid] "Test ntuple" \
+	"tests" {expr {$c < 3.5}} d {expr {$a + $b}} e {expr {$a * $b}}]
+    verify_similarity $idref $idtest 0.0
+} {}
+
+test ntuple_add_variables-1.2 {adding ntuple variables in C} {} {
+    set id [hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c}]
+    set idref [hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c d e}]
+    global test_data reference_data
+    hs::ntuple_block_fill $id $test_data
+    hs::ntuple_block_fill $idref $reference_data
+    set idtest [hs::ntuple_c_add_variables $id [next_uid] "Test ntuple" \
+	"tests" {c < 3.5} d {a + b} e {a * b}]
+    verify_similarity $idref $idtest 0.0
+} {}
+
+unset test_data reference_data
+catch {unset id}
+catch {unset idref}
+catch {unset idtest}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

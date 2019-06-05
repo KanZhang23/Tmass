@@ -1,0 +1,237 @@
+
+%%%%%%%%%%%%%%%% Springer %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass{article}
+
+\usepackage{mathptmx}       % selects Times Roman as basic font
+\usepackage{helvet}         % selects Helvetica as sans-serif font
+\usepackage{courier}        % selects Courier as typewriter fon=
+\usepackage{type1cm}        % activate if the above 3 fonts are
+                            % not available on your system
+\usepackage{graphicx}       % standard LaTeX graphics tool
+                            % when including figure files
+
+\usepackage{array,colortbl}
+\usepackage{amsmath,amsfonts,amssymb,bm} % no amsthm, Springer defines Theorem, Lemma, etc themselves
+%\usepackage[mathx]{mathabx}
+\DeclareFontFamily{U}{mathx}{\hyphenchar\font45}
+\DeclareFontShape{U}{mathx}{m}{n}{
+      <5> <6> <7> <8> <9> <10>
+      <10.95> <12> <14.4> <17.28> <20.74> <24.88>
+      mathx10
+      }{}
+\DeclareSymbolFont{mathx}{U}{mathx}{m}{n}
+\DeclareFontSubstitution{U}{mathx}{m}{n}
+\DeclareMathAccent{\widecheck}      {0}{mathx}{"71}
+
+% Note that Springer defines the following already:
+%
+% \D upright d for differential d
+% \I upright i for imaginary unit
+% \E upright e for exponential function
+% \tens depicts tensors as sans serif upright
+% \vec depicts vectors as boldface characters instead of the arrow accent
+%
+% Additionally we throw in the following common used macro's:
+\newcommand{\Z}{\mathbb{Z}} % integers
+\newcommand{\C}{\mathbb{C}} % complex numbers
+\newcommand{\R}{\mathbb{R}} % reals
+\newcommand{\N}{\mathbb{N}} % natural numbers {1, 2, ...}
+\newcommand{\Q}{\mathbb{Q}} % rationals
+\newcommand{\F}{\mathbb{F}} % field, finite field
+\newcommand{\floor}[1]{\left\lfloor #1 \right\rfloor} % floor
+\newcommand{\ceil}[1]{\left\lceil #1 \right\rceil}    % ceil
+\newcommand{\D}{\,\mathrm{d}} % differential symbol for use in integrals
+\newcommand{\E}{\,\mathrm{e}} % differential symbol for use in integrals
+% vectors as boldsymbols:
+\newcommand{\bszero}{\boldsymbol{0}} % vector of zeros
+\newcommand{\bsone}{\boldsymbol{1}}  % vector of ones
+\newcommand{\bst}{\boldsymbol{t}}    % vector t
+\newcommand{\bsu}{\boldsymbol{u}}    % vector u
+\newcommand{\bsv}{\boldsymbol{v}}    % vector v
+\newcommand{\bsw}{\boldsymbol{w}}    % vector w
+\newcommand{\bsx}{\boldsymbol{x}}    % vector x
+\newcommand{\bsy}{\boldsymbol{y}}    % vector y
+\newcommand{\bsz}{\boldsymbol{z}}    % vector z
+\newcommand{\bsDelta}{\boldsymbol{\Delta}}    % vector \Delta
+% sets as Euler fraks:
+\newcommand{\setu}{\mathfrak{u}}
+\newcommand{\setv}{\mathfrak{v}}
+% indicator boldface 1:
+\DeclareSymbolFont{bbold}{U}{bbold}{m}{n}
+\DeclareSymbolFontAlphabet{\mathbbold}{bbold}
+\newcommand{\ind}{\mathbbold{1}}
+\newcommand{\mC}{\mathsf{C}}
+
+
+\usepackage{microtype} % good font tricks
+
+\usepackage[colorlinks=true,linkcolor=black,citecolor=black,urlcolor=black]{hyperref}
+\urlstyle{same}
+\usepackage{bookmark}
+\pdfstringdefDisableCommands{\def\and{, }}
+\makeatletter % to avoid hyperref warnings:
+  \providecommand*{\toclevel@author}{999}
+  \providecommand*{\toclevel@title}{0}
+\makeatother
+
+\usepackage{mathtools}
+\DeclareMathOperator{\ok}{ok}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+
+\newcommand{\bsi}{\boldsymbol{i}}    % vector i
+\newcommand{\bsk}{\boldsymbol{k}}    % vector k
+\newcommand{\bsl}{\boldsymbol{l}}    % vector l
+\newcommand{\bsr}{\boldsymbol{r}}    % vector r
+\newcommand{\bsnu}{\boldsymbol{\nu}}    % vector l
+\newcommand{\cc}{\mathcal{C}}
+\newcommand{\cl}{\mathcal{L}}
+\newcommand{\cn}{\mathcal{N}}
+\newcommand{\Order}{\mathcal{O}}
+\newcommand{\cp}{\mathcal{P}}
+\newcommand{\cx}{\mathcal{X}}
+\newcommand{\natm}{\N_{0,m}}
+\newcommand{\cube}{[0,1)^d}
+\newcommand{\hf}{\hat{f}}
+\newcommand{\rf}{\mathring{f}}
+\newcommand{\tf}{\tilde{f}}
+\newcommand{\hg}{\hat{g}}
+\newcommand{\hI}{\hat{I}}
+\newcommand{\tvk}{\tilde{\bsk}}
+\newcommand{\hS}{\widehat{S}}
+\newcommand{\tS}{\widetilde{S}}
+\newcommand{\wcS}{\widecheck{S}}
+\newcommand{\rnu}{\mathring{\nu}}
+\newcommand{\tnu}{\widetilde{\nu}}
+\newcommand{\hnu}{\widehat{\nu}}
+\newcommand{\homega}{\widehat{\omega}}
+\newcommand{\wcomega}{\mathring{\omega}}
+\newcommand{\fC}{\mathfrak{C}}
+\newcommand{\nodes}{\{\bsz_i\}_{i=0}^{\infty}}
+\newcommand{\nodesn}{\{\bsz_i\}_{i=0}^{n-1}}
+\newcommand{\norm}[1]{\ensuremath{\left \lVert #1 \right \rVert}} \newcommand{\bigabs}[1]{\ensuremath{\bigl \lvert #1 \bigr \rvert}}
+\newcommand{\Bigabs}[1]{\ensuremath{\Bigl \lvert #1 \Bigr \rvert}}
+\newcommand{\biggabs}[1]{\ensuremath{\biggl \lvert #1 \biggr \rvert}}
+\newcommand{\Biggabs}[1]{\ensuremath{\Biggl \lvert #1 \Biggr \rvert}}
+\newcommand{\ip}[3][{}]{\ensuremath{\left \langle #2, #3 \right \rangle_{#1}}}
+
+\allowdisplaybreaks
+
+
+\title{Description of Cone of Functions for the quasi-Monte Carlo Error Bound (MCuncert)}
+%\author{Llu\'is Antoni Jim\'enez Rugama and Fred J. Hickernell}
+\date{\today}
+
+\maketitle
+
+\section{Brief Introduction}
+
+This short summary provides the most important points to understand in order to parametrize the QMCUncertaintyCalculator and cone classes (quasi-Monte Carlo error estimation in the MCuncert package). The information is directly extracted from the article \textit{Reliable Adaptive Cubature Using Digital Sequences}. For a more detailed explanation, the reader can find the article in \url{http://arxiv.org/abs/1410.8615}.
+
+\subsection{Digital Nets}
+
+%The integrands considered here are defined over the half open $d$-dimensional unit cube, $\cube$.
+
+Digital sequences are defined in terms of digitwise addition.  Let $b$ be a prime number; $b=2$ is the choice made for Sobol' sequences.  Digitwise addition, $\oplus$, and negation, $\ominus,$ are defined in terms of the proper $b$-ary expansions of points in $\cube$:
+\begin{gather*}
+\bsx = \left(\sum_{\ell=1}^{\infty} x_{j\ell} b^{-\ell}\right)_{j=1}^d, \quad \bst = \left(\sum_{\ell=1}^{\infty} t_{j\ell} b^{-\ell}\right)_{j=1}^d, \qquad x_{j\ell}, t_{j\ell} \in \F_b:=\{0, \ldots, b-1\},\\
+\bsx \oplus \bst = \left(\sum_{\ell=1}^{\infty} [(x_{j\ell} + t_{j\ell}) \bmod b] b^{-\ell} \pmod{1} \right)_{j=1}^d,\qquad \bsx \ominus \bst:=\bsx \oplus (\ominus \bst),\\
+\ominus \bsx = \left(\sum_{\ell=1}^{\infty} [-x_{j\ell} \bmod b] b^{-\ell}\right)_{j=1}^d,  \qquad a \bsx:=\underbrace{\bsx \oplus \cdots \oplus \bsx}_{a \text{ times}}\ \forall a \in \F_b.
+\end{gather*}
+
+We do not have associativity for all of $\cube$.  For example, for $b=2$, 
+\begin{gather*}
+1/6={}_20.001010\ldots, \quad  1/3={}_20.010101\ldots,\quad 1/2 = {}_20.1000\dots\\
+1/3\oplus 1/3={}_20.00000\ldots =0, \quad 1/3\oplus1/6={}_20.011111\ldots=1/2,\\
+ (1/3\oplus1/3)\oplus1/6=0 \oplus 1/6 = 1/6, \quad 1/3\oplus(1/3\oplus1/6)=1/3 \oplus 1/2 = 5/6.
+\end{gather*}
+This lack of associativity comes from the possibility of digitwise addition resulting in an infinite trail of digits $b-1$, e.g., $1/3\oplus1/6$ above.  
+
+\subsection{Wavenumber Space}
+Non-negative integer vectors are used to index the Walsh series for the integrands.  The set $\N_0^d$ is a vector space under digitwise addition, $\oplus$, and the field $\F_b:=\{0,\dots,b-1\}$.  Digitwise addition and negation are defined as follows for  all $\bsk, \bsl \in \N_0^d$: 
+\begin{gather*}
+\bsk =  \left(\sum_{\ell=0}^{\infty} k_{j\ell} b^{\ell}\right)_{j=1}^d, \quad \bsl =  \left(\sum_{\ell=0}^{\infty} l_{j\ell} b^{\ell}\right)_{j=1}^d, \qquad k_{j\ell}, l_{j\ell} \in \F_b, \\
+\bsk \oplus \bsl = \left(\sum_{\ell=0}^{\infty} [(k_{j\ell} + l_{j\ell}) \bmod b] b^{\ell}\right)_{j=1}^d, \\
+\ominus \bsk = \left(\sum_{\ell=0}^{\infty} (b-k_{j\ell}) b^{\ell}\right)_{j=1}^d, \qquad
+a \bsk:=\underbrace{\bsk \oplus \cdots \oplus \bsk}_{a \text{ times}}\ \forall a \in \F_b.
+\end{gather*}
+
+For each \emph{wavenumber} $\bsk \in \N_0^d$ a function $\ip{\bsk}{\cdot}: \cube \to \F_b$ is defined as
+\begin{equation}
+\ip{\bsk}{\bsx} := \sum_{j=1}^{d} \sum_{\ell=0}^{\infty} k_{j\ell}x_{j,\ell+1}  \pmod b.
+\end{equation}
+
+\subsection{Walsh Series} \label{WaveWalshsec}
+The Walsh functions $\{\exp(2 \pi \sqrt{-1} \ip{\bsk}{\cdot}/b) : \bsk \in \N_0^d\}$ are a complete orthonormal \emph{basis} for $L^2(\cube)$.  Thus, any function in $L^2$ may be written in series form as
+\begin{equation} \label{Fourierdef}
+f(\bsx) = \sum_{\bsk \in \N_0^d} \hf(\bsk) \E^{2 \pi \sqrt{-1} \ip{\bsk}{\bsx}/b}, \quad \text{where } \hf(\bsk) := \ip[2]{f}{\E^{2 \pi \sqrt{-1} \ip{\bsk}{\cdot}/b}},
+\end{equation}
+and the $L^2$ inner product of two functions  is the $\ell^2$ inner product of their Walsh series coefficients:
+\[
+\ip[2]{f}{g} = \sum_{\bsk \in \N_0^d} \hf(\bsk)\overline{\hg(\bsk)} =: \ip[2]{\bigl(\hf(\bsk)\bigr)_{\bsk \in \N_0^d}}{\bigl ( \hg(\bsk)\bigr )_{\bsk \in \N_0^d}}.
+\]
+
+Because in the algorithm we do not assume the knowledge of the Walsh coefficients, we will also define the discrete/approximated coefficients as
+
+\begin{equation} \label{cubaturedef}
+\tf_m(\bsk) := \frac{1}{b^m} \sum_{i=0}^{b^m-1} f(\bsz_i)\E^{-2 \pi \sqrt{-1} \ip{\bsk}{\bsz_i}/b},\qquad \{\bsz_i\}_{i=0}^\infty\text{ the digital sequence.}
+\end{equation}
+
+As described in the article \url{http://arxiv.org/abs/1410.8615}, the algorithm includes a bijective mapping such that $\tvk:\N_0\rightarrow\N_0^d$. Thus, we introduce the short notation $\hf_{\kappa} :=\hf(\tvk(\kappa))$  and $\tf_{m,\kappa} := \tf_m(\tvk(\kappa))$.
+
+
+\section{Cone Definition and Parametrization}
+
+\subsection{Sums of Walsh Series Coefficients and Cone Conditions}
+Consider the following sums of the true and approximate Walsh series coefficients.  For $\ell,m \in \N_0$ and $\ell \le m$ let
+\begin{gather*}
+S_m(f) =  \sum_{\kappa=\left \lfloor b^{m-1} \right \rfloor}^{b^{m}-1} \bigabs{\hf_{\kappa}}, \qquad 
+\hS_{\ell,m}(f)  = \sum_{\kappa=\left \lfloor b^{\ell-1} \right \rfloor}^{b^{\ell}-1} \sum_{\lambda=1}^{\infty} \bigabs{ \hf_{\kappa+\lambda b^{m}}}, \\
+\wcS_m(f)=\hS_{0,m}(f) + \cdots + \hS_{m,m}(f)=
+\sum_{\kappa=b^{m}}^{\infty} \bigabs{\hf_{\kappa}}, \qquad
+\tS_{\ell,m}(f) = \sum_{\kappa=\left \lfloor b^{\ell-1}\right \rfloor}^{b^{\ell}-1} \bigabs{\tf_{m,\kappa}}.
+\end{gather*}
+The first three sums, $S_{m}(f)$, $\hS_{\ell,m}(f)$, and $\wcS_m(f)$, cannot be observed because they involve the true series coefficients. But, the last sum, $\tS_{\ell,m}(f)$, is defined in terms of the discrete Walsh transform and can easily be computed in terms of function values.
+
+We make critical assumptions about how certain sums provide upper bounds on others.  Let $\ell_* \in \N$ (lstar in cone.hh) be some fixed integer and $\homega$ (omghat in cone.hh) and $\wcomega$ (omgcirc in cone.hh) be some non-negative valued functions with $\lim_{m \to \infty} \wcomega(m) = 0$ such that $\homega(r)\wcomega(r)<1$ for some $r\in\N$ (rlag in cone.hh).  Define the cone of integrands
+\begin{multline} \label{conecond}
+\cc:=\{f \in L^2(\cube) : \hS_{\ell,m}(f) \le \homega(m-\ell) \wcS_m(f),\ \ \ell \le m, \\
+\wcS_m(f) \le \wcomega(m-\ell) S_{\ell}(f),\ \  \ell_* \le \ell \le m\}.
+\end{multline}
+
+The first inequality asserts that the sum of the larger indexed Walsh coefficients bounds a partial sum of the same coefficients.  For example, this means that $\hS_{0,12}$, the sum of the values of the large black dots in Figure \ref{Walshcoeffig}, is no greater than some factor times $\wcS_{12}(f)$, the sum of the values of the gray $\boldsymbol{\times}$. Possible choices of $\homega$ are $\homega(m)=1$ or $\homega(m)=\beta b^{-q m}$ for some $\beta>1$ and $0\le q \le 1$. The second inequality asserts that the sum of the smaller indexed coefficients provides an upper bound on the sum of the larger indexed coefficients.  In other words, the fine scale components of the integrand are not unduly large compared to the gross scale components.  In Figure \ref{Walshcoeffig} this means that $\wcS_{12}(f)$ is no greater than some factor times $S_8(f)$, the sum of the values of the black squares.  This implies that $\bigabs{\hf_{\kappa}}$ does not dip down and then bounce back up too dramatically as $\kappa \to \infty$. The reason for enforcing the second inequality only for $\ell \ge \ell_*$ is that for small $\ell$, one might have a coincidentally small $S_\ell(f)$, while $\wcS_m(f)$ is large.
+
+\begin{figure}
+\centering
+\includegraphics[width=9cm]{PlotFWTCoefUse256.eps}
+\caption{The magnitudes of true Walsh coefficients for $f(x)=\mathrm{e}^{-3x}\sin\left(10{x^2}\right)$. \label{Walshcoeffig}}
+\end{figure}
+
+The properties of any function in $\cc$ lead to the following conservative upper bound on the cubature error for $\ell, m \in \N$, $\ell_* \le \ell \le m$: 
+\begin{equation}
+\biggabs{\int_{\cube} f(\bsx) \, \D \bsx - \frac{1}{b^m} \sum_{i=0}^{b^m-1} f(\bsz_i) }
+\le \frac{\tS_{\ell,m}(f)\homega(m) \wcomega(m-\ell)}{1 - \homega(m-\ell) \wcomega(m-\ell)}. \label{errbd}
+\end{equation} 
+
+\subsection{Algorithm}
+
+Given the parameter $\ell_* \in \N$ and the functions $\homega$ and  $\wcomega$ that define the cone $\cc$ in \eqref{conecond}, choose the parameter $r \in \N$ such that $\homega(r)\wcomega(r)<1$.  Let $\fC(m): = \homega(m)\wcomega(r)/[1 - \homega(r)\wcomega(r)]$ (cfrag in cone.hh) and $m=\ell_*+r$.
+Given a tolerance, $\varepsilon$, and a routine that produces values of the integrand, $f$, do the following:
+
+\begin{description}
+\item[\textbf{Step 1.}] Compute the sum of the discrete Walsh coefficients, $\tS_{m-r,m}(f)$.  
+
+\item[\textbf{Step 2.}] Check whether the error tolerance is met, i.e., whether $\fC(m)  \tS_{m-r,m}(f) \le \varepsilon$. If so, then return the cubature $\frac{1}{b^m} \sum_{i=0}^{b^m-1} f(\bsz_i)$.
+
+\item[\textbf{Step 3.}] Otherwise, increment $m$ by one, and go to Step 1.
+\end{description}
+
+
+There is a balance to be struck in the choice of $r$.  Choosing $r$ too large causes the error bound to depend on the Walsh coefficients with smaller indices, which may be large, even though the Walsh coefficients determining the error are small.  Choosing $r$ too large makes $\homega(r)\wcomega(r)$ large, and thus the inflation factor, $\fC$, large to guard against aliasing.
+
+\subsection{MCuncert Package and Relative Error}
+
+For practical purposes in the top quark mass measurement, the MCuncert package meanUncertainty() method from the QMCUncertaintyCalculator class will return the estimated relative error, or in other words, $\frac{\text{error bound}}{\text{estimated mean}}=\fC(m)  \tS_{m-r,m}(f)/\left(\frac{1}{b^m} \sum_{i=0}^{b^m-1} f(\bsz_i)\right)$.
+
+\end{document}

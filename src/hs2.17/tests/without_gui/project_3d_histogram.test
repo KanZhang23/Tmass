@@ -1,0 +1,91 @@
+test project_3d_histogram-1.1 {3d histogram projections} {} {
+    foreach {nxbins xmin xmax nybins ymin ymax nzbins zmin zmax} \
+            {  2    1.0   2.5   3    1.5  3.0     4    4.0  8.0} {}
+    set id [hs::create_3d_hist [next_uid] "Example histogram 3d" "Test"\
+            X Y Z V $nxbins $nybins $nzbins $xmin $xmax $ymin $ymax $zmin $zmax]
+    set id_ref_x [hs::create_1d_hist [next_uid] "x projection" "Ref"\
+            X V $nxbins $xmin $xmax]
+    set id_ref_y [hs::create_1d_hist [next_uid] "y projection" "Ref"\
+            Y V $nybins $ymin $ymax]
+    set id_ref_z [hs::create_1d_hist [next_uid] "z projection" "Ref"\
+            Z V $nzbins $zmin $zmax]
+    set id_ref_xy [hs::create_2d_hist [next_uid] "xy projection" "Ref"\
+            X Y V $nxbins $nybins $xmin $xmax $ymin $ymax]
+    set id_ref_xz [hs::create_2d_hist [next_uid] "xz projection" "Ref"\
+            X Z V $nxbins $nzbins $xmin $xmax $zmin $zmax]
+    set id_ref_yz [hs::create_2d_hist [next_uid] "yz projection" "Ref"\
+            Y Z V $nybins $nzbins $ymin $ymax $zmin $zmax]
+    for {set i 0} {$i < $nxbins} {incr i} {
+        set x [expr {$xmin + $i*($xmax-$xmin)/$nxbins + 0.1}]
+        for {set j 0} {$j < $nybins} {incr j} {
+            set y [expr {$ymin + $j*($ymax-$ymin)/$nybins + 0.1}]
+            for {set k 0} {$k < $nzbins} {incr k} {
+                set z [expr {$zmin + $k*($zmax-$zmin)/$nzbins + 0.1}]
+		set w [expr {0.1+rand()}]
+                hs::fill_3d_hist $id $x $y $z $w
+                hs::fill_1d_hist $id_ref_x $x $w
+                hs::fill_1d_hist $id_ref_y $y $w
+                hs::fill_1d_hist $id_ref_z $z $w
+                hs::fill_2d_hist $id_ref_xy $x $y $w
+                hs::fill_2d_hist $id_ref_xz $x $z $w
+                hs::fill_2d_hist $id_ref_yz $y $z $w
+            }
+        }
+    }
+    # Compare projections of sums
+    foreach axis {x y z} {
+        set id_proj_$axis [hs::project_3d_histogram [next_uid] \
+                "$axis projection" "Test" $id $axis "" sum 0]
+    }
+    foreach {axis1 axis2} {x y x z y z} {
+        set id_proj_${axis1}$axis2 [hs::project_3d_histogram [next_uid] \
+                "${axis1}$axis2 projection" "Test" $id $axis1 $axis2 sum 0]
+    }
+    foreach suffix {x y z xy xz yz} {
+        set id_ref [set id_ref_$suffix]
+        # Generate error data (all zeros) for reference histograms
+	hs::swap_data_errors $id_ref pos
+	hs::swap_data_errors $id_ref pos
+        if {[catch {verify_similarity $id_ref [set id_proj_$suffix] 3e-6}]} {
+            error "$suffix sum projection failed"
+        }
+    }
+    # Compare projections of means
+    foreach axis {x y z} {
+        set id_proj_$axis [hs::project_3d_histogram [next_uid] \
+                "$axis projection" "Test" $id "" $axis mean 0]
+    }
+    foreach {axis1 axis2} {x y x z y z} {
+        set id_proj_${axis1}$axis2 [hs::project_3d_histogram [next_uid] \
+                "${axis1}$axis2 projection" "Test" $id $axis2 $axis1 mean 0]
+    }
+    # Scale the reference histos to get means instead of sums
+    hs::hist_scale_data $id_ref_x [expr {1.0/($nybins*$nzbins)}]
+    hs::hist_scale_data $id_ref_y [expr {1.0/($nxbins*$nzbins)}]
+    hs::hist_scale_data $id_ref_z [expr {1.0/($nxbins*$nybins)}]
+    hs::hist_scale_data $id_ref_xy [expr {1.0/$nzbins}]
+    hs::hist_scale_data $id_ref_xz [expr {1.0/$nybins}]
+    hs::hist_scale_data $id_ref_yz [expr {1.0/$nxbins}]
+    foreach suffix {x y z xy xz yz} {
+	set id_proj [set id_proj_$suffix]
+	# Zero out error data for projections
+	hs::hist_set_error_range $id_proj 0 0
+        if {[catch {verify_similarity [set id_ref_$suffix] $id_proj 3e-6}]} {
+            error "$suffix mean projection failed"
+        }
+    }
+} {}
+
+foreach name {
+    nxbins xmin xmax nybins ymin ymax nzbins zmin zmax
+    id w i j k x y z axis axis1 axis2 suffix
+    id_ref id_ref_x id_ref_y id_ref_z id_ref_xy id_ref_xz id_ref_yz
+    id_proj id_proj_x id_proj_y id_proj_z id_proj_xy id_proj_xz id_proj_yz
+} {
+    catch {unset $name}
+}
+unset name
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

@@ -1,0 +1,96 @@
+#include <stdexcept>
+
+#include "npstat/stat/BandwidthCVPseudoLogliND.hh"
+
+namespace npstat {
+    template<class F>
+    inline CVCopulaSmoother<F>::CVCopulaSmoother(
+        const unsigned* nBinsInEachDim, const unsigned dim,
+        const double marginTolerance,
+        const unsigned nNormCycles, const double initialBw,
+        const CVCalc* cvCalc, const bool becomeCvCalcOwner,
+        double cvFactor, const unsigned nCV, const bool useConvolute)
+        : AbsCVCopulaSmoother(nBinsInEachDim, dim, marginTolerance, nNormCycles,
+                              initialBw, cvFactor, nCV, useConvolute),
+          filters_(AbsCVCopulaSmoother::getNFilters(), 0),
+          cvCalc_(cvCalc),
+          assumeCvCalcOwnership_(becomeCvCalcOwner)
+    {
+    }
+
+    template<class F>
+    inline CVCopulaSmoother<F>::CVCopulaSmoother(
+        const unsigned* nBinsInEachDim, const unsigned dim,
+        const double marginTolerance, const unsigned nNormCycles,
+        const std::vector<double>& i_bandwidthValues,
+        const CVCalc* cvCalc, const bool becomeCvCalcOwner,
+        const bool useConvolute)
+        : AbsCVCopulaSmoother(nBinsInEachDim, dim, marginTolerance,
+                              nNormCycles, i_bandwidthValues, useConvolute),
+          filters_(i_bandwidthValues.size(), 0),
+          cvCalc_(cvCalc),
+          assumeCvCalcOwnership_(becomeCvCalcOwner)
+    {
+    }
+
+    template<class F>
+    inline void CVCopulaSmoother<F>::setFilter(const unsigned i, Filter* filter)
+    {
+        delete filters_.at(i);
+        filters_[i] = filter;
+    }
+
+    template<class F>
+    inline CVCopulaSmoother<F>::~CVCopulaSmoother()
+    {
+        const unsigned nFilters = filters_.size();
+        for (unsigned i=0; i<nFilters; ++i)
+            delete filters_[i];
+        if (assumeCvCalcOwnership_)
+            delete cvCalc_;
+    }
+
+    template<class F>
+    inline double CVCopulaSmoother<F>::smoothAndCV(
+        const HistoND<double>& histo,
+        const double effSampleSize,
+        const bool isSampleWeighted,
+        const unsigned ifil,
+        const bool runCrossValidation,
+        ArrayND<double>* result,
+        double* regularizedFraction,
+        bool* isNonNegativeAndNormalized)
+    {
+        typedef BandwidthCVPseudoLogliND<double,ArrayND<double> > PLCV;
+
+        if (this->isConvolving())
+            filters_.at(ifil)->convolve(histo.binContents(), result);
+        else
+            filters_.at(ifil)->filter(histo.binContents(), result);
+        const unsigned long nBinsTotal = result->length();
+        const double sum = result->sum<long double>();
+        assert(sum > 0.0);
+        *result *= (nBinsTotal/sum);
+        *regularizedFraction = 0.0;
+        *isNonNegativeAndNormalized = result->isDensity();
+
+        double cv = 0.0;
+        if (runCrossValidation)
+        {
+            if (isSampleWeighted)
+                cv = (*cvCalc_)(histo, effSampleSize, *result,
+                                *filters_[ifil]);
+            else
+                cv = (*cvCalc_)(histo, *result, *filters_[ifil]);
+
+            const PLCV* plcv = dynamic_cast<const PLCV*>(cvCalc_);
+            if (plcv)
+            {
+                const unsigned long nnot0 = plcv->getNonZeroCount();
+                if (nnot0)
+                    *regularizedFraction = plcv->getRenormCount()*1.0/nnot0;
+            }
+        }
+        return cv;
+    }
+}

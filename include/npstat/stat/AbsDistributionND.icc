@@ -1,0 +1,73 @@
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    template<class Distro1D>
+    inline double HomogeneousProductDistroND<Distro1D>::density(
+        const double* x, const unsigned dim) const
+    {
+        if (dim != dim_) throw std::invalid_argument(
+            "In npstat::HomogeneousProductDistroND::density: "
+            "incompatible input dimensionality");
+        assert(x);
+        double prod = 1.0;
+        for (unsigned i=0; i<dim; ++i)
+            prod *= marginals_[i].density(x[i]);
+        return prod;
+    }
+
+    template<class Distro1D>
+    inline void HomogeneousProductDistroND<Distro1D>::unitMap(
+        const double* rnd, const unsigned bufLen, double* x) const
+    {
+        if (bufLen)
+        {
+            if (bufLen > dim_) throw std::out_of_range(
+                "In npstat::HomogeneousProductDistroND::unitMap: "
+                "input point dimensionality is out of range");
+            assert(rnd);
+            assert(x);
+            for (unsigned i=0; i<bufLen; ++i)
+                x[i] = marginals_[i].quantile(rnd[i]);
+        }
+    }
+
+    template<class Distro1D>
+    inline bool HomogeneousProductDistroND<Distro1D>::isEqual(
+        const AbsDistributionND& rBase) const
+    {
+        const HomogeneousProductDistroND<Distro1D>& r =
+            static_cast<const HomogeneousProductDistroND<Distro1D>&>(rBase);
+        return dim_ == r.dim_ &&
+               marginals_ == r.marginals_;
+    }
+
+#ifdef SWIG
+    inline AbsScalableDistributionND::AbsScalableDistributionND(
+        const double* ilocation, const unsigned lenLocation,
+        const double* iscale, const unsigned dim)
+        : AbsDistributionND(dim), scaleProd_(1.0)
+    {
+        if (lenLocation != dim)
+            throw std::invalid_argument(
+                "In npstat::AbsScalableDistributionND constructor: "
+                "incompatible sequence length");
+        assert(ilocation);
+        assert(iscale);
+        for (unsigned i=0; i<dim; ++i)
+            if (iscale[i] <= 0.0)
+                throw std::invalid_argument(
+                    "In npstat::AbsScalableDistributionND constructor: "
+                    "all scale parameters must be positive");
+        location_.reserve(dim);
+        scale_.reserve(dim);
+        for (unsigned i=0; i<dim; ++i)
+        {
+            location_.push_back(ilocation[i]);
+            scaleProd_ *= iscale[i];
+            scale_.push_back(iscale[i]);
+        }
+        work_.resize(dim);
+    }
+#endif
+}

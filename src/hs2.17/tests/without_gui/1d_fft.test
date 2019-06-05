@@ -1,0 +1,42 @@
+test 1d_fft-1.1 {FFT of basis functions} {[hs::have_cernlib]} {
+    set i [hs::read_file [file join $::tcltest::testsDirectory \
+            reference_files 1d_fft.hs] "references"]
+    if {$i <= 0} {
+        error "Failed to read the reference file"
+    }
+    set nbins 4
+    for {set i 0} {$i < $nbins} {incr i} {
+        # Test forward transform
+        set id [hs::create_1d_hist [next_uid] "Peak at $i" \
+                "Time domain" N F $nbins 0 $nbins]
+        hs::fill_1d_hist $id [expr {$i+0.5}] 1.0
+        set title "Fourier transform of peak at $i"
+        set id_f [hs::create_1d_hist [next_uid] $title \
+                "Fourier transforms" N F $nbins 0 $nbins]
+        hs::1d_fft $id $id_f 1
+        set id_ref [hs::id_from_title $title "references/Fourier transforms"]
+        verify_similarity $id_f $id_ref 0.0
+
+        # Test inverse transform
+        set title "Basis function $i"
+        set id [hs::create_1d_hist [next_uid] $title \
+                "Time domain" N F $nbins 0 $nbins]
+        set id_f [hs::create_1d_hist [next_uid] "Frequency $i" \
+                "Fourier transforms" N F $nbins 0 $nbins]
+        hs::fill_1d_hist $id_f [expr {$i+0.5}] 1.0
+        hs::1d_fft $id_f $id 0
+        set id_ref [hs::id_from_title $title "references/Time domain"]
+        verify_similarity $id $id_ref 0.0
+    }
+} {}
+
+catch {unset i}
+catch {unset nbins}
+catch {unset id}
+catch {unset id_ref}
+catch {unset id_f}
+catch {unset title}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

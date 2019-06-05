@@ -1,0 +1,82 @@
+#include <math.h>
+#include "p_struct_function.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void initpdflib_(void);
+double alphas2_(double *scale);
+void structm_(double *X, double *scale, double *UpV, double *DownV,
+              double *UpSea, double *DownSea, double *Strange,
+              double *Charm, double *Bottom, double *Top, double *Glue);
+double alpsks_(void);
+
+void structfcn(double X, double scale, double *UpV, double *DownV,
+	       double *UpSea, double *DownSea, double *Strange,
+	       double *Charm, double *Bottom, double *Top, double *Glue)
+{
+    static int firstcall = 1;
+    if (firstcall)
+    {
+        initpdflib_();
+        firstcall = 0;
+    }
+    structm_(&X, &scale, UpV, DownV, UpSea, DownSea,
+             Strange, Charm, Bottom, Top, Glue);
+}
+
+void pdfterm_qqbar(const particle_obj p1, const particle_obj p2,
+                   const double Ecms, double *weight_qq, double *weight_gg)
+{
+    const particle_obj compound = sum4(p1, p2);
+
+    /* We will neglect the compound transverse momentum */
+    const double dtmp  = sqrt(compound.m*compound.m + compound.p.z*compound.p.z);
+    const double mom1  = 0.5*(dtmp + compound.p.z);
+    const double mom2  = 0.5*(dtmp - compound.p.z);
+    const double x1    = mom1/(Ecms/2.0);
+    const double x2    = mom2/(Ecms/2.0);
+
+    /* Scale for PDFs */
+    /* const double scale = compound.m; */
+
+    /* PDF scale used by Herwig */
+    const particle_obj q1 = particle(v3(0.0, 0.0, mom1), 0.0);
+    const particle_obj q2 = particle(v3(0.0, 0.0, -mom2), 0.0);
+    const double S = sprod4(q1, q2);
+    const double T = -sprod4(q1, p1);
+    const double U = -sprod4(q1, p2);
+    double scale = sqrt(4.0*S*T*U/(S*S+T*T+U*U));
+
+    if (x1 >= 1.0 || x2 >= 1.0)
+    {
+        *weight_qq = 0.0;
+        *weight_gg = 0.0;
+    }
+    else
+    {
+        double UpV1, DownV1, UpSea1, DownSea1,
+            Strange1, Charm1, Bottom1, Top1, Glue1;
+        double UpV2, DownV2, UpSea2, DownSea2,
+            Strange2, Charm2, Bottom2, Top2, Glue2;
+        double alpha_s, common_factor;
+
+        const double ks_alpha_s = alpsks_();
+
+        structfcn(x1, scale, &UpV1, &DownV1, &UpSea1, &DownSea1,
+                  &Strange1, &Charm1, &Bottom1, &Top1, &Glue1);
+        structfcn(x2, scale, &UpV2, &DownV2, &UpSea2, &DownSea2,
+                  &Strange2, &Charm2, &Bottom2, &Top2, &Glue2);
+        alpha_s = alphas2_(&scale);
+        common_factor = alpha_s*alpha_s/x1/mom1/x2/mom2/ks_alpha_s/ks_alpha_s;
+        
+        /* Dependence of alpha_s on the scale is included */
+        *weight_qq = (UpV1*UpV2 + DownV1*DownV2)*common_factor;
+        *weight_gg = Glue1*Glue2*common_factor;
+    }
+}
+
+#ifdef __cplusplus
+}
+#endif

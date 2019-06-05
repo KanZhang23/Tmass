@@ -1,0 +1,17 @@
+
+Usage: gssa_dump [-f] [-s] filename
+
+This program prints the contents of "geners" string archives to the standard
+output. Files which contain string archive can be usually recognised by their
+extensions ".gssa" (Generic Serialization String Archive) and ".gssaz"
+(string archive with compression). Normally, the program prints item ids,
+class names, item names, and archive categories for all items in the archive.
+This default behavior can be modified with option switches. The meaning of
+the switches is as follows:
+
+ -f   Full dump. Print complete info for each catalog entry.
+
+ -s   Print only the summary statistics for item types. If option "-f" is given
+      together with "-s", the summary will be printed after the full dump.
+
+PASS gssa_dump (exit status: 0)

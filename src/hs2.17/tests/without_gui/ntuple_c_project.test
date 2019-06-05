@@ -1,0 +1,54 @@
+test ntuple_c_project-1.1 {compare ntuple_c_project and ntuple_project on 2d histos} {} {
+    set nt_id [hs::create_ntuple [next_uid] "Example ntuple" "Test" {a b c d}]
+    for {set i 0} {$i < 1000} {incr i} {
+        hs::fill_ntuple $nt_id [list [expr {rand()}] \
+                [expr {rand()}] [expr {rand()}] [expr {rand()}]]
+    }
+    set id1 [hs::create_2d_hist [next_uid] "Title" "Test" X Y Z 5 5 0 1 0 2]
+    set id2 [hs::copy_hist $id1 [next_uid] [hs::title $id1] [hs::category $id1]]
+    hs::ntuple_project $nt_id $id1 {expr $c > 0.5} \
+            {expr $c} {expr $d} {expr {$a+$b}}
+    hs::ntuple_c_project $nt_id $id2 {c > 0.5f} c d {a+b}
+    verify_similarity $id1 $id2 0.00001
+} {}
+
+test ntuple_c_project-1.2 {compare ntuple_c_project and ntuple_project on 2d histos} {} {
+    # This test is identical to the previous one with the exception of y
+    # projection expression. In this test, it is just a simple column name.
+    # This should trigger fast built-in ntuple projection code.
+    set nt_id [hs::create_ntuple [next_uid] "Example ntuple" "Test" {a b c d}]
+    for {set i 0} {$i < 1000} {incr i} {
+        hs::fill_ntuple $nt_id [list [expr {rand()}] \
+                [expr {rand()}] [expr {rand()}] [expr {rand()}]]
+    }
+    set id1 [hs::create_2d_hist [next_uid] "Title" "Test" X Y Z 5 5 0 1 0 2]
+    set id2 [hs::copy_hist $id1 [next_uid] [hs::title $id1] [hs::category $id1]]
+    hs::ntuple_project $nt_id $id1 {expr $c > 0.5} \
+            {expr $c} {expr $d} {expr $a}
+    hs::ntuple_c_project $nt_id $id2 {c > 0.5f} c d a
+    verify_similarity $id1 $id2 0.00001
+} {}
+
+test ntuple_c_project-1.3 {compare ntuple_c_project and ntuple_project on 3d histos} {} {
+    set nt_id [hs::create_ntuple [next_uid] "Example ntuple" "Test" {a b c d}]
+    for {set i 0} {$i < 1000} {incr i} {
+        hs::fill_ntuple $nt_id [list [expr {rand()}] \
+                [expr {rand()}] [expr {rand()}] [expr {rand()}]]
+    }
+    set id1 [hs::create_3d_hist [next_uid] "Title" "Test" \
+            X Y Z V 5 5 5 0 1 0 1 0 2]
+    set id2 [hs::copy_hist $id1 [next_uid] [hs::title $id1] [hs::category $id1]]
+    hs::ntuple_project $nt_id $id1 {expr $c > 0.5} \
+            {expr $c} {expr $d} {expr $a} {expr {$a+$b}}
+    hs::ntuple_c_project $nt_id $id2 {c > 0.5f} c d a {a+b}
+    verify_similarity $id1 $id2 0.00001
+} {}
+
+catch {unset nt_id}
+catch {unset id1}
+catch {unset id2}
+catch {unset i}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

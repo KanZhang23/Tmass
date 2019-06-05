@@ -1,0 +1,564 @@
+<h2>
+<a name="1">FORTRAN EXAMPLE PROGRAMS
+</a></h2>
+<a name="bk21"><p>
+<p>
+<b>I.  Using Histo-Scope with HBOOK:</b><p>
+<p>
+	PROGRAM HBOOKEXAMPLE<p>
+C<p>
+C PROGRAM TO GENERATE RANDOM NTUPLE AND HISTOGRAM DATA<p>
+C<p>
+	IMPLICIT NONE<p>
+#include "histoscope.inc"<p>
+C<p>
+C   IF COMPILING PROGRAM ON VMS OR IBM/AIX SYSTEM, COMMENT OUT<p>
+C   ABOVE INCLUDE AND REMOVE THE C IN COLUMN 1 OF ONE OF THE FOLLOWING:<p>
+C<p>
+C   IBM/AIX:<p>
+C	INCLUDE 'histoscope.inc'<p>
+C   VMS:<p>
+C	INCLUDE 'HISTO_INC:histoscope.inc'<p>
+	INTEGER I, J, K, N_VARIABLES  <p>
+	REAL VALUES(8)<p>
+	REAL RNDOM<p>
+	CHARACTER*8 TAGS(8)<p>
+	COMMON/PAWC/H<p>
+	REAL*4 H(1 000 000)<p>
+	<p>
+	N_VARIABLES = 8<p>
+        TAGS(1) = 'X'<p>
+        TAGS(2) = 'Y'<p>
+        TAGS(3) = 'IDX'<p>
+        TAGS(4) = 'SQRT(X)'<p>
+        TAGS(5) = 'SQRT(Y)'<p>
+        TAGS(6) = 'LOG(X)'<p>
+        TAGS(7) = 'LOG(Y)'<p>
+        TAGS(8) = 'SIN(IDX)'<p>
+	CALL HS_INITIALIZE('hbookExample.f')<p>
+	CALL HS_HISTOSCOPE(1)<p>
+	CALL HLIMIT(250 000)<p>
+        CALL HBOOKN(900, 'EXAMPLE NTUPLE', N_VARIABLES, ' ', 1000, TAGS)<p>
+        CALL HBOOK2(5000,'2D HIST EXAMPLE',100,4600.,5400., 100,4600.,<p>
+     &amp;     5400.0, 0.)<p>
+        CALL HBOOK1(6000,'EXAMPLE 1D HIST',100,4600.,5400.,0.0)<p>
+	PRINT *, ' HLDIR CALLED: '<p>
+	CALL HLDIR('//PAWC', 'T')<p>
+	CALL HS_HBOOK_SETUP('//PAWC')<p>
+C<p>
+C	    RANDOM DATA COMPUTATION - THIS COULD BE ANY CODE YOU WISH<p>
+C	<p>
+	DO I = 1, 10000<p>
+    	    DO J = 1, 2<p>
+    		VALUES(J) = 0<p>
+    		DO K = 1, 1000<p>
+    	    	    VALUES(J) = VALUES(J) + RNDOM(0) * 10.<p>
+    		ENDDO<p>
+    	    ENDDO<p>
+    	    <p>
+    	    VALUES(3) = I<p>
+    	    VALUES(4) = SQRT(VALUES(1))<p>
+    	    VALUES(5) = SQRT(VALUES(2))<p>
+    	    VALUES(6) = LOG(VALUES(1))<p>
+    	    VALUES(7) = LOG(VALUES(2))<p>
+    	    VALUES(8) = SIN(VALUES(3))<p>
+<p>
+	    CALL HFILL(5000, VALUES(1), VALUES(2), 1.)<p>
+	    CALL HFILL(6000, VALUES(2), 0., 1.)<p>
+	    CALL HFN(900, VALUES)<p>
+    	    CALL HS_UPDATE<p>
+<p>
+	    IF ( MOD(I, 200) .EQ. 0)  THEN <p>
+                 PRINT *, ' Reaching computation ...', I<p>
+            ENDIF<p>
+	END DO<p>
+	CALL HS_COMPLETE<p>
+	CALL HRPUT(0, 'hbookexample.hst', 'TN')<p>
+	STOP<p>
+	END</a><p>
+<p>
+      REAL FUNCTION RNDOM()<p>
+      INTEGER A,M,Q,R,HI,LO,TEST<p>
+      DATA A, M, Q, R, ISEED /16807, 2147483647, 127773, 2836, 19283755/<p>
+<p>
+      HI = ISEED/Q<p>
+      LO = MOD(ISEED,Q)<p>
+      TEST = A*LO - R*HI<p>
+      IF(TEST.GT.0)  THEN<p>
+        ISEED = TEST<p>
+      ELSE<p>
+        ISEED = TEST + M<p>
+      END IF<p>
+      RNDOM = FLOAT(ISEED)/M<p>
+      RETURN<p>
+      END<p>
+<p>
+	<p>
+<p>
+<a name="1a">
+<b>II. Using Histo-Scope Routines only (no HBOOK calls)</b></a><p>
+<p>
+	PROGRAM HSEXAMPLE<p>
+C<p>
+C PROGRAM TO GENERATE RANDOM NTUPLE AND HISTOGRAM DATA<p>
+C<p>
+	IMPLICIT NONE<p>
+#include "histoscope.inc"<p>
+C<p>
+C   IF COMPILING PROGRAM ON VMS OR IBM/AIX SYSTEM, COMMENT OUT<p>
+C   ABOVE INCLUDE AND REMOVE THE C IN COLUMN 1 OF ONE OF THE FOLLOWING:<p>
+C<p>
+C   IBM/AIX:<p>
+C	INCLUDE 'histoscope.inc'<p>
+C   VMS:<p>
+C	INCLUDE 'HISTO_INC:histoscope.inc'<p>
+	INTEGER I, J, K, N_VARIABLES, HS1_ID, HS2_ID, NTUPLE_ID<p>
+	INTEGER IND_ID, ISTAT<p>
+	REAL VALUES(8)<p>
+	REAL RNDOM<p>
+	CHARACTER*8 TAGS(8)<p>
+	<p>
+	N_VARIABLES = 8<p>
+        TAGS(1) = 'X'<p>
+        TAGS(2) = 'Y'<p>
+        TAGS(3) = 'IDX'<p>
+        TAGS(4) = 'SQRT(X)'<p>
+        TAGS(5) = 'SQRT(Y)'<p>
+        TAGS(6) = 'LOG(X)'<p>
+        TAGS(7) = 'LOG(Y)'<p>
+        TAGS(8) = 'SIN(IDX)'<p>
+	CALL HS_INITIALIZE('hsExample.f')<p>
+	CALL HS_HISTOSCOPE(1)<p>
+ 	NTUPLE_ID = HS_CREATE_NTUPLE(101, 'EXAMPLE NTUPLE', 'HS',<p>
+     &amp;     N_VARIABLES, TAGS)<p>
+ 	HS1_ID = HS_CREATE_1D_HIST(102, 'EXAMPLE 1D HIST', 'HS', 'Y',<p>
+     &amp;     'TOTAL', 100, 4600., 5400.)<p>
+ 	HS2_ID = HS_CREATE_2D_HIST(103, '2D HIST EXAMPLE', 'HS','X', 'Y',<p>
+     &amp;     'TOTAL', 100, 100, 4600., 5400., 4600., 5400.)<p>
+	IND_ID = HS_CREATE_INDICATOR(104, 'INDICATOR EXAMPLE', 'HS', 0.,<p>
+     &amp;      10000.)<p>
+C<p>
+C	    RANDOM DATA COMPUTATION - THIS COULD BE ANY CODE YOU WISH<p>
+C	<p>
+	DO I = 1, 10000<p>
+    	    DO J = 1, 2<p>
+    		VALUES(J) = 0<p>
+    		DO K = 1, 1000<p>
+    	    	    VALUES(J) = VALUES(J) + RNDOM() * 10.<p>
+    		ENDDO<p>
+    	    ENDDO<p>
+    	    <p>
+    	    VALUES(3) = I<p>
+    	    VALUES(4) = SQRT(VALUES(1))<p>
+    	    VALUES(5) = SQRT(VALUES(2))<p>
+    	    VALUES(6) = LOG(VALUES(1))<p>
+    	    VALUES(7) = LOG(VALUES(2))<p>
+    	    VALUES(8) = SIN(VALUES(3))<p>
+<p>
+    	    ISTAT = HS_FILL_NTUPLE(NTUPLE_ID, VALUES)<p>
+    	    CALL HS_FILL_1D_HIST(HS1_ID, VALUES(2), 1.)<p>
+    	    CALL HS_FILL_2D_HIST(HS2_ID, VALUES(1), VALUES(2), 1.)<p>
+    	    CALL HS_SET_INDICATOR(IND_ID, FLOAT(I))<p>
+    	    CALL HS_UPDATE<p>
+<p>
+	    IF ( MOD(I, 200) .EQ. 0)  THEN <p>
+                 PRINT *, ' Reaching computation ...', I<p>
+          ENDIF<p>
+	END DO<p>
+	ISTAT = HS_SAVE_FILE('hsExample.hs')<p>
+	CALL HS_COMPLETE<p>
+	STOP<p>
+	END<p>
+	<p>
+      REAL FUNCTION RNDOM()<p>
+      INTEGER A,M,Q,R,HI,LO,TEST<p>
+      DATA A, M, Q, R, ISEED /16807, 2147483647, 127773, 2836, 19283755/<p>
+<p>
+      HI = ISEED/Q<p>
+      LO = MOD(ISEED,Q)<p>
+      TEST = A*LO - R*HI<p>
+      IF(TEST.GT.0)  THEN<p>
+        ISEED = TEST<p>
+      ELSE<p>
+        ISEED = TEST + M<p>
+      END IF<p>
+      RNDOM = FLOAT(ISEED)/M<p>
+      RETURN<p>
+      END<p>
+      
+<a name="1b">     
+<b>III. Using Histo-Scope Application Program Interface</b></a><p>
+<p>
+	PROGRAM APIEXAMPLE<p>
+C<p>
+C PROGRAM TO GENERATE RANDOM N-TUPLE AND HISTOGRAM DATA AND DEMONSTRATE<p>
+C ADVANCED FEATURES OF THE HISTO-SCOPE APPLICATION PROGRAMMING INTERFACE<p>
+C<p>
+	IMPLICIT NONE<p>
+#include "histoscope.inc"<p>
+C<p>
+C   IF COMPILING PROGRAM ON VMS OR IBM/AIX SYSTEM, COMMENT OUT<p>
+C   ABOVE INCLUDE AND REMOVE THE C IN COLUMN 1 OF NEXT ONE<p>
+C<p>
+C	INCLUDE 'histoscope.inc'<p>
+	INTEGER I, J, K, N_VARIABLES, HS1_ID, HS2_ID, NTUPLE_ID, LEN<p>
+	INTEGER CTRL_ID, IND_ID, CTRL_NPTS_ID, CTRL_MERRS_ID, I1, I2<p>
+	INTEGER TRIGGER_ID, NUM_PTS, ISTAT, ID(20), NUM_ITEMS<p>
+	REAL VALUES(8), CVAL, FVALPTS, ERRVAL_M, R1, R2, R3<p>
+	REAL ERRS1D(100), ERRS2D(10000), ERRS1D_M(100), ERRS2D_M(10000)<p>
+	REAL RNDOM, XMIN, XMAX, OVERFLOWS(9)<p>
+	CHARACTER*8 TAGS(8)<p>
+	CHARACTER *80 NAME<p>
+C	<p>
+C   NTUPLE PARAMETERS:<p>
+C<p>
+	N_VARIABLES = 8<p>
+	NUM_PTS = 10000<p>
+        TAGS(1) = 'X'<p>
+        TAGS(2) = 'Y'<p>
+        TAGS(3) = 'IDX'<p>
+        TAGS(4) = 'GAUS-1'<p>
+        TAGS(5) = 'GAUS-2'<p>
+        TAGS(6) = 'LOG(X)'<p>
+        TAGS(7) = 'LOG(Y)'<p>
+        TAGS(8) = 'SIN(IDX)'<p>
+C<p>
+C   INITIALIZE ERROR ARRAYS FOR HISTOGRAMS:<p>
+C<p>
+	DO I = 1, 10000<p>
+	    ERRS2D(I) = .1<p>
+	    ERRS2D_M(I) = 0.<p>
+	ENDDO<p>
+	DO I = 1, 100<p>
+	    ERRS1D(I) = .1<p>
+	    ERRS1D_M(I) = 0.<p>
+	ENDDO<p>
+C<p>
+C   INITIALIZE THE HISTOSCOPE API, START A PRE-CONNECTED HISTO-SCOPE <p>
+C   PROCESS, AND CREATE ITEMS TO LOOK AT:<p>
+C<p>
+	CALL HS_INITIALIZE('APIEXAMPLE')<p>
+	CALL HS_HISTOSCOPE(1)<p>
+ 	NTUPLE_ID = HS_CREATE_NTUPLE(101, 'EXAMPLE NTUPLE', 'HS',<p>
+    &amp;      N_VARIABLES, TAGS)<p>
+ 	HS1_ID = HS_CREATE_1D_HIST(102, 'EXAMPLE 1D HIST', 'HS', 'Y',<p>
+    &amp;      'TOTAL' ,100, 4600., 5400.)<p>
+ 	HS2_ID = HS_CREATE_2D_HIST(103, '2D HIST EXAMPLE', 'HS',<p>
+    &amp;      'GAUS-1','GAUS-2', 'TOTAL', 100, 100, -3.5, 3.5, -4., 4.)<p>
+	IND_ID = HS_CREATE_INDICATOR(104, 'INDICATOR EXAMPLE', 'HS',<p>
+    &amp;      0., 10000.)<p>
+	CTRL_ID = HS_CREATE_CONTROL(201, 'CONTROL: PAUSE IF .LT. 0',<p>
+    &amp;      'HS', -500., +500., 0.)<p>
+	CTRL_NPTS_ID = HS_CREATE_CONTROL(202, 'CONTROL: NUM OF PTS',<p>
+    &amp;      'HS', 0., 10000., 10000.)<p>
+	CTRL_MERRS_ID = HS_CREATE_CONTROL(203,<p>
+    &amp;      'CONTROL: ACCUM NONSYM NEG ERRS', 'HS', 0., 1., 0.)<p>
+	TRIGGER_ID = HS_CREATE_TRIGGER(301, 'TRIGGER EXAMPLE', 'HS')<p>
+    	PRINT *<p>
+	PRINT *, ' NUMBER OF ITEMS CREATED: ', HS_NUM_ITEMS()<p>
+    	PRINT *<p>
+C<p>
+C    RANDOM DATA COMPUTATION - THIS COULD BE ANY CODE YOU WISH<p>
+C	<p>
+	I = 1<p>
+	DO WHILE (I .LE. NUM_PTS)<p>
+    	    DO J = 1, 2<p>
+    		 VALUES(J) = 0<p>
+    		 DO K = 1, 1000<p>
+    	    	    VALUES(J) = VALUES(J) + RNDOM() * 10.<p>
+    		 ENDDO<p>
+    	    ENDDO<p>
+    	    <p>
+    	    VALUES(3) = I<p>
+    	    VALUES(6) = LOG(VALUES(1))<p>
+    	    VALUES(7) = LOG(VALUES(2))<p>
+    	    VALUES(8) = SIN(VALUES(3))<p>
+    	    <p>
+ 50 	    R1 = RNDOM()<p>
+    	    R2 = RNDOM()<p>
+    	    R1 = 2.0 * R1 - 1.0<p>
+    	    R2 = 2.0 * R2 - 1.0<p>
+    	    R3 = R1 * R1 + R2 * R2<p>
+    	    IF (R3 .GT. 1.0 ) GOTO 50<p>
+    	    VALUES(4) = R1 * SQRT((-2.0*LOG(R3))/R3)<p>
+    	    VALUES(5) = R2 * SQRT((-2.0*LOG(R3))/R3)<p>
+<p>
+    	    ISTAT = HS_FILL_NTUPLE(NTUPLE_ID, VALUES)<p>
+    	    CALL HS_FILL_1D_HIST(HS1_ID, VALUES(2), 1.)<p>
+    	    CALL HS_FILL_2D_HIST(HS2_ID, VALUES(4), VALUES(5), 1.)<p>
+    	    CALL HS_SET_INDICATOR(IND_ID, FLOAT(I))<p>
+    	    IF (HS_CHECK_TRIGGER(TRIGGER_ID) .NE. 0)<p>
+    &amp;           PRINT *, ' Trigger set by HistoScope'<p>
+C<p>
+C	CALL HS_UPDATE EVERY FILL ITERATION, SO THAT THE NEW DATA CAN <p>
+C	BE SEEN BY THE HISTO-SCOPE USER<p>
+C<p>
+    	    CALL HS_UPDATE<p>
+<p>
+	    IF ( MOD(I, 200) .EQ. 0)  THEN <p>
+                 PRINT *, ' Reaching computation ...', I<p>
+C<p>
+C   	       SET POSITIVE ERRORS FOR HISTOGRAMS; IF HISTO-SCOPE USER<p>
+C   	       DIRECTED, COMPUTE AND SET NON-SYMMETRIC NEGATIVE ERRORS:<p>
+C<p>
+    	         CALL HS_SET_1D_ERRORS(HS1_ID, ERRS1D, %VAL(0))<p>
+    	         CALL HS_SET_2D_ERRORS(HS2_ID, ERRS2D, %VAL(0))<p>
+    	         CALL HS_READ_CONTROL(CTRL_MERRS_ID, ERRVAL_M)<p>
+		 DO K = 1, 10000<p>
+		     ERRS2D(K) = ERRS2D(K) + .1<p>
+    	             IF (ERRVAL_M .GT. 0)  <p>
+     &amp;                         ERRS2D_M(K) = ERRS2D_M(K) + ERRVAL_M<p>
+		 ENDDO<p>
+		 DO K = 1, 100<p>
+		     ERRS1D(K) = ERRS1D(K) + .1<p>
+    	             IF (ERRVAL_M .GT. 0)  <p>
+     &amp;                         ERRS1D_M(K) = ERRS1D_M(K) + ERRVAL_M<p>
+		 ENDDO<p>
+    	         IF (ERRVAL_M .GT. 0) THEN <p>
+    	             CALL HS_SET_1D_ERRORS(HS1_ID, %VAL(0), ERRS1D_M)<p>
+    	             CALL HS_SET_2D_ERRORS(HS2_ID, %VAL(0), ERRS2D_M)<p>
+    	         ENDIF<p>
+            ENDIF<p>
+C<p>
+C   	READ CONTROLS AND SET THE NUMBER OF ITERATIONS ACCORDINGLY. <p>
+C   	ABSTAIN FROM DATA COLLECTION IF THE HISTO-SCOPE USER SETS <p>
+C   	"PAUSE IF .LT. 0" CONTROL &lt; 0, BUT STILL READ "NUMBER OF POINTS"<p>
+C   	CONTROL AND CHECK THE TRIGGER:<p>
+C<p>
+    	    CALL HS_READ_CONTROL(CTRL_ID, CVAL)<p>
+    	    CALL HS_READ_CONTROL(CTRL_NPTS_ID, FVALPTS)<p>
+    	    NUM_PTS = INT(FVALPTS)<p>
+    	    DO WHILE (CVAL .LT. 0.) <p>
+    	    	 IF (HS_CHECK_TRIGGER(TRIGGER_ID) .NE. 0)<p>
+    &amp;               PRINT *, ' Trigger set by HistoScope'<p>
+    	    	 CALL HS_UPDATE<p>
+    	    	 CALL HS_READ_CONTROL(CTRL_ID, CVAL)<p>
+            ENDDO<p>
+            <p>
+	I = I + 1<p>
+	END DO<p>
+C<p>
+C    DATA COLLECTION IS FINISHED.  SAVE ALL DATA TO A FILE FOR LATER <p>
+C    REFERENCE AND PRINT SOME STATISTICS.  ALLOW THE HISTO-SCOPE USER<p>
+C    TO SEE ALL THE DATA HE WISHES BEFORE STOPPING THE PROGRAM.<p>
+C<p>
+	ISTAT = HS_SAVE_FILE('apiExample.hs')<p>
+	NUM_ITEMS = HS_LIST_ITEMS(' ','HS', ID, 20, 1)<p>
+    	DO J = 1, NUM_ITEMS<p>
+    	    PRINT *<p>
+    	    IF (HS_TYPE(ID(J)) .EQ. HS_1D_HISTOGRAM) THEN<p>
+               CALL HS_1D_HIST_RANGE(ID(J), XMIN, XMAX)<p>
+               PRINT *, ' ITEM UID#', HS_UID(ID(J)),  <p>
+    &amp;                ' IS A 1-D HISTOGRAM.'<p>
+               PRINT *, '   ITS RANGE IS: ', XMIN, ', ', XMAX<p>
+               PRINT *, '   ITS INTEGRAL IS: ', HS_HIST_INTEGRAL(ID(J))<p>
+               CALL HS_1D_HIST_STATS(ID(J), R1, R2)<p>
+               PRINT *, '   ITS MEAN IS: ', R1, 'STD DEV:', R2<p>
+    	    ENDIF<p>
+    	    IF (HS_TYPE(ID(J)) .EQ. HS_2D_HISTOGRAM) THEN<p>
+               CALL HS_2D_HIST_OVERFLOWS(ID(J), OVERFLOWS)<p>
+               PRINT *, ' ITEM UID#', HS_UID(ID(J)),   <p>
+    &amp;                ' IS A 2-D HISTOGRAM.  '<p>
+               PRINT *, '   ITS OVERFLOWS ARE: ', OVERFLOWS<p>
+               CALL HS_2D_HIST_NUM_BINS(ID(J), I1, I2)<p>
+               PRINT *, '   NUMBER OF BINS IN X:', I1, ', IN Y: ', <p>
+    &amp;                I2<p>
+               PRINT *, '   BIN VALUE AT (0., 0.) IS: ',  <p>
+    &amp;                HS_2D_HIST_XY_VALUE(ID(J), 0., 0.) <p>
+               CALL HS_2D_HIST_MAXIMUM(ID(J), R1, R2, I, K, R3)<p>
+               PRINT *, '   MAX VALUE IS AT (', R1, ', ', R2, '): ',<p>
+    &amp;                 R3<p>
+    	    ENDIF<p>
+    	    IF (HS_TYPE(ID(J)) .EQ. HS_NTUPLE) THEN<p>
+               PRINT *, ' ITEM UID#', HS_UID(ID(J)),    <p>
+    &amp;                ' IS AN N-TUPLE WITH ', <p>
+    &amp;                HS_NUM_VARIABLES(NTUPLE_ID), ' VARIABLES.'<p>
+               LEN = HS_VARIABLE_NAME(ID(J), 1, NAME)<p>
+               PRINT *, '   THE FIRST VARIABLE NAME IS: ', NAME(1:LEN)<p>
+               PRINT *, '   THE VALUE OF ', NAME(1:LEN), '[250] IS: ',<p>
+    &amp;                HS_NTUPLE_VALUE(ID(J), 250, 1)<p>
+    	    ENDIF<p>
+    	    IF (HS_TYPE(ID(J)) .EQ. HS_CONTROL) THEN<p>
+               LEN = HS_TITLE(ID(J), NAME)<p>
+               PRINT *, ' ITEM UID#', HS_UID(ID(J)), <p>
+    &amp;                ' IS A CONTROL WITH TITLE: ', NAME(1:LEN)<p>
+               CALL HS_READ_CONTROL(ID(J), CVAL)<p>
+               PRINT *, '   ITS VALUE IS: ', CVAL<p>
+    	    ENDIF<p>
+    	    IF (HS_TYPE(ID(J)) .EQ. HS_INDICATOR) THEN<p>
+               LEN = HS_TITLE(ID(J), NAME)<p>
+               PRINT *, ' ITEM UID#', HS_UID(ID(J)), <p>
+    &amp;                ' IS AN INDICATOR WITH TITLE:  ', NAME(1:LEN)<p>
+    	    ENDIF<p>
+    	    IF (HS_TYPE(ID(J)) .EQ. HS_TRIGGER) THEN<p>
+               LEN = HS_TITLE(ID(J), NAME)<p>
+               PRINT *, ' ITEM UID#', HS_UID(ID(J)), <p>
+    &amp;                ' IS A TRIGGER WITH TITLE:  ', NAME(1:LEN)<p>
+    	    ENDIF<p>
+	END DO<p>
+	PRINT *<p>
+	PRINT *, ISTAT, ' ITEMS SAVED TO FILE:  apiExample.hs'<p>
+	CALL HS_COMPLETE_AND_WAIT<p>
+	STOP<p>
+	END<p>
+<p>
+<p>
+      REAL FUNCTION RNDOM()<p>
+      INTEGER A,M,Q,R,HI,LO,TEST<p>
+      DATA A, M, Q, R, ISEED /16807, 2147483647, 127773, 2836, 19283755/<p>
+<p>
+      HI = ISEED/Q<p>
+      LO = MOD(ISEED,Q)<p>
+      TEST = A*LO - R*HI<p>
+      IF(TEST.GT.0)  THEN<p>
+        ISEED = TEST<p>
+      ELSE<p>
+        ISEED = TEST + M<p>
+      END IF<p>
+      RNDOM = FLOAT(ISEED)/M<p>
+      RETURN<p>
+      END<p>
+	
+<a name="bk22">
+<h2>
+<a name="2">
+C EXAMPLE PROGRAMS
+</a></h2>
+<p>
+<p>
+<b>I.  Using Histo-Scope with HBOOK on Unix:</b><p>
+<p>
+#include &lt;math.h&gt;<p>
+#include &lt;stdio.h&gt;<p>
+#include &lt;stdlib.h&gt;<p>
+#include &lt;histoscope.h&gt;<p>
+/*<p>
+ * HbookExample.c - program to generate random Ntuple and histogram data<p>
+ *<p>
+ *   ** Note:	this program will not work on VMS, since HBOOK will	**<p>
+ *   **	expect descriptors for all string parameters	**<p>
+ */<p>
+#define TRUE 1<p>
+#define HLIM 250000<p>
+struct pawC { int h[HLIM]; } pawc_;<p>
+main()<p>
+{<p>
+    int n_variables = 8;<p>
+    int i, j, k, hlim = HLIM;<p>
+    float values[8];<p>
+    float con_1 = 1., con_0 = 0., con_3400 = 3400., con_5400 = 5400.;<p>
+    int hb_1d = 6000, hb_2d = 5000, hb_nt = 900, ic_100 = 100, ic_1000 =
+1000;<p>
+    static char hbNames[8][8] = { "X      ", "Y      ", "idx    ", "sqrt(X)",<p>
+				  "sqrt(Y)", "log(X) ", "log(Y) ", "sin(idx)" };<p>
+<p>
+    hs_initialize("HbookExample.c");<p>
+    hs_histoscope(TRUE);<p>
+    hlimit_(&amp;hlim);<p>
+    hbookn_(&amp;hb_nt, "example_ntuple", &amp;n_variables, " ", &amp;ic_1000,
+  		hbNames, 14, 1, 8);<p>
+    hbook2_(&amp;hb_2d, "2d hist example", &amp;ic_100, &amp;con_3400,
+&amp;con_5400,     		&amp;ic_100, &amp;con_3400, &amp;con_5400, &amp;con_0,
+15);<p>
+    hbook1_(&amp;hb_1d, "example 1d hist", &amp;ic_100, &amp;con_3400,
+&amp;con_5400,     		&amp;con_0, 15);<p>
+    printf(" HLDIR called:\n");<p>
+    hldir_("//PAWC", "T", 6, 1);<p>
+    hs_hbook_setup("//PAWC");<p>
+    <p>
+    for (i = 1; i &lt;= 10000; ++i) {<p>
+    <p>
+    	/* Random data computation - This could be any code you wish */<p>
+    	for (j = 0; j &lt; 2; ++j) {<p>
+    	    values[j] = 0;<p>
+    	    for (k = 0; k &lt; 1000; k++)<p>
+    	    	values[j] += fmod((float)random(), 10.);<p>
+    	}<p>
+    	values[2] = i;<p>
+    	values[3] = sqrt(values[0]);<p>
+    	values[4] = sqrt(values[1]);<p>
+    	values[5] = log(values[0]);<p>
+    	values[6] = log(values[1]);<p>
+    	values[7] = sin(values[2]);<p>
+<p>
+	hfill_(&amp;hb_2d, &amp;values[0], &amp;values[1], &amp;con_1);<p>
+	hfill_(&amp;hb_1d, &amp;values[1], &amp;con_0, &amp;con_1);<p>
+	hfn_(&amp;hb_nt, values);<p>
+    	hs_update();<p>
+<p>
+    	/*  Print one period per Ntuple fill, to get  */<p>
+    	/*   visual feedback of program operation  */<p>
+    	printf(".");<p>
+    	fflush(stdout); <p>
+    }<p>
+<p>
+    hs_complete();<p>
+    hrput_(&amp;con_0, "hbookexample.hst", "TN", 16, 2);<p>
+}<p>
+<p>
+<p>
+<a name="3">
+<b>II. Using Histo-Scope Routines only (no HBOOK calls)</b></a><p>
+<p>
+<p>
+#include &lt;math.h&gt;<p>
+#include &lt;stdio.h&gt;<p>
+#include &lt;stdlib.h&gt;<p>
+#include &lt;histoscope.h&gt;<p>
+/*<p>
+ *	HsExample.c - program to generate random Ntuple and histogram data<p>
+ */<p>
+#define TRUE 1<p>
+main()<p>
+{<p>
+    int n_variables = 8;<p>
+    float values[8];<p>
+    int i, j, k, ntuple_id, hs1_id, hs2_id, indic_id;<p>
+    static char *names[8] = {      "X",      "Y",  "index",    "sqrt(X)",<p>
+    			    "sqrt(Y)", "log(X)", "log(Y)", "sin(index)"  };<p>
+<p>
+    hs_initialize("HsExample.c");<p>
+    hs_histoscope(TRUE);<p>
+    ntuple_id = hs_create_ntuple(101, "Example Ntuple", "HS", n_variables,
+names);<p>
+    hs1_id    = hs_create_1d_hist(102, "Example 1d Hist", "HS", "Y", "total",
+100,<p>
+		3400., 5400.);<p>
+    hs2_id    = hs_create_2d_hist(103, "2d Hist Example", "HS","X", "Y",
+"total",<p>
+		100, 100, 3400., 5400., 3400., 5400.);<p>
+    indic_id  = hs_create_indicator(104, "Example Indicator", "HS", 0.,
+10000.);<p>
+<p>
+    for (i = 1; i &lt;= 10000; ++i) {<p>
+    <p>
+    	/* Random data computation - This could be any code you wish */<p>
+    	for (j = 0; j &lt; 2; ++j) {<p>
+    	    values[j] = 0;<p>
+    	    for (k = 0; k &lt; 1000; k++)<p>
+    	    	values[j] += fmod((float)random(), 10.);<p>
+    	}<p>
+    	values[2] = i;<p>
+    	values[3] = sqrt(values[0]);<p>
+    	values[4] = sqrt(values[1]);<p>
+    	values[5] = log(values[0]);<p>
+    	values[6] = log(values[1]);<p>
+    	values[7] = sin(values[2]);<p>
+<p>
+    	hs_fill_ntuple(ntuple_id, values);<p>
+    	hs_fill_1d_hist(hs1_id, values[1], 1.);<p>
+    	hs_fill_2d_hist(hs2_id, values[0], values[1], 1.);<p>
+        hs_set_indicator(indic_id, (float) i);<p>
+    	hs_update();<p>
+<p>
+    	/*  Print one period per Ntuple fill, to get  */<p>
+    	/*   visual feedback of program operation  */<p>
+    	printf(".");<p>
+    	fflush(stdout); <p>
+    }<p>
+<p>
+    hs_save_file("HsExample.hs");<p>
+    hs_complete();<p>
+} </a></a><p>
+<a name="bk23"><p>
+

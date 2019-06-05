@@ -1,0 +1,30 @@
+Dataset name     Start 1      Start 2      Start 3 
+------------    ---------    ---------    ---------
+    Bennett5    pass/FAIL    FAIL/FAIL    pass/FAIL
+      BoxBOD    FAIL/FAIL    pass/pass    pass/FAIL
+    Chwirut1    pass/pass    pass/pass    pass/pass
+    Chwirut2    pass/pass    pass/pass    pass/pass
+     DanWood    pass/pass    pass/pass    pass/pass
+  DanielWood    pass/pass    pass/pass    pass/pass
+        ENSO    pass/FAIL    pass/FAIL    pass/FAIL
+    Eckerle4    FAIL/FAIL    pass/pass    pass/pass
+      Gauss1    pass/pass    pass/pass    pass/pass
+      Gauss2    pass/pass    pass/pass    pass/pass
+      Gauss3    pass/pass    pass/pass    pass/pass
+       Hahn1    pass/pass    pass/pass    pass/pass
+      Kirby2    pass/pass    pass/pass    pass/pass
+    Lanczos1    FAIL/FAIL    FAIL/FAIL    FAIL/FAIL
+    Lanczos2    FAIL/FAIL    FAIL/FAIL    pass/FAIL
+    Lanczos3    FAIL/FAIL    FAIL/FAIL    pass/FAIL
+       MGH09    pass/FAIL    pass/FAIL    pass/FAIL
+       MGH10    FAIL/FAIL    pass/FAIL    pass/FAIL
+       MGH17    FAIL/FAIL    pass/pass    pass/pass
+     Misra1a    pass/pass    pass/pass    pass/pass
+     Misra1b    pass/pass    pass/pass    pass/pass
+     Misra1c    pass/pass    pass/pass    pass/pass
+     Misra1d    pass/pass    pass/pass    pass/pass
+      Nelson    pass/pass    pass/pass    pass/FAIL
+       Rat42    pass/pass    pass/pass    pass/pass
+       Rat43    pass/pass    pass/pass    pass/pass
+    Roszman1    pass/pass    pass/pass    pass/pass
+     Thurber    pass/FAIL    pass/FAIL    pass/FAIL

@@ -1,0 +1,702 @@
+Version 4.9.0 - Dec 18 2018, by I. Volobouev
+
+* Added "integratePoly" and "jointIntegral" methods to the
+  AbsClassicalOrthoPoly1D class.
+
+* Added utility functions "truncatedInverseSqrt" and "matrixIndexPairs".
+
+* Added a number of functions to "orthoPoly1DVProducts.hh".
+
+* Added classes ChebyshevOrthoPoly1st and ChebyshevOrthoPoly2nd inheriting
+  from AbsClassicalOrthoPoly1D.
+
+* Added class HermiteProbOrthoPoly1D.
+
+* Added FejerQuadrature class.
+
+* Added classe IsoscelesTriangle1D and Logistic1D.
+
+* Added classes AbsKDE1DKernel and KDE1DHOSymbetaKernel.
+
+* Added static function "optimalDegreeHart" to OSDE1D class.
+
+
+Version 4.8.0 - Jul 9 2018, by I. Volobouev
+
+* Added ShiftedLegendreOrthoPoly1D class.
+
+* Added Lanczos method to generate recurrence coefficients for the
+  ContOrthoPoly1D class.
+
+* Added npstat/stat/orthoPoly1DVProducts.hh file with various utilities
+  for statistical analyis of chaos polynomials.
+
+
+Version 4.7.0 - Jan 13 2018, by I. Volobouev
+
+* Added "UniPareto1D" distribution (uniform with Pareto tail to the right).
+
+* More coordinate/weight cases for the GaussLegendreQuadrature class.
+
+* Added ContOrthoPoly1D class -- continuous orthogonal polynomials with
+  discrete measure.
+
+* Added functions "linearLeastSquares" and "tdSymEigen" to the Matrix class.
+
+* Added OSDE1D class.
+
+* Added classes LocationScaleFamily1D and SinhAsinhTransform1D.
+
+* Added new functors (CdfFunctor1D, etc) as AbsDistribution1D helpers.
+
+* Small fix in StatAccumulatorArr.cc.
+
+
+Version 4.6.0 - Jan 23 2017, by I. Volobouev
+
+* Updated 1-d LOrPE cross validation code (classes AbsBandwidthCV,
+  BandwidthCVLeastSquares1D, BandwidthCVPseudoLogli1D) for use with
+  weighted samples in the case the sample itself is available at the
+  point cross validation is run.
+
+
+Version 4.5.0 - Aug 01 2016, by I. Volobouev
+
+* A small fix in OrthoPolyND.icc (switched from cycling over unsigned to
+  unsigned long in the scalar product function).
+
+* Implemented Gauss-Hermite quadrature with Gaussian density weight.
+
+* Changed the meaning of Quadratic1D and LogQuadratic1D parameters to be
+  consistent with Legendre polynomial coefficients on [-1, 1] (new
+  parameters are 1/2 of old).
+
+* Added class MinuitUnbinnedFitFcn1D (to interfaces).
+
+* Added function "findRootNewtonRaphson".
+
+* Added "statUncertainties" header with various functions.
+
+
+Version 4.4.0 - May 9 2016, by I. Volobouev
+
+* Added "timestamp" function.
+
+* Improved implementation of BinnedDensity1D::unscaledQuantile function.
+  Certain problems caused by round-off errors are now fixed.
+
+* Added the capability to use the single closest parameter cells (thus
+  disabling actual interpolation between parameter values, for speed)
+  to "GridInterpolatedDistribution".
+
+
+Version 4.3.0 - March 19 2016, by I. Volobouev
+
+* Put additional assert statements inside OrthoPolyND.icc to prevent
+  phony "array subscript is above array bounds" messages in g++ 4.9.2.
+
+* Improved CmdLine.hh.
+
+* Additional methods in CopulaInterpolationND and GridInterpolatedDistribution.
+
+* Added function "volumeDensityFromBinnedRadial".
+
+* Added convenience method "globalFilter" to the OrthoPoly1D class.
+
+* Initiated the transition of the Python API from Python 2 to Python 3.
+
+
+Version 4.2.0 - October 29 2015, by I. Volobouev
+
+* Added interpolation methods for the marginals to classes
+  "CopulaInterpolationND" and "GridInterpolatedDistribution".
+
+* Removed assert on underflow in the "igamc" function. Now
+  in such cases this function simply returns 0.0.
+
+
+Version 4.1.0 - July 27 2015, by I. Volobouev
+
+* Made a few additional methods virtual in AbsNtuple.
+
+* Declared methods "columnIndices" of AbsNtuple const (as they should be).
+
+* Added function "weightedCopulaHisto" to build copulas for samples of
+  weighted points.
+
+* Added function "weightedVariableBandwidthSmooth1D" to use variable
+  bandwidth smoothing with weighted histograms.
+
+* Added "AbsWeightedMarginalSmoother" interface class for smoothing samples
+  of weighted points. Modified classes ConstantBandwidthSmoother1D,
+  JohnsonKDESmoother, and LOrPEMarginalSmoother to support this interface.
+
+* Added class "VariableBandwidthSmoother1D" which implements both
+  AbsMarginalSmoother and AbsWeightedMarginalSmoother interfaces.
+
+* Implemented cross-validation for weighted samples.
+
+* Implemented "buildInterpolatedCompositeDistroND" for generic construction
+  of multivariate transfer functions.
+
+* Implemented "buildInterpolatedDistro1DNP" for generic construction
+  of univariate transfer functions.
+
+
+Version 4.0.1 - June 17 2015, by I. Volobouev
+
+* Added "dump_qmc" example executable.
+
+
+Version 4.0.0 - June 10 2015, by I. Volobouev
+
+* Complete overhaul of 1-d filter-building code. Addition of new boundary
+  methods is a lot easier now. The user API for choosing a LOrPE boundary
+  method is encapsulated in the new "BoundaryHandling" class.
+
+* Implemented a number of new filter builders with different boundary
+  treatments.
+
+* Updated the "LocalPolyFilter1D" class so that it holds the local
+  bandwidth factors derived by the filter builders.
+
+
+Version 3.8.0 - June 1 2015, by I. Volobouev
+
+* Implemented class ConstSqFilter1DBuilder (declared in the header file
+  npstat/stat/Filter1DBuilders.hh). The "BoundaryMethod" enum has been
+  extended accordingly. Other files using this enum have been updated.
+
+* Implemented class FoldingSqFilter1DBuilder. Similar to ConstSqFilter1DBuilder
+  but it also folds the kernel in addition to stretching it.
+
+* Added virtual destructors to a number of classes.
+
+* Added "externalMemArrayND" with various signatures to allow the use of
+  ArrayND with memory not managed by ArrayND.
+
+* Added move constructors and move assignment operators to ArrayND and
+  Matrix classes.
+
+
+Version 3.7.0 - May 10 2015, by I. Volobouev
+
+* Better numerical derivative calculation in InterpolatedDistribution1D.cc.
+
+* Added class "LocalMultiFilter1D" for fast generation of filters which
+  correspond to each orthogonal polynomial separately.
+
+* Added a function calculating the area of n-dimensional sphere.
+
+* Added I/O capabilities to the RadialProfileND class.
+
+* Added class "LogRatioTransform1D".
+
+* Added utility function "multiFill1DHistoWithCDFWeights" (header file
+  histoUtils.hh).
+
+* Avoiding underflow of the incomplete gamma in "convertToSphericalRandom".
+
+
+Version 3.6.0 - April 6 2015, by I. Volobouev
+
+* Fixed Marsaglia's code calculating the Anderson-Darling statistics
+  (it was breaking down for large values of z).
+
+* Added high-level driver function "simpleVariableBandwidthSmooth1D" to
+  automatically build the pilot estimate for "variableBandwidthSmooth1D".
+
+* Swithched to log of sigma as Minuit parameter in "minuitFitJohnsonCurves"
+  instead of sigma (linear sigma would sometimes break the fit when Minuit
+  would come up with 0 or negative trial value for it).
+
+* Extended "MinuitDensityFitFcn1D" class so that it could be used to fit
+  non-uniformly binned histograms.
+
+* Adapted "minuitFitJohnsonCurves" function so that it could be used with
+  histograms templated upon DualHistoAxis.
+
+* Added functions "fillArrayCentersPreservingAreas" and
+  "canFillArrayCentersPreservingAreas".
+
+* Implemented an interface to monotonous coordinate transformations with
+  the intent of using them in constructing densities. Implemented a number
+  of transforms.
+
+* Implemented class "TransformedDistribution1D".
+
+* Added class "VerticallyInterpolatedDistro1D1P".
+
+* Added utility function "fill1DHistoWithCDFWeights".
+
+
+Version 3.5.0 - February 21 2015, by I. Volobouev
+
+* Added "symPDEigenInv" method to the Matrix class.
+
+* Added "variableCount" method to unfolding bandwidth scanner classes.
+
+* Increased the tolerance parameters in JohnsonSu::initialize and in
+  JohnsonFit constructor.
+
+* Bug fix in function "fillHistoFromText".
+
+
+Version 3.4.4 - January 13 2015, by I. Volobouev
+
+* Corrected handling of some "assert" statements so that the code compiles
+  correctly with the -DNDEBUG option.
+
+
+Version 3.4.3 - January 5 2015, by I. Volobouev
+
+* Implemented class MirroredGauss1D.
+
+* Added method "getOracleData" to class UnfoldingBandwidthScanner1D.
+
+* Bug fix in FoldingFilter1DBuilder::makeOrthoPoly.
+
+
+Version 3.4.2 - December 15 2014, by I. Volobouev
+
+* Implemented InterpolatedDistro1D1P class.
+
+
+Version 3.4.1 - November 07 2014, by I. Volobouev
+
+* Implemented "divideTransforms" function for deconvolutions.
+
+* Implemented the Moyal distribution.
+
+* Added "fillHistoFromText" utility function.
+
+* Added "apply_lorpe_1d" example.
+
+
+Version 3.4.0 - October 01 2014, by I. Volobouev
+
+* Implemented Hadamard product and Hadamard ratio for matrices.
+
+* Bug fix in the "solve_linear_system" lapack interface function.
+
+
+Version 3.3.1 - August 08 2014, by I. Volobouev
+
+* Terminate iterative refinement of the unfolding error propagation
+  matrix early in case the solution does not seem to improve.
+
+
+Version 3.3.0 - August 05 2014, by I. Volobouev
+
+* Added correction factors to the determination of the number of fitted
+  parameters in various unfolding procedures.
+
+
+Version 3.2.0 - July 25 2014, by I. Volobouev
+
+* Added "gaussianResponseMatrix" function for non-uniform binning.
+
+* Added Pareto distribution.
+
+* Implemented EMS unfolding with sparse matrices.
+
+* Added methods "getObservedShape" and "getUnfoldedShape" to the AbsUnfoldND
+  class.
+
+* Bug fix in the assignment operator of ProductDistributionND class. Made
+  class ProductDistributionND persistent.
+
+* Bug fix in the error propagation for unfolding, in the code which takes
+  into account the extra normalization constant.
+
+* Added "productResponseMatrix" function to assist in making sparse response
+  matrices.
+
+* Bug fix in the factory constructor of the Cauchy1D class.
+
+* Completed implementation of the "RatioOfNormals" class.
+
+
+Version 3.1.0 - June 29 2014, by I. Volobouev
+
+* Improved (again) random number generator for the 1-d Gaussian distribution.
+  Something about expectation values of normalized Hermite polynomials over
+  random numbers made by this generator is still not fully understood. The
+  standard deviation of these expectations decreases with the polynomial
+  order (while it should stay constant). It is possible that the numbers
+  of points used are simply insufficient to sample the tails correctly.
+
+* Implemented smoothed expectation-maximization (a.k.a. D'Agostini) unfolding
+  for 1-d distributions in classes SmoothedEMUnfold1D and MultiscaleEMUnfold1D.
+  In certain usage scenarios, MultiscaleEMUnfold1D can be more efficient than
+  SmoothedEMUnfold1D.
+
+* Implemented smoothed expectation-maximization unfolding for multivariate
+  distributions in a class SmoothedEMUnfoldND.
+
+* Added class "UnfoldingBandwidthScanner1D" to study 1-d unfolding behavior
+  as a function of filter bandwidth.
+
+* Added class "UnfoldingBandwidthScannerND" to study multivariate unfolding
+  behavior as a function of provided bandwidth values.
+
+* Added DummyLocalPolyFilter1D class useful when a filter is needed which
+  does not smooth anything.
+
+* Added function "poissonLogLikelihood" (header file npstat/stat/arrayStats.hh).
+
+* Added function "pooledDiscreteTabulated1D" (header file
+  npstat/stat/DiscreteDistributions1D.hh).
+
+* Implemented class UGaussConvolution1D (convolution of uniform distribution
+  with a Gaussian).
+
+* Implemented gamma distribution (class Gamma1D).
+
+* Defined interface for comparing binned distributions, AbsBinnedComparison1D.
+
+* Implemented several comparison classes for comparing binned distributions:
+  PearsonsChiSquared, BinnedKSTest1D, BinnedADTest1D. Class BinnedKSTest1D
+  pulled in dependence on the "kstest" package.
+
+* Made classes LocalPolyFilter1D, LocalPolyFilterND, and SequentialPolyFilterND
+  persistent.
+
+* Added code generating dense filter matrices to LocalPolyFilterND and
+  SequentialPolyFilterND (as needed for unfolding).
+
+* Made class MemoizingSymbetaFilterProvider persistent.
+
+* Implemented function goldenSectionSearchOnAGrid (header file 
+  npstat/nm/goldenSectionSearch.hh).
+
+* Implemented function parabolicExtremum (header npstat/nm/MathUtils.hh).
+
+* Added class DistributionMix1D (header npstat/stat/DistributionMix1D.hh).
+
+* Added interface to solving A*X = B, with matrices X and B, to the Matrix
+  class (method "solveLinearSystems").
+
+* Added "reshape" methods to the ArrayND class.
+
+* Added "gaussianResponseMatrix" function.
+
+* Added a section on unfolding to the documentation.
+
+* Added "ems_unfold_1d" example program.
+
+
+Version 3.0.0 - March 14 2014, by I. Volobouev
+
+* Added interface to the LAPACK SVD routines.
+
+* Added function "lorpeMise1D" to calculate MISE for arbitrary distributions.
+
+* Added FoldingFilter1DBuilder class.
+
+* Changed interfaces for several high-level functions to use
+  FoldingFilter1DBuilder. The major version number got bumped up.
+
+* Split DensityScan1D.hh away from AbsDistribution1D.hh.
+
+
+Version 2.7.0 - March 10 2014, by I. Volobouev
+
+* Added code to optimize operations with diagonal matrices.
+
+* Added discretizedDistance.hh file for simple L1 and L2 distance calculations
+  with numeric arrays.
+
+* Added base class for future unfolding code.
+
+* The "reset" method of the Matrix class was renamed into "uninitialize"
+  in order to be consistent with ArrayND.
+
+* Added function "multinomialCovariance1D".
+
+* Added "polyTimesWeight" method to the OrthoPoly1D class.
+
+* Added methods "TtimesThis" and "timesT" to the Matrix class. These
+  methods are more efficient than transpose followed by multiplication.
+
+
+Version 2.6.0 - January 30 2014, by I. Volobouev
+
+* Added function "lorpeBackgroundCVDensity1D" which linearizes calculation
+  of the cross validation likelihood in semiparametric fits. Argument
+  "linearizeCrossValidation" was added to MinuitSemiparametricFitFcn1D
+  constructor, "lorpeBackground1D" function, etc.
+
+* Added the ability to build filters with center point removed to classes
+  WeightTableFilter1DBuilder and StretchingFilter1DBuilder. The function
+  "symbetaLOrPEFilter1D" now has an appropriate switch.
+
+* Added "removeRowAndColumn" method to the Matrix class.
+
+* Added CircularBuffer class.
+
+* Added various plugin bandwidth functions which work with non-integer
+  polynomial degrees.
+
+* Switched to the Legendre polynomial basis for calculating all 1-d
+  orthogonal polynomials (instead of monomial basis).
+
+* Added MemoizingSymbetaFilterProvider class.
+
+* Added "operator+=" method to the MultivariateSumAccumulator class.
+
+* Simplified implementation of the PolyFilterCollection1D class.
+  File PolyFilterCollection1D.icc is removed.
+
+* Added "RatioOfNormals" 1-d distribution function. Only the density is
+  currently implemented but not the CDF.
+
+* Added ExpMapper1d class.
+
+
+Version 2.5.0 - October 15 2013, by I. Volobouev
+
+* Added "getFilterMatrix" method to the LocalPolyFilter1D class.
+
+* Added "genEigen" method to the Matrix class (for determination of
+  eigenvalues and eigenvectors of general real matrices).
+
+* Refactored the LAPACK interface so that interface functions to floats
+  are automatically generated from interface functions to doubles. See
+  the comment at the end of the "lapack_interface.icc" file for the shell
+  commands to do this.
+
+
+Version 2.4.0 - October 6 2013, by I. Volobouev
+
+* Added functions "lorpeBackground1D", "lorpeBgCVPseudoLogli1D", and
+  "lorpeBgLogli1D".
+
+* Added minuit interface classes "MinuitLOrPEBgCVFcn1D" and
+  "MinuitSemiparametricFitFcn1D".
+
+* Added "ScalableDensityConstructor1D" class for use with Minuit interface
+  functions.
+
+* Added classes AbsSymbetaFilterProvider and SymbetaPolyCollection1D.
+
+
+Version 2.3.0 - October 1 2013, by I. Volobouev
+
+* Allowed point dimensionality to be larger than the histogram dimensionality
+  in the "empiricalCopulaHisto" function.
+
+* Added "keepAllFilters" method to AbsFilter1DBuilder and all derived classes.
+
+* Implemented exclusion regions for WeightTableFilter1DBuilder and
+  StretchingFilter1DBuilder.
+
+* "symbetaLOrPEFilter1D" function (in the header LocalPolyFilter1D.hh)
+  is updated to take the exclusion mask argument.
+
+* Added "continuousDegreeTaper" function which can do something meaningful
+  with the continuous LOrPE degree parameter.
+
+
+Version 2.2.0 - June 30 2013, by I. Volobouev
+
+* Added classes DiscreteBernsteinPoly1D and BernsteinFilter1DBuilder.
+
+* Added classes DiscreteBeta1D and BetaFilter1DBuilder.
+
+* Added BifurcatedGauss1D class to model Gaussian-like distributions with
+  different sigmas on the left and right sides.
+
+* Added virtual destructors to the classes declared in the Filter1DBuilders.hh
+  header.
+
+* Added a method to the Matrix template to calculate Frobenius norm.
+
+* Added methods to the Matrix template to calculate row and column sums.
+
+* Added "directSum" method to the Matrix template.
+
+* Added constructor from a subrange of another matrix to the Matrix template.
+
+* Added code to the LocalPolyFilter1D class that generates a doubly
+  stochastic filter out of an arbitrary filter.
+
+* Added "npstat/nm/definiteIntegrals.hh" header and corresponding .cc file
+  for various infrequently used integrals.
+
+* Added "betaKernelsBandwidth" function.
+
+
+Version 2.1.0 - June 20 2013, by I. Volobouev
+
+* Fixed couple problems which showed up in the robust regression code
+  due to compiler update.
+
+* Fixed CensoredQuantileRegressionOnKDTree::process method (needed this->
+  dereference for some member).
+
+
+Version 2.0.0 - June 15 2013, by I. Volobouev
+
+* Updated to use "Geners" version 1.3.0. A few interfaces were changed
+  (API for the string archives was removed because Geners own string archive
+  facilities are now adequate) so the major version number was bumped up.
+
+
+Version 1.6.0 - June 12 2013, by I. Volobouev
+
+* Updated some documentation.
+
+* Updated fitCompositeJohnson.icc to use simplified histogram constructors.
+
+* Bug fix in the "minuitLocalQuantileRegression1D" function.
+
+* Changed the "quantileBinFromCdf" function to use unsigned long type for
+  array indices.
+
+* Added "weightedLocalQuantileRegression1D" function (namespace npsi) for
+  local regression with single predictor on weighted points.
+
+
+Version 1.5.0 - May 23 2013, by I. Volobouev
+
+* Added interfaces to LAPACK routines DSYEVD, DSYEVR, and corresponding
+  single precision versions.
+
+* Added the "symPSDefEffectiveRank" method to the Matrix class for
+  calculating effective ranks of symmetric positive semidefinite matrices.
+
+* Added converting constructor and assignment operator to the Matrix class.
+
+* Run the Gram-Schmidt procedure twice when orthogonal polynomials are
+  derived in order to improve orthogonality.
+
+
+Version 1.4.0 - May 20 2013, by I. Volobouev
+
+* Added the "append" method to the AbsNtuple class.
+
+
+Version 1.3.0 - May 10 2013, by I. Volobouev
+
+* Added the code for Hermite polynomial series.
+
+* Improved random number generator for the 1-d Gaussian distribution.
+
+* Added a framework for discrete 1-d distributions as well as two
+  concrete distribution classes (Poisson1D, DiscreteTabulated1D).
+
+* Added functions "readCompressedStringArchiveExt" and
+  "writeCompressedStringArchiveExt" which can read/write either compressed
+  or uncompressed string archives, distinguished by file extension.
+
+
+Version 1.2.1 - March 22 2013, by I. Volobouev
+
+* Improved CmdLine.hh in the "examples/C++" directory.
+
+* Added class QuantileTable1D.
+
+* Added classes LeftCensoredDistribution and RightCensoredDistribution.
+
+
+Version 1.2.0 - March 13 2013, by I. Volobouev
+
+* Added convenience "fill" methods to work with the ntuples which have
+  small number of columns (up to 10).
+
+* Fixed a bug in AbsRandomGenerator for univariate generators making
+  multivariate points.
+
+* Added LOrPEMarginalSmoother class.
+
+
+Version 1.1.1 - March 11 2013, by I. Volobouev
+
+* Added utility function "symbetaLOrPEFilter1D" which creates 1-d LOrPE
+  filters using kernels from the symmetric beta family (and the Gaussian).
+
+* Added high level driver function "lorpeSmooth1D".
+
+* Allowed variables with zero variances for calculation of correlation
+  coefficients in "MultivariateSumsqAccumulator". Such variables will
+  have zero correlation coefficients with all other variables.
+
+* Added rebinning constructor to the HistoND class.
+
+
+Version 1.1.0 - March 8 2013, by I. Volobouev
+
+* Changed NUHistoAxis::fltBinNumber method to produce correct results
+  with interpolation degree 0. It is not yet obvious which method would
+  work best for higher interpolation degrees.
+
+* Added functions for converting between StringArchive and python bytearray.
+  They have been placed in a new header: wrap/stringArchiveToBinary.hh.
+
+* Added methods "exportMemSlice" and "importMemSlice" to ArrayND. These
+  methods allow for filling array slices from unstructured memory buffers
+  and for exporting array slices to such memory buffers.
+
+* Added "simpleColumnNames" function (header file AbsNtuple.hh) to generate
+  trivial column names when ntuple column names are not important.
+
+* Added functions "neymanPearsonWindow1D" and "signalToBgMaximum1D".
+  They are declared in a new header npstat/neymanPearsonWindow1D.hh.
+
+
+Version 1.0.5 - December 17 2012, by I. Volobouev
+
+* Flush string archives before writing them out in stringArchiveIO.cc.
+
+* Added class TruncatedDistribution1D.
+
+
+Version 1.0.4 - November 14 2012, by I. Volobouev
+
+* Added utilities for reading/writing Geners string archives to files.
+
+* Added BinSummary class.
+
+* Doxygen documentation improved. Every header file in stat, nm, rng,
+  and interfaces now has a brief description.
+
+
+Version 1.0.3 - September 27 2012, by I. Volobouev
+
+* Fixed some bugs related to moving StorableMultivariateFunctor code
+  from "nm" to "stat".
+
+
+Version 1.0.2 - August 6 2012, by I. Volobouev
+
+* Added converting copy constructor to the "LinInterpolatedTableND" class.
+
+* Added StorableMultivariateFunctor class (together with the corresponding
+  reader class).
+
+* Added StorableInterpolationFunctor class which inherits from the above
+  and can be used with interpolation tables.
+
+* Added StorableHistoNDFunctor class which inherits from
+  StorableMultivariateFunctor and can be used to interpolate histogram bins.
+
+* Added "transpose" method to HistoND class.
+
+* Created DualAxis class.
+
+* Created DualHistoAxis class.
+
+* Added conversion functions between histogram and grid axes.
+
+* Added "mergeTwoHistos" function for smooth merging of two histograms.
+
+* Added "ProductSymmetricBetaNDCdf" functor to be used as weight in
+  merging histograms.
+
+* Added CoordinateSelector class.
+
+
+Version 1.0.1 - June 29 2012, by I. Volobouev
+
+* Implemented class LinInterpolatedTableND with related supporting code.

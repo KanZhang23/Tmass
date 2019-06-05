@@ -1,0 +1,153 @@
+#include <cassert>
+#include <algorithm>
+#include <stdexcept>
+
+#include "npstat/nm/SimpleFunctors.hh"
+#include "npstat/nm/GaussLegendreQuadrature.hh"
+
+namespace npstat {
+    namespace Private {
+        template <class Numeric>
+        class KDE1DKernelISEFunctor : public Functor1<double, double>
+        {
+        public:
+            inline KDE1DKernelISEFunctor(const AbsDistribution1D& i_distro,
+                                         const AbsKDE1DKernel& i_kernel,
+                                         const double i_bandwidth,
+                                         const bool i_useReverseKde,
+                                         const Numeric* i_coords,
+                                         const unsigned long i_nCoords,
+                                         const bool i_coordinatesSorted)
+                : distro(i_distro), kernel(i_kernel), bandwidth(i_bandwidth),
+                  coords(i_coords), nCoords(i_nCoords),
+                  useReverseKde(i_useReverseKde),
+                  coordinatesSorted(i_coordinatesSorted) {}
+
+            inline double operator()(const double& x) const
+            {
+                double kde;
+                if (useReverseKde)
+                    kde = kernel.reverseKde(x, bandwidth, coords,
+                                            nCoords, coordinatesSorted);
+                else
+                    kde = kernel.kde(x, bandwidth, coords,
+                                     nCoords, coordinatesSorted);
+                const double delta = kde - distro.density(x);
+                return delta*delta;
+            }
+
+        private:
+            const AbsDistribution1D& distro;
+            const AbsKDE1DKernel& kernel;
+            double bandwidth;
+            const Numeric* coords;
+            unsigned long nCoords;
+            bool useReverseKde;
+            bool coordinatesSorted;
+        };
+    }
+
+    template <typename Numeric>
+    double AbsKDE1DKernel::kde(const double x, const double h,
+                               const Numeric* coords,
+                               const unsigned long nCoords,
+                               const bool areCoordinatesSorted) const
+    {
+        long double sum = 0.0L;
+        if (nCoords)
+        {
+            assert(coords);
+            if (h <= 0.0) throw std::invalid_argument(
+                "In npstat::AbsKDE1DKernel::kde: bandwidth must be positive");
+            const Numeric* first = coords;
+            const Numeric* last = coords + nCoords;
+
+            if (nCoords > 10UL && areCoordinatesSorted)
+            {
+                const double xlow = x - this->xmax()*h;
+                if (xlow > *first)
+                    first = std::lower_bound(first, last, xlow);
+
+                const double xup = x - this->xmin()*h;
+                if (xup < *(last - 1))
+                    last = std::upper_bound(first, last, xup);
+            }
+
+            while (first != last)
+            {
+                const double xi = *first++;
+                sum += (*this)((x - xi)/h);
+            }
+            sum /= (h*static_cast<long double>(nCoords));
+        }
+        return sum;
+    }
+
+    template <typename Numeric>
+    double AbsKDE1DKernel::reverseKde(const double x, const double h,
+                                      const Numeric* coords,
+                                      const unsigned long nCoords,
+                                      const bool areCoordinatesSorted) const
+    {
+        long double sum = 0.0L;
+        if (nCoords)
+        {
+            assert(coords);
+            if (h <= 0.0) throw std::invalid_argument(
+                "In npstat::AbsKDE1DKernel::reverseKde: bandwidth must be positive");
+            const Numeric* first = coords;
+            const Numeric* last = coords + nCoords;
+
+            if (nCoords > 10UL && areCoordinatesSorted)
+            {
+                const double xlow = x + this->xmin()*h;
+                if (xlow > *first)
+                    first = std::lower_bound(first, last, xlow);
+
+                const double xup = x + this->xmax()*h;
+                if (xup < *(last - 1))
+                    last = std::upper_bound(first, last, xup);
+            }
+
+            while (first != last)
+            {
+                const double xi = *first++;
+                sum += (*this)((xi - x)/h);
+            }
+            sum /= (h*static_cast<long double>(nCoords));
+        }
+        return sum;
+    }
+
+    template <typename Numeric>
+    double AbsKDE1DKernel::integratedSquaredError(
+        const AbsDistribution1D& distro,
+        const unsigned nIntegIntervals, const unsigned nIntegPoints,
+        const double bandwidth, const bool useReverseKde,
+        const Numeric* coords, const unsigned long nCoords,
+        const bool coordinatesSorted) const
+    {
+        GaussLegendreQuadrature glq(nIntegPoints);
+        Private::KDE1DKernelISEFunctor<Numeric> fcn(distro, *this, bandwidth,
+                                                    useReverseKde,
+                                                    coords, nCoords,
+                                                    coordinatesSorted);
+        const double xmin = distro.quantile(0.0);
+        const double xmax = distro.quantile(1.0);
+        return glq.integrate(fcn, xmin, xmax, nIntegIntervals);
+    }
+
+    template <typename Numeric>
+    double AbsKDE1DKernel::integratedKdeSquared(
+        const double xmin, const double xmax,
+        const unsigned nIntegIntervals, const unsigned nIntegPoints,
+        const double bandwidth, const bool useReverseKde,
+        const Numeric* coords, const unsigned long nCoords,
+        const bool coordinatesSorted) const
+    {
+        GaussLegendreQuadrature glq(nIntegPoints);
+        KDE1DFunctorHelper<Numeric> hlp(*this, bandwidth, coords, nCoords,
+                                        coordinatesSorted, useReverseKde);
+        return glq.integrate(FunctorPowerFcn(hlp, 2.0), xmin, xmax, nIntegIntervals);
+    }
+}

@@ -1,0 +1,30 @@
+
+This package contains a "lean" version of Histo-Scope. It no longer
+supports Fortran bindings or HBOOK I/O.
+
+In order to compile Histo-Scope, you will need to install the Motif
+programming toolkit first. Most Linux distributions come with OpenMotif
+packages. You will need both the Motif library and the header files.
+
+After Motif is installed, a typical installation of the "Histo-Scope"
+package can proceed as follows:
+
+./configure --with-pic
+make
+make install
+
+The last step may have to be performed as root. Run
+
+./configure --help
+
+to view available configuration options. In particular, if you install
+Motif into some unusual directory (e.g., a subdirectory of your home
+directory), you will need to supply configuration options
+--with-motif-include-path and --with-motif-lib-path.
+
+The build procedure will generate the three main Histo-Scope executables
+("histo", "hsdir", and "nplot") as well as the C API library libCHisto.so
+(and/or libCHisto.a). Executables, library, and the C API header files
+("histoscope.h", "hsTypes.h", and "hsFile.h") will be installed according
+to the "configure" options.
+

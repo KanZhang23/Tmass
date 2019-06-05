@@ -1,0 +1,68 @@
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/nm/MathUtils.hh"
+
+namespace npstat {
+    template <typename Num1, unsigned Len1, unsigned Dim1>
+    inline BinnedDensityND::BinnedDensityND(
+        const double* location, const double* scale,
+        const unsigned nScalePoints,
+        const ArrayND<Num1,Len1,Dim1>& grid, const unsigned interpDegree)
+        : AbsScalableDistributionND(location, scale, nScalePoints),
+          randomizer_(grid, BoxND<double>::unitBox(grid.rank()), interpDegree)
+    {
+        if (grid.rank() != nScalePoints) throw std::invalid_argument(
+            "In npstat::BinnedDensityND constructor: "
+            "wrong # of location and scale parameters");
+    }
+
+    template <typename Real>
+    RadialProfileND::RadialProfileND(
+        const double* location, const double* scale, const unsigned dim,
+        const Real* data, const unsigned dataLen,
+        const unsigned interpolationDegree)
+        : AbsScalableDistributionND(location, scale, dim),
+          ndSphereVol_(ndUnitSphereVolume(dim)),
+          len_(dataLen),
+          deg_(interpolationDegree)
+    {
+        if (!(deg_ < 4)) throw std::invalid_argument(
+            "In npstat::RadialProfileND constructor: "
+            "interpolation degree is too high");
+        calculateQuadratureCoeffs();
+
+        if (dataLen > 1)
+        {
+            if (deg_ >= dataLen) throw std::invalid_argument(
+                "In npstat::RadialProfileND constructor: "
+                "not enough interpolation points");
+            assert(data);
+            profile_.reserve(dataLen);
+            bool havePositive = false;
+            for (unsigned i=0; i<dataLen; ++i)
+            {
+                const double datum = static_cast<double>(data[i]);
+                if (datum < 0.0) throw std::invalid_argument(
+                    "In npstat::RadialProfileND constructor: "
+                    "input density values can not be negative");
+                if (datum > 0.0)
+                    havePositive = true;
+                profile_.push_back(datum);
+            }
+            if (!havePositive) throw std::invalid_argument(
+                "In npstat::RadialProfileND constructor: "
+                "must have at least one positive input density value");
+            normalize();
+        }
+        else
+        {
+            profile_.reserve(2);
+            profile_.push_back(1.0/ndSphereVol_);
+            profile_.push_back(1.0/ndSphereVol_);
+            len_ = 2;
+            deg_ = 0;
+            step_ = 1.0;
+        }
+    }
+}

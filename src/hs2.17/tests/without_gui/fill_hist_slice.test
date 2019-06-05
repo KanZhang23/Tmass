@@ -1,0 +1,614 @@
+# This file tests both hs::fill_hist_slice and hs::slice_contents
+test fill_hist_slice-1.1 {filling 2d histogram slices, no errors} {} {
+    set nxbins 3
+    set nybins 4
+    set parent_id [hs::create_2d_hist [next_uid] "Example 2d histo" \
+	    "Test" X Y Z $nxbins $nybins 1 2 3 4]
+    set data {}
+    set nbins [expr {$nxbins*$nybins}]
+    for {set i 0} {$i < $nbins} {incr i} {
+	lappend data $i
+    }
+    hs::2d_hist_block_fill $parent_id $data
+
+    set x_slice_id [hs::slice_histogram [next_uid] \
+	    "x slice" "Slices" $parent_id x 0]
+    set x_slice_ref [hs::copy_hist $x_slice_id \
+	    [next_uid] "x slice" "Slices"]
+    for {set i 0} {$i < $nxbins} {incr i} {
+	hs::fill_hist_slice $x_slice_id $parent_id x $i
+	set data {}
+	for {set j 0} {$j < $nybins} {incr j} {
+	    set value [expr {$i*$nybins + $j}]
+	    lappend data $value
+	}
+	hs::1d_hist_block_fill $x_slice_ref $data
+	verify_similarity $x_slice_id $x_slice_ref 0
+
+	set contents [hs::data_to_list [lindex [hs::slice_contents \
+		$parent_id d x $i] 0]]
+	assert_same_list $contents $data 0
+    }
+
+    set y_slice_id [hs::slice_histogram [next_uid] \
+	    "y slice" "Slices" $parent_id y 0]
+    set y_slice_ref [hs::copy_hist $y_slice_id \
+	    [next_uid] "y slice" "Slices"]
+    for {set j 0} {$j < $nybins} {incr j} {
+	hs::fill_hist_slice $y_slice_id $parent_id y $j
+	set data {}
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    set value [expr {$i*$nybins + $j}]
+	    lappend data $value
+	}
+	hs::1d_hist_block_fill $y_slice_ref $data
+	verify_similarity $y_slice_id $y_slice_ref 0
+
+	set contents [hs::data_to_list [lindex [hs::slice_contents \
+		$parent_id d y $j] 0]]
+	assert_same_list $contents $data 0
+    }
+} {}
+
+test fill_hist_slice-1.2 {filling 2d histogram slices, positive errors} {} {
+    set nxbins 5
+    set nybins 6
+    set parent_id [hs::create_2d_hist [next_uid] "Example 2d histo" \
+	    "Test" X Y Z $nxbins $nybins 1 2 3 4]
+    set data {}
+    set poserr {}
+    set nbins [expr {$nxbins*$nybins}]
+    for {set i 0} {$i < $nbins} {incr i} {
+	lappend data $i
+	lappend poserr [expr $i/2.0]
+    }
+    hs::2d_hist_block_fill $parent_id $data $poserr
+
+    set x_slice_id [hs::slice_histogram [next_uid] \
+	    "x slice" "Slices" $parent_id x 0]
+    set x_slice_ref [hs::copy_hist $x_slice_id \
+	    [next_uid] "x slice" "Slices"]
+    for {set i 0} {$i < $nxbins} {incr i} {
+	hs::fill_hist_slice $x_slice_id $parent_id x $i
+	set data {}
+	set poserr {}
+	for {set j 0} {$j < $nybins} {incr j} {
+	    set value [expr {$i*$nybins + $j}]
+	    lappend data $value
+	    lappend poserr [expr $value/2.0]
+	}
+	hs::1d_hist_block_fill $x_slice_ref $data $poserr
+	verify_similarity $x_slice_id $x_slice_ref 0
+
+	foreach {contents pos} [hs::slice_contents $parent_id {d p} x $i] {}
+	set contents [hs::data_to_list $contents]
+	assert_same_list $contents $data 0
+	set pos [hs::data_to_list $pos]
+	assert_same_list $pos $poserr 0
+    }
+
+    set y_slice_id [hs::slice_histogram [next_uid] \
+	    "y slice" "Slices" $parent_id y 0]
+    set y_slice_ref [hs::copy_hist $y_slice_id \
+	    [next_uid] "y slice" "Slices"]
+    for {set j 0} {$j < $nybins} {incr j} {
+	hs::fill_hist_slice $y_slice_id $parent_id y $j
+	set data {}
+	set poserr {}
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    set value [expr {$i*$nybins + $j}]
+	    lappend data $value
+	    lappend poserr [expr $value/2.0]
+	}
+	hs::1d_hist_block_fill $y_slice_ref $data $poserr
+	verify_similarity $y_slice_id $y_slice_ref 0
+
+	foreach {contents pos} [hs::slice_contents $parent_id {d p} y $j] {}
+	set contents [hs::data_to_list $contents]
+	assert_same_list $contents $data 0
+	set pos [hs::data_to_list $pos]
+	assert_same_list $pos $poserr 0
+    }
+} {}
+
+test fill_hist_slice-1.3 {filling 2d histogram slices, both errors} {} {
+    set nxbins 4
+    set nybins 7
+    set parent_id [hs::create_2d_hist [next_uid] "Example 2d histo" \
+	    "Test" X Y Z $nxbins $nybins 1 2 3 4]
+    set data {}
+    set poserr {}
+    set negerr {}
+    set nbins [expr {$nxbins*$nybins}]
+    for {set i 0} {$i < $nbins} {incr i} {
+	lappend data $i
+	lappend poserr [expr $i/2.0]
+	lappend negerr [expr $i/4.0]
+    }
+    hs::2d_hist_block_fill $parent_id $data $poserr $negerr
+
+    set x_slice_id [hs::slice_histogram [next_uid] \
+	    "x slice" "Slices" $parent_id x 0]
+    set x_slice_ref [hs::copy_hist $x_slice_id \
+	    [next_uid] "x slice" "Slices"]
+    for {set i 0} {$i < $nxbins} {incr i} {
+	hs::fill_hist_slice $x_slice_id $parent_id x $i
+	set data {}
+	set poserr {}
+	set negerr {}
+	for {set j 0} {$j < $nybins} {incr j} {
+	    set value [expr {$i*$nybins + $j}]
+	    lappend data $value
+	    lappend poserr [expr $value/2.0]
+	    lappend negerr [expr $value/4.0]
+	}
+	hs::1d_hist_block_fill $x_slice_ref $data $poserr $negerr
+	verify_similarity $x_slice_id $x_slice_ref 0
+
+	foreach {contents pos neg} [hs::slice_contents \
+		$parent_id {d p n} x $i] {}
+	set contents [hs::data_to_list $contents]
+	assert_same_list $contents $data 0
+	set pos [hs::data_to_list $pos]
+	assert_same_list $pos $poserr 0
+	set neg [hs::data_to_list $neg]
+	assert_same_list $neg $negerr 0
+    }
+
+    set y_slice_id [hs::slice_histogram [next_uid] \
+	    "y slice" "Slices" $parent_id y 0]
+    set y_slice_ref [hs::copy_hist $y_slice_id \
+	    [next_uid] "y slice" "Slices"]
+    for {set j 0} {$j < $nybins} {incr j} {
+	hs::fill_hist_slice $y_slice_id $parent_id y $j
+	set data {}
+	set poserr {}
+	set negerr {}
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    set value [expr {$i*$nybins + $j}]
+	    lappend data $value
+	    lappend poserr [expr $value/2.0]
+	    lappend negerr [expr $value/4.0]
+	}
+	hs::1d_hist_block_fill $y_slice_ref $data $poserr $negerr
+	verify_similarity $y_slice_id $y_slice_ref 0
+
+	foreach {contents pos neg} [hs::slice_contents \
+		$parent_id {d p n} y $j] {}
+	set contents [hs::data_to_list $contents]
+	assert_same_list $contents $data 0
+	set pos [hs::data_to_list $pos]
+	assert_same_list $pos $poserr 0
+	set neg [hs::data_to_list $neg]
+	assert_same_list $neg $negerr 0
+    }
+} {}
+
+test fill_hist_slice-1.4 {filling 3d histogram slices, both errors} {} {
+    set nxbins 3
+    set nybins 4
+    set nzbins 5
+    set parent_id [hs::create_3d_hist [next_uid] "Example 3d histo" \
+	    "Test" X Y Z V $nxbins $nybins $nzbins 1 2 3 4 5 6]
+    set data {}
+    set poserr {}
+    set negerr {}
+    set nbins [expr {$nxbins*$nybins*$nzbins}]
+    for {set i 0} {$i < $nbins} {incr i} {
+	lappend data $i
+	lappend poserr [expr $i/2.0]
+	lappend negerr [expr $i/4.0]
+    }
+    hs::3d_hist_block_fill $parent_id $data $poserr $negerr
+
+    set x_slice_id [hs::create_2d_hist [next_uid] "x slice of 3d histo" \
+	    "Slices" Y Z V $nybins $nzbins 3 4 5 6]
+    set x_slice_ref [hs::copy_hist $x_slice_id \
+	    [next_uid] "x slice of 3d histo" "Slices"]
+    for {set i 0} {$i < $nxbins} {incr i} {
+	hs::fill_hist_slice $x_slice_id $parent_id x $i
+	set data {}
+	set poserr {}
+	set negerr {}
+	for {set j 0} {$j < $nybins} {incr j} {
+	    for {set k 0} {$k < $nzbins} {incr k} {
+		set value [expr {$i*$nybins*$nzbins + $j*$nzbins + $k}]
+		lappend data $value
+		lappend poserr [expr $value/2.0]
+		lappend negerr [expr $value/4.0]
+	    }
+	}
+	hs::2d_hist_block_fill $x_slice_ref $data $poserr $negerr
+	verify_similarity $x_slice_id $x_slice_ref 0
+
+	foreach {contents pos neg} [hs::slice_contents \
+		$parent_id {d p n} x $i] {}
+	set contents [hs::data_to_list $contents]
+	assert_same_list $contents $data 0
+	set pos [hs::data_to_list $pos]
+	assert_same_list $pos $poserr 0
+	set neg [hs::data_to_list $neg]
+	assert_same_list $neg $negerr 0
+    }
+    if {![catch {hs::fill_hist_slice $x_slice_id $parent_id x -1}]} {
+	error "Failed to detect x bin number below allowed"
+    }
+    if {![catch {hs::fill_hist_slice $x_slice_id $parent_id x $nxbins}]} {
+	error "Failed to detect x bin number above allowed"
+    }
+
+    set y_slice_id [hs::create_2d_hist [next_uid] "y slice of 3d histo" \
+	    "Slices" X Z V $nxbins $nzbins 1 2 5 6]
+    set y_slice_ref [hs::copy_hist $y_slice_id \
+	    [next_uid] "y slice of 3d histo" "Slices"]
+    for {set j 0} {$j < $nybins} {incr j} {
+	hs::fill_hist_slice $y_slice_id $parent_id y $j
+	set data {}
+	set poserr {}
+	set negerr {}
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    for {set k 0} {$k < $nzbins} {incr k} {
+		set value [expr {$i*$nybins*$nzbins + $j*$nzbins + $k}]
+		lappend data $value
+		lappend poserr [expr $value/2.0]
+		lappend negerr [expr $value/4.0]
+	    }
+	}
+	hs::2d_hist_block_fill $y_slice_ref $data $poserr $negerr
+	verify_similarity $y_slice_id $y_slice_ref 0
+
+	foreach {contents pos neg} [hs::slice_contents \
+		$parent_id {d p n} y $j] {}
+	set contents [hs::data_to_list $contents]
+	assert_same_list $contents $data 0
+	set pos [hs::data_to_list $pos]
+	assert_same_list $pos $poserr 0
+	set neg [hs::data_to_list $neg]
+	assert_same_list $neg $negerr 0
+    }
+    if {![catch {hs::fill_hist_slice $y_slice_id $parent_id y -1}]} {
+	error "Failed to detect y bin number below allowed"
+    }
+    if {![catch {hs::fill_hist_slice $y_slice_id $parent_id y $nybins}]} {
+	error "Failed to detect y bin number above allowed"
+    }
+
+    set z_slice_id [hs::create_2d_hist [next_uid] "z slice of 3d histo" \
+	    "Slices" X Y V $nxbins $nybins 1 2 3 4]
+    set z_slice_ref [hs::copy_hist $z_slice_id \
+	    [next_uid] "z slice of 3d histo" "Slices"]
+    for {set k 0} {$k < $nzbins} {incr k} {
+	hs::fill_hist_slice $z_slice_id $parent_id z $k
+	set data {}
+	set poserr {}
+	set negerr {}
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    for {set j 0} {$j < $nybins} {incr j} {
+		set value [expr {$i*$nybins*$nzbins + $j*$nzbins + $k}]
+		lappend data $value
+		lappend poserr [expr $value/2.0]
+		lappend negerr [expr $value/4.0]
+	    }
+	}
+	hs::2d_hist_block_fill $z_slice_ref $data $poserr $negerr
+	verify_similarity $z_slice_id $z_slice_ref 0
+
+	foreach {contents pos neg} [hs::slice_contents \
+		$parent_id {d p n} z $k] {}
+	set contents [hs::data_to_list $contents]
+	assert_same_list $contents $data 0
+	set pos [hs::data_to_list $pos]
+	assert_same_list $pos $poserr 0
+	set neg [hs::data_to_list $neg]
+	assert_same_list $neg $negerr 0
+    }
+    if {![catch {hs::fill_hist_slice $z_slice_id $parent_id z -1}]} {
+	error "Failed to detect z bin number below allowed"
+    }
+    if {![catch {hs::fill_hist_slice $z_slice_id $parent_id z $nzbins}]} {
+	error "Failed to detect z bin number above allowed"
+    }
+} {}
+
+test fill_hist_slice-1.5 {filling 3d histogram slices, positive errors} {} {
+    set nxbins 4
+    set nybins 3
+    set nzbins 2
+    set parent_id [hs::create_3d_hist [next_uid] "Example 3d histo" \
+	    "Test" X Y Z V $nxbins $nybins $nzbins 1 2 3 4 5 6]
+    set data {}
+    set poserr {}
+    set nbins [expr {$nxbins*$nybins*$nzbins}]
+    for {set i 0} {$i < $nbins} {incr i} {
+	lappend data $i
+	lappend poserr [expr $i/2.0]
+    }
+    hs::3d_hist_block_fill $parent_id $data $poserr
+
+    set x_slice_id [hs::create_2d_hist [next_uid] "x slice of 3d histo" \
+	    "Slices" Y Z V $nybins $nzbins 3 4 5 6]
+    set x_slice_ref [hs::copy_hist $x_slice_id \
+	    [next_uid] "x slice of 3d histo" "Slices"]
+    for {set i 0} {$i < $nxbins} {incr i} {
+	hs::fill_hist_slice $x_slice_id $parent_id x $i
+	set data {}
+	set poserr {}
+	for {set j 0} {$j < $nybins} {incr j} {
+	    for {set k 0} {$k < $nzbins} {incr k} {
+		set value [expr {$i*$nybins*$nzbins + $j*$nzbins + $k}]
+		lappend data $value
+		lappend poserr [expr $value/2.0]
+	    }
+	}
+	hs::2d_hist_block_fill $x_slice_ref $data $poserr
+	verify_similarity $x_slice_id $x_slice_ref 0
+    }
+
+    set y_slice_id [hs::create_2d_hist [next_uid] "y slice of 3d histo" \
+	    "Slices" X Z V $nxbins $nzbins 1 2 5 6]
+    set y_slice_ref [hs::copy_hist $y_slice_id \
+	    [next_uid] "y slice of 3d histo" "Slices"]
+    for {set j 0} {$j < $nybins} {incr j} {
+	hs::fill_hist_slice $y_slice_id $parent_id y $j
+	set data {}
+	set poserr {}
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    for {set k 0} {$k < $nzbins} {incr k} {
+		set value [expr {$i*$nybins*$nzbins + $j*$nzbins + $k}]
+		lappend data $value
+		lappend poserr [expr $value/2.0]
+	    }
+	}
+	hs::2d_hist_block_fill $y_slice_ref $data $poserr
+	verify_similarity $y_slice_id $y_slice_ref 0
+    }
+
+    set z_slice_id [hs::create_2d_hist [next_uid] "z slice of 3d histo" \
+	    "Slices" X Y V $nxbins $nybins 1 2 3 4]
+    set z_slice_ref [hs::copy_hist $z_slice_id \
+	    [next_uid] "z slice of 3d histo" "Slices"]
+    for {set k 0} {$k < $nzbins} {incr k} {
+	hs::fill_hist_slice $z_slice_id $parent_id z $k
+	set data {}
+	set poserr {}
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    for {set j 0} {$j < $nybins} {incr j} {
+		set value [expr {$i*$nybins*$nzbins + $j*$nzbins + $k}]
+		lappend data $value
+		lappend poserr [expr $value/2.0]
+	    }
+	}
+	hs::2d_hist_block_fill $z_slice_ref $data $poserr
+	verify_similarity $z_slice_id $z_slice_ref 0
+    }
+} {}
+
+test fill_hist_slice-1.6 {filling 3d histogram slices, no errors} {} {
+    set nxbins 6
+    set nybins 3
+    set nzbins 4
+    set parent_id [hs::create_3d_hist [next_uid] "Example 3d histo" \
+	    "Test" X Y Z V $nxbins $nybins $nzbins 1 2 3 4 5 6]
+    set data {}
+    set nbins [expr {$nxbins*$nybins*$nzbins}]
+    for {set i 0} {$i < $nbins} {incr i} {
+	lappend data $i
+    }
+    hs::3d_hist_block_fill $parent_id $data
+
+    set x_slice_id [hs::create_2d_hist [next_uid] "x slice of 3d histo" \
+	    "Slices" Y Z V $nybins $nzbins 3 4 5 6]
+    set x_slice_ref [hs::copy_hist $x_slice_id \
+	    [next_uid] "x slice of 3d histo" "Slices"]
+    for {set i 0} {$i < $nxbins} {incr i} {
+	hs::fill_hist_slice $x_slice_id $parent_id x $i
+	set data {}
+	for {set j 0} {$j < $nybins} {incr j} {
+	    for {set k 0} {$k < $nzbins} {incr k} {
+		set value [expr {$i*$nybins*$nzbins + $j*$nzbins + $k}]
+		lappend data $value
+	    }
+	}
+	hs::2d_hist_block_fill $x_slice_ref $data
+	verify_similarity $x_slice_id $x_slice_ref 0
+    }
+
+    set y_slice_id [hs::create_2d_hist [next_uid] "y slice of 3d histo" \
+	    "Slices" X Z V $nxbins $nzbins 1 2 5 6]
+    set y_slice_ref [hs::copy_hist $y_slice_id \
+	    [next_uid] "y slice of 3d histo" "Slices"]
+    for {set j 0} {$j < $nybins} {incr j} {
+	hs::fill_hist_slice $y_slice_id $parent_id y $j
+	set data {}
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    for {set k 0} {$k < $nzbins} {incr k} {
+		set value [expr {$i*$nybins*$nzbins + $j*$nzbins + $k}]
+		lappend data $value
+	    }
+	}
+	hs::2d_hist_block_fill $y_slice_ref $data
+	verify_similarity $y_slice_id $y_slice_ref 0
+    }
+
+    set z_slice_id [hs::create_2d_hist [next_uid] "z slice of 3d histo" \
+	    "Slices" X Y V $nxbins $nybins 1 2 3 4]
+    set z_slice_ref [hs::copy_hist $z_slice_id \
+	    [next_uid] "z slice of 3d histo" "Slices"]
+    for {set k 0} {$k < $nzbins} {incr k} {
+	hs::fill_hist_slice $z_slice_id $parent_id z $k
+	set data {}
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    for {set j 0} {$j < $nybins} {incr j} {
+		set value [expr {$i*$nybins*$nzbins + $j*$nzbins + $k}]
+		lappend data $value
+	    }
+	}
+	hs::2d_hist_block_fill $z_slice_ref $data
+	verify_similarity $z_slice_id $z_slice_ref 0
+    }
+} {}
+
+test fill_hist_slice-1.7 {filling 3d histogram stacks, both errors} {} {
+    set nxbins 3
+    set nybins 4
+    set nzbins 5
+    set parent_id [hs::create_3d_hist [next_uid] "Example 3d histo" \
+	    "Test" X Y Z V $nxbins $nybins $nzbins 1 2 3 4 5 6]
+    set data {}
+    set poserr {}
+    set negerr {}
+    set nbins [expr {$nxbins*$nybins*$nzbins}]
+    for {set i 0} {$i < $nbins} {incr i} {
+	lappend data $i
+	lappend poserr [expr $i/2.0]
+	lappend negerr [expr $i/4.0]
+    }
+    hs::3d_hist_block_fill $parent_id $data $poserr $negerr
+
+    set x_slice_id [hs::create_1d_hist [next_uid] "x stack of 3d histo" \
+	    "Slices" X V $nxbins 1 2]
+    set x_slice_ref [hs::copy_hist $x_slice_id \
+	    [next_uid] "x stack of 3d histo" "Slices"]
+    for {set j 0} {$j < $nybins} {incr j} {
+	for {set k 0} {$k < $nzbins} {incr k} {
+	    hs::fill_hist_slice $x_slice_id $parent_id y $j z $k
+	    set data {}
+	    set poserr {}
+	    set negerr {}
+	    for {set i 0} {$i < $nxbins} {incr i} {
+		set value [expr {$i*$nybins*$nzbins + $j*$nzbins + $k}]
+		lappend data $value
+		lappend poserr [expr $value/2.0]
+		lappend negerr [expr $value/4.0]
+	    }
+	    hs::1d_hist_block_fill $x_slice_ref $data $poserr $negerr
+	    verify_similarity $x_slice_id $x_slice_ref 0
+
+	    foreach {contents pos neg} [hs::slice_contents \
+		    $parent_id {d p n} y $j z $k] {}
+	    set contents [hs::data_to_list $contents]
+	    assert_same_list $contents $data 0
+	    set pos [hs::data_to_list $pos]
+	    assert_same_list $pos $poserr 0
+	    set neg [hs::data_to_list $neg]
+	    assert_same_list $neg $negerr 0
+	}
+    }
+    if {![catch {hs::fill_hist_slice $x_slice_id $parent_id y -1 z 0}]} {
+	error "Failed to detect y bin number below allowed"
+    }
+    if {![catch {hs::fill_hist_slice $x_slice_id $parent_id y $nybins z 0}]} {
+	error "Failed to detect y bin number above allowed"
+    }
+    if {![catch {hs::fill_hist_slice $x_slice_id $parent_id y 0 z -1}]} {
+	error "Failed to detect z bin number below allowed"
+    }
+    if {![catch {hs::fill_hist_slice $x_slice_id $parent_id y 0 z $nzbins}]} {
+	error "Failed to detect z bin number above allowed"
+    }
+
+    set y_slice_id [hs::create_1d_hist [next_uid] "y stack of 3d histo" \
+	    "Slices" Y V $nybins 3 4]
+    set y_slice_ref [hs::copy_hist $y_slice_id \
+	    [next_uid] "y stack of 3d histo" "Slices"]
+    for {set i 0} {$i < $nxbins} {incr i} {
+	for {set k 0} {$k < $nzbins} {incr k} {
+	    hs::fill_hist_slice $y_slice_id $parent_id x $i z $k
+	    set data {}
+	    set poserr {}
+	    set negerr {}
+	    for {set j 0} {$j < $nybins} {incr j} {
+		set value [expr {$i*$nybins*$nzbins + $j*$nzbins + $k}]
+		lappend data $value
+		lappend poserr [expr $value/2.0]
+		lappend negerr [expr $value/4.0]
+	    }
+	    hs::1d_hist_block_fill $y_slice_ref $data $poserr $negerr
+	    verify_similarity $y_slice_id $y_slice_ref 0
+
+	    foreach {contents pos neg} [hs::slice_contents \
+		    $parent_id {d p n} x $i z $k] {}
+	    set contents [hs::data_to_list $contents]
+	    assert_same_list $contents $data 0
+	    set pos [hs::data_to_list $pos]
+	    assert_same_list $pos $poserr 0
+	    set neg [hs::data_to_list $neg]
+	    assert_same_list $neg $negerr 0
+	}
+    }
+    if {![catch {hs::fill_hist_slice $y_slice_id $parent_id x -1 z 0}]} {
+	error "Failed to detect x bin number below allowed"
+    }
+    if {![catch {hs::fill_hist_slice $y_slice_id $parent_id x $nxbins z 0}]} {
+	error "Failed to detect x bin number above allowed"
+    }
+    if {![catch {hs::fill_hist_slice $y_slice_id $parent_id x 0 z -1}]} {
+	error "Failed to detect z bin number below allowed"
+    }
+    if {![catch {hs::fill_hist_slice $y_slice_id $parent_id x 0 z $nzbins}]} {
+	error "Failed to detect z bin number above allowed"
+    }
+
+    set z_slice_id [hs::create_1d_hist [next_uid] "z stack of 3d histo" \
+	    "Slices" Z V $nzbins 5 6]
+    set z_slice_ref [hs::copy_hist $z_slice_id \
+	    [next_uid] "z stack of 3d histo" "Slices"]
+    for {set i 0} {$i < $nxbins} {incr i} {
+	for {set j 0} {$j < $nybins} {incr j} {
+	    hs::fill_hist_slice $z_slice_id $parent_id x $i y $j
+	    set data {}
+	    set poserr {}
+	    set negerr {}
+	    for {set k 0} {$k < $nzbins} {incr k} {
+		set value [expr {$i*$nybins*$nzbins + $j*$nzbins + $k}]
+		lappend data $value
+		lappend poserr [expr $value/2.0]
+		lappend negerr [expr $value/4.0]
+	    }
+	    hs::1d_hist_block_fill $z_slice_ref $data $poserr $negerr
+	    verify_similarity $z_slice_id $z_slice_ref 0
+
+	    foreach {contents pos neg} [hs::slice_contents \
+		    $parent_id {d p n} x $i y $j] {}
+	    set contents [hs::data_to_list $contents]
+	    assert_same_list $contents $data 0
+	    set pos [hs::data_to_list $pos]
+	    assert_same_list $pos $poserr 0
+	    set neg [hs::data_to_list $neg]
+	    assert_same_list $neg $negerr 0
+	}
+    }
+    if {![catch {hs::fill_hist_slice $z_slice_id $parent_id x -1 y 0}]} {
+	error "Failed to detect x bin number below allowed"
+    }
+    if {![catch {hs::fill_hist_slice $z_slice_id $parent_id x $nxbins y 0}]} {
+	error "Failed to detect x bin number above allowed"
+    }
+    if {![catch {hs::fill_hist_slice $z_slice_id $parent_id x 0 y -1}]} {
+	error "Failed to detect y bin number below allowed"
+    }
+    if {![catch {hs::fill_hist_slice $z_slice_id $parent_id x 0 y $nybins}]} {
+	error "Failed to detect y bin number above allowed"
+    }
+} {}
+
+catch {unset nxbins nybins}
+catch {unset parent_id}
+catch {unset data poserr negerr}
+catch {unset i nbins}
+catch {unset x_slice_id}
+catch {unset x_slice_ref}
+catch {unset y_slice_id}
+catch {unset y_slice_ref}
+catch {unset z_slice_id}
+catch {unset z_slice_ref}
+catch {unset j value}
+catch {unset nzbins}
+catch {unset k}
+catch {unset contents}
+catch {unset pos}
+catch {unset neg}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

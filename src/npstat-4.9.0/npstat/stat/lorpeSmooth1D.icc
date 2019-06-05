@@ -1,0 +1,78 @@
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/stat/amiseOptimalBandwidth.hh"
+#include "npstat/stat/LocalPolyFilter1D.hh"
+#include "npstat/stat/arrayStats.hh"
+
+namespace npstat {
+    template<typename Numeric, typename NumOut>
+    double weightedLorpeSmooth1D(
+        const HistoND<Numeric>& histo, const double npoints,
+        const int m, const double maxDegree,
+        NumOut* result, const unsigned lenResult,
+        const BoundaryHandling& bm, const double bandwidthFactor)
+    {
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::weightedLorpeSmooth1D: "
+            "input histogram must be one-dimensional");
+        const unsigned nbins = histo.nBins();
+        if (!(nbins <= lenResult)) throw std::invalid_argument(
+            "In npstat::weightedLorpeSmooth1D: "
+            "insufficient length of the output buffer");
+        if (bandwidthFactor <= 0.0) throw std::invalid_argument(
+            "In npstat::weightedLorpeSmooth1D: "
+            "bandwidth factor must be positive");
+        if (maxDegree < 0.0) throw std::invalid_argument(
+            "In npstat::weightedLorpeSmooth1D: "
+            "polynomial degree must not be negative");
+        if (npoints <= 0.0) throw std::invalid_argument(
+            "In npstat::weightedLorpeSmooth1D: "
+            "effective sample size must be positive");
+        assert(result);
+
+        // Determine characteristic data width
+        const double inp[2] = {0.15865525393145705, 0.84134474606854295};
+        double quantiles[2];
+        arrayQuantiles1D(histo.binContents().data(), histo.nBins(),
+                         histo.axis(0U).min(), histo.axis(0U).max(),
+                         inp, quantiles, 2U);
+        const double sigma = (quantiles[1] - quantiles[0])/2.0;
+
+        // Determine plugin bandwidth
+        const double amiseBw = approxAmisePluginBwGauss(maxDegree,npoints,sigma)*
+                               approxSymbetaBandwidthRatio(m, maxDegree);
+
+        // Build LOrPE filter
+        const double bwUsed = amiseBw*bandwidthFactor;
+        CPP11_auto_ptr<LocalPolyFilter1D> filter = symbetaLOrPEFilter1D(
+            m, bwUsed, maxDegree, nbins,
+            histo.axis(0).min(), histo.axis(0).max(), bm);
+
+        // Apply LOrPE filter
+        NumOut* buffer = result;
+        if ((void*)result == (void*)histo.binContents().data())
+            buffer = new NumOut[nbins];
+        filter->filter(histo.binContents().data(), nbins, buffer);
+
+        // Truncate and normalize the result
+        const NumOut zero = static_cast<NumOut>(0);
+        long double sum = 0.0L;
+        for (unsigned i=0; i<nbins; ++i)
+        {
+            if (buffer[i] < zero)
+                buffer[i] = zero;
+            else
+                sum += buffer[i];
+        }
+        sum *= histo.axis(0U).binWidth();
+        assert(sum > 0.0L);
+        for (unsigned i=0; i<nbins; ++i)
+            result[i] = buffer[i]/sum;
+
+        if (buffer != result)
+            delete [] buffer;
+
+        return bwUsed;
+    }
+}

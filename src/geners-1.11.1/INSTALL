@@ -1,0 +1,49 @@
+This package needs compression libraries libz.so and libbz2.so. These
+libraries are installed by default on many Linux distributions. Make
+sure that you have these libraries on your system together with
+corresponding header files "zlib.h" and "bzlib.h".
+
+If you want to enable the C++11 support in the package, you have to do
+it explicitly. If g++ is your compiler of choice, it is sufficient to
+define the "CXXFLAGS" environmental variable which includes the switch
+"-std=c++0x". Naturally, g++ version must be recent -- the package is
+known to compile with g++ 4.8.3, but slightly earlier versions might
+work as well. For other compilers with good C++11 support, copy the
+file "geners/CPP11_config_enable.hh" into "geners/CPP11_config.hh".
+
+If you instead want to make sure that C++11 features are disabled (for
+compatibility with an existing library or some other such reason), copy
+the file "geners/CPP11_config_disable.hh" into "geners/CPP11_config.hh".
+
+After this, a typical installation of the "geners" package can proceed
+as follows:
+
+./configure --with-pic
+make
+make install
+
+The last step may have to be performed as root. Run
+
+./configure --help
+
+to view available configuration options. For example, if you do not
+have libbz2.so and bzlib.h in standard system locations, you may have
+to explicitly tell the "configure" script where to find these files
+using corresponding switches.
+
+It is also recommended to run "make check" before running "make
+install".  Various example and helper programs will run. Near the
+end of the printouts, you should see something like
+
+============================================================================
+# TOTAL: 7
+# PASS:  7
+# SKIP:  0
+# XFAIL: 0
+# FAIL:  0
+# XPASS: 0
+# ERROR: 0
+============================================================================
+
+If you do not see this output, something went wrong with your package
+configuration or code compilation process.

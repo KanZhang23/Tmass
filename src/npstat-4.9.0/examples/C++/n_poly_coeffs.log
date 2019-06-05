@@ -1,0 +1,8 @@
+
+Usage: n_poly_coeffs dim deg
+
+The following arguments are required:
+  dim   is the dimensionality of the space
+  deg   is the maximum polynomial degree
+
+PASS n_poly_coeffs (exit status: 0)

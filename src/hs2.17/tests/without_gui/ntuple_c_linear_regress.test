@@ -1,0 +1,68 @@
+
+# This test uses "Norris.dat" dataset from NIST StRD
+test ntuple_c_mlr-1.1 {simple linear regression} {[hs::have_cernlib]} {
+    set nt_id [hs::create_ntuple [next_uid] "MLR test" "Test" {y x}]
+    hs::ntuple_block_fill $nt_id [list\
+           0.1        0.2\
+         338.8      337.4\
+         118.1      118.2\
+         888.0      884.6\
+           9.2       10.1\
+         228.1      226.5\
+         668.5      666.3\
+         998.5      996.3\
+         449.1      448.6\
+         778.9      777.0\
+         559.2      558.2\
+           0.3        0.4\
+           0.1        0.6\
+         778.1      775.5\
+         668.8      666.9\
+         339.3      338.0\
+         448.9      447.5\
+          10.8       11.6\
+         557.7      556.0\
+         228.3      228.1\
+         998.0      995.8\
+         888.8      887.6\
+         119.6      120.2\
+           0.3        0.3\
+           0.6        0.3\
+         557.6      556.8\
+         339.3      339.1\
+         888.0      887.2\
+         998.5      999.0\
+         778.9      779.0\
+          10.2       11.1\
+         117.6      118.3\
+         228.9      229.2\
+         668.4      669.1\
+         449.2      448.9\
+           0.2        0.5\
+    ]
+    set result [hs::ntuple_c_linear_regress $nt_id 1 1 y [list x]]
+    if {[llength $result] != 6} {
+        error "bad result length"
+    }
+    foreach {b covar chisq ndof globcc adj_globcc} $result {}
+    foreach {b1 b0} $b {}
+    assert_same_double $b1 1.00211681802045   1e-6
+    assert_same_double $b0 -0.262323073774029 1e-6
+    assert_same_double $ndof 34 0
+    assert_same_double [expr {$globcc * $globcc}] 0.999993745883712 1e-7
+    # Variances do not compare well to the StRD certified results.
+    # This is because the residual variance is extremely small
+    # compared to the full response variance (globcc is almost 1).
+    assert_same_double [expr sqrt([hs::M $covar _ {0 0}])] 0.429796848199937e-03 0.01
+    assert_same_double [expr sqrt([hs::M $covar _ {1 1}])] 0.232818234301152     0.01
+    assert_same_double [expr sqrt($chisq/$ndof)]           0.884796396144373     0.01
+} {}
+
+catch {unset nt_id}
+catch {unset result}
+catch {unset b covar chisq ndof globcc adj_globcc}
+catch {unset b1 b0}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

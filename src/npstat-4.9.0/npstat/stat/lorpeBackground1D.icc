@@ -1,0 +1,773 @@
+#include <cmath>
+#include <cassert>
+#include <utility>
+#include <stdexcept>
+
+#include "npstat/nm/allocators.hh"
+#include "npstat/nm/GaussLegendreQuadrature.hh"
+
+#include "npstat/stat/lorpeBackgroundCVDensity1D.hh"
+#include "npstat/stat/CircularBuffer.hh"
+#include "npstat/stat/DensityScan1D.hh"
+#include "npstat/stat/StatUtils.hh"
+
+namespace npstat {
+    namespace Private {
+        template <typename Numeric>
+        inline void regularizeDoubleArray(const Numeric* binData,
+                                          const double* minDensity1,
+                                          double* arr, const unsigned n,
+                                          const double binwidth,
+                                          const bool isNormalized)
+        {
+            assert(binData);
+            assert(minDensity1);
+            assert(arr);
+
+            const Numeric zero = Numeric();
+
+            bool adjusted = false;
+            long double arrsumBefore = 0.0L, arrsumAfter = 0.0L;
+            for (unsigned i=0; i<n; ++i)
+                if (binData[i] > zero)
+                {
+                    arrsumBefore += arr[i];
+                    const double minDens = static_cast<double>(binData[i])*
+                        minDensity1[i];
+                    if (arr[i] < minDens)
+                    {
+                        arr[i] = minDens;
+                        adjusted = true;
+                    }
+                    arrsumAfter += arr[i];
+                }
+
+            if (adjusted)
+            {
+                if (isNormalized)
+                    npstat::normalizeArrayAsDensity(arr, n, binwidth);
+                else
+                {
+                    const double norm = arrsumBefore/arrsumAfter;
+                    for (unsigned i=0; i<n; ++i)
+                        if (binData[i] > zero)
+                            arr[i] *= norm;
+                }
+            }
+        }
+    }
+
+    template<typename Numeric, typename NumOut>
+    unsigned lorpeRegularizeBgDensity1D(
+        const HistoND<Numeric>& histo, const double signalFraction,
+        const NumOut* signalDensity, const unsigned lenSignalDensity,
+        NumOut* bgDensity, const unsigned lenBgDensity,
+        const double minBgDensity1)
+    {
+        if (minBgDensity1 <= 0.0)
+            return 0U;
+
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::lorpeRegularizeBgDensity1D: "
+            "input histogram must be one-dimensional");
+        if (!histo.nFillsInRange()) throw std::invalid_argument(
+            "In npstat::lorpeRegularizeBgDensity1D: "
+            "input histogram appears to be empty");
+        const unsigned nbins = histo.nBins();
+        assert(nbins);
+        const Numeric* binData = histo.binContents().data();
+
+        assert(signalDensity);
+        assert(lenSignalDensity >= nbins);
+        assert(bgDensity);
+        assert(lenBgDensity >= nbins);
+
+        if (fabs(signalFraction) >= 1.0)
+            throw std::invalid_argument(
+                "In npstat::lorpeRegularizeBgDensity1D: "
+                "signal fraction is out of range");
+        const double oneMinusSF = 1.0 - signalFraction;
+
+        unsigned adjusted = 0U;
+        long double arrsumBefore = 0.0L, arrsumAfter = 0.0L;
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+        {
+            const double binValue = binData[ibin];
+            if (binValue > 0.0)
+            {
+                double bindens = bgDensity[ibin];
+                arrsumBefore += bindens;
+
+                double bgfrac = 1.0;
+                const double denom = oneMinusSF*bgDensity[ibin] +
+                                     signalFraction*signalDensity[ibin];
+                if (denom > 0.0)
+                    bgfrac = oneMinusSF*bgDensity[ibin]/denom;
+                const double minDens = minBgDensity1*binValue*bgfrac;
+
+                if (bindens < minDens)
+                {
+                    bindens = minDens;
+                    bgDensity[ibin] = static_cast<Numeric>(bindens);
+                    ++adjusted;
+                }
+                arrsumAfter += bindens;
+            }
+        }
+
+        if (adjusted)
+        {
+            const double norm = arrsumBefore/arrsumAfter;
+            for (unsigned ibin=0; ibin<nbins; ++ibin)   
+            {
+                const double binValue = binData[ibin];
+                if (binValue > 0.0)
+                {
+                    double bindens = bgDensity[ibin];
+                    bindens *= norm;
+                    bgDensity[ibin] = static_cast<Numeric>(bindens);
+                }
+            }
+        }
+
+        return adjusted;
+    }
+
+    template<typename Numeric, typename NumIn>
+    double maxBgPointsInWindow1D(
+        const HistoND<Numeric>& histo,
+        const AbsDistribution1D& signal, double signalFraction,
+        unsigned nIntegrationPoints, double windowWidth,
+        const NumIn* initialApprox, unsigned lenApproximation,
+        std::vector<double>& workspace)
+    {
+        // Check the input arguments
+        if (windowWidth < 0.0) throw std::invalid_argument(
+            "In npstat::maxBgPointsInWindow1D: "
+            "window width must not be negative");
+        if (windowWidth == 0.0)
+            return 0.0;
+
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::maxBgPointsInWindow1D: "
+            "input histogram must be one-dimensional");
+        if (!histo.nFillsInRange()) throw std::invalid_argument(
+            "In npstat::maxBgPointsInWindow1D: "
+            "input histogram appears to be empty");
+        const unsigned nbins = histo.nBins();
+        assert(nbins);
+        const double binWidth = histo.binVolume();
+
+        if (fabs(signalFraction) >= 1.0)
+            throw std::invalid_argument(
+                "In npstat::maxBgPointsInWindow1D: "
+                "signal fraction is out of range");
+        const double oneMinusSF = 1.0 - signalFraction;
+
+        const bool haveInitialApprox = initialApprox && lenApproximation;
+        if (haveInitialApprox)
+            if (nbins != lenApproximation) throw std::invalid_argument(
+                "In npstat::maxBgPointsInWindow1D: "
+                "incorrect length of the initial approximation buffer");
+
+        const ArrayND<Numeric>& binContents = histo.binContents();
+        const double nEvents = binContents.template sum<long double>();
+        if (!binContents.isDensity()) throw std::invalid_argument(
+            "In npstat::maxBgPointsInWindow1D: "
+            "all bins of the input histogram must be non-negative");
+        const Numeric* binData = binContents.data();
+
+        // How many bins are there inside the window?
+        const double dWinBins = ceil(windowWidth/binWidth);
+        if (dWinBins >= static_cast<double>(nbins))
+            return nEvents*oneMinusSF;
+        const unsigned winBins = dWinBins;
+
+        //
+        // Partition the workspace
+        //
+        if (workspace.size() < 2U*nbins)
+            workspace.resize(2U*nbins);
+        double* signalScan = &workspace[0];
+        double* previousApprox = signalScan + nbins;
+
+        // Scan the signal
+        const HistoAxis& axis(histo.axis(0));
+        const DensityScan1D scan(signal, 1.0, nbins, axis.min(), axis.max(),
+                                 nIntegrationPoints);
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+            signalScan[ibin] = scan.averageDensity(ibin);
+
+        // Normalize the signal
+        normalizeArrayAsDensity(signalScan, nbins, binWidth);
+
+        // Initialize the background approximation
+        if (haveInitialApprox)
+        {
+            for (unsigned ibin=0; ibin<nbins; ++ibin)
+                previousApprox[ibin] = static_cast<double>(initialApprox[ibin]);
+            normalizeArrayAsDensity(previousApprox, nbins, binWidth);
+        }
+        else
+        {
+            const double d = 1.0/(nbins*binWidth);
+            for (unsigned ibin=0; ibin<nbins; ++ibin)
+                previousApprox[ibin] = d;
+        }
+
+        // Go over all possible window positions and add up
+        // the number of background events
+        double maxbg = -1.0e100;
+        CircularBuffer<double> cb(winBins);
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+        {
+            const double denom = oneMinusSF*previousApprox[ibin] +
+                                 signalFraction*signalScan[ibin];
+            double w = 0.0;
+            if (denom > 0.0)
+                w = oneMinusSF*previousApprox[ibin]/denom;
+            cb.accumulate(w*static_cast<double>(binData[ibin]));
+            if (cb.filled())
+            {
+                const double nbg = cb.sum();
+                if (nbg > maxbg)
+                    maxbg = nbg;
+            }
+        }
+        return maxbg;
+    }
+
+    template<typename Numeric, typename NumIn, typename NumOut>
+    unsigned lorpeBackground1D(
+        const HistoND<Numeric>& histo, AbsSymbetaFilterProvider& fbuilder,
+        const BoundaryHandling& bm,
+        const AbsDistribution1D& signal, const double signalFraction,
+        const unsigned nIntegrationPoints,
+        const NumIn* initialApprox, const unsigned lenApproximation,
+        const int m, const double bandwidth, const double maxDegree,
+        const double convergenceEpsilon, const unsigned maxIterations,
+        NumOut* signalDensity, const unsigned lenSignalDensity,
+        NumOut* result, const unsigned lenResult,
+        std::vector<double>& workspace, 
+        NumOut* densityMinusOne, const unsigned lenDensityMinusOne,
+        const unsigned cvmode, const double regularizationParameter,
+        double* convergenceDelta)
+    {
+        // Check the input arguments
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::lorpeBackground1D: "
+            "input histogram must be one-dimensional");
+        if (!histo.nFillsInRange()) throw std::invalid_argument(
+            "In npstat::lorpeBackground1D: "
+            "input histogram appears to be empty");
+        const unsigned nbins = histo.nBins();
+        assert(nbins);
+        const double binWidth = histo.binVolume();
+
+        if (fabs(signalFraction) >= 1.0)
+            throw std::invalid_argument(
+                "In npstat::lorpeBackground1D: signal fraction is out of range");
+        const double oneMinusSF = 1.0 - signalFraction;
+
+        const bool haveInitialApprox = initialApprox && lenApproximation;
+        if (haveInitialApprox)
+            if (nbins != lenApproximation) throw std::invalid_argument(
+                "In npstat::lorpeBackground1D: "
+                "incorrect length of the initial approximation buffer");
+
+        if (bandwidth <= 0.0) throw std::invalid_argument(
+            "In npstat::lorpeBackground1D: bandwidth must be positive");
+
+        if (convergenceEpsilon < 0.0) throw std::invalid_argument(
+            "In npstat::lorpeBackground1D: "
+            "convergence epsilon must be non-negative");
+
+        const bool haveSignalBuffer = signalDensity && lenSignalDensity;
+        if (haveSignalBuffer)
+            if (!(nbins <= lenSignalDensity)) throw std::invalid_argument(
+                "In npstat::lorpeBackground1D: "
+                "insufficient length of the signal density buffer");
+
+        const bool haveBackgroundBuffer = result && lenResult;
+        if (haveBackgroundBuffer)
+            if (!(nbins <= lenResult)) throw std::invalid_argument(
+                "In npstat::lorpeBackground1D: "
+                "insufficient length of the background density buffer");
+
+        const bool haveMinusOneBuffer = densityMinusOne && lenDensityMinusOne;
+        if (haveMinusOneBuffer)
+            if (!(nbins <= lenDensityMinusOne)) throw std::invalid_argument(
+                "In npstat::lorpeBackground1D: "
+                "insufficient length of the cross validation output buffer");
+
+        const ArrayND<Numeric>& binContents = histo.binContents();
+        const double nEvents = binContents.template sum<long double>();
+        if (nEvents < 2.0) throw std::invalid_argument(
+            "In npstat::lorpeBackground1D: "
+            "insufficient number of events in the input histogram");
+        if (!binContents.isDensity()) throw std::invalid_argument(
+            "In npstat::lorpeBackground1D: "
+            "all bins of the input histogram must be non-negative");
+        const Numeric* binData = binContents.data();
+
+        if (cvmode >= N_CV_MODES) throw std::invalid_argument(
+            "In npstat::lorpeBackground1D: "
+            "cross-validation mode is out of range");
+
+        //
+        // Partition the workspace. Be careful, this assumes that
+        // "lorpeBackgroundCVDensity1D" function we are calling
+        // from here can overwrite the first three arrays that
+        // start at &workspace[0].
+        //
+        if (workspace.size() < 7U*nbins)
+            workspace.resize(7U*nbins);
+        double* minusOut = &workspace[0];
+        double* weightedInput = minusOut + nbins;
+        double* fittedBackground = weightedInput + nbins;
+        double* signalScan = fittedBackground + nbins;
+        double* previousApprox = signalScan + nbins;
+        double* currentApprox = previousApprox + nbins;
+        double* minimumDensity = currentApprox + nbins;
+
+        // Scan the signal
+        const HistoAxis& axis(histo.axis(0));
+        const DensityScan1D scan(signal, 1.0, nbins, axis.min(), axis.max(),
+                                 nIntegrationPoints);
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+            signalScan[ibin] = scan.averageDensity(ibin);
+
+        // Normalize the signal
+        normalizeArrayAsDensity(signalScan, nbins, binWidth);
+
+        // Construct the filter
+        CPP11_shared_ptr<const LocalPolyFilter1D> filter = 
+            fbuilder.provideFilter(m, bandwidth, maxDegree, nbins, binWidth,
+                                   bm, nbins, false);
+
+        // Initialize the background approximation
+        if (haveInitialApprox)
+        {
+            for (unsigned ibin=0; ibin<nbins; ++ibin)
+                previousApprox[ibin] = static_cast<double>(initialApprox[ibin]);
+            normalizeArrayAsDensity(previousApprox, nbins, binWidth);
+        }
+        else
+        {
+            const double d = 1.0/(nbins*binWidth);
+            for (unsigned ibin=0; ibin<nbins; ++ibin)
+                previousApprox[ibin] = d;
+        }
+
+        // Iterative construction of the background approximation
+        unsigned maxiter = 0;
+        for (; maxiter < maxIterations; ++maxiter)
+        {
+            // Reweight the bin contents
+            for (unsigned ibin=0; ibin<nbins; ++ibin)
+            {
+                const double denom = oneMinusSF*previousApprox[ibin] +
+                                     signalFraction*signalScan[ibin];
+                double w = 0.0;
+                if (denom > 0.0)
+                    w = previousApprox[ibin]/denom;
+                weightedInput[ibin] = w*static_cast<double>(binData[ibin]);
+            }
+
+            // Apply the filter to the reweighted contents
+            filter->filter(weightedInput, nbins, currentApprox);
+
+            // Normalize
+            const bool hasNegatives = normalizeArrayAsDensity(
+                currentApprox, nbins, binWidth);
+
+            // Calculate the L1 divergence with the previous iteration
+            long double integ = 0.0L;
+            for (unsigned ibin=0; ibin<nbins; ++ibin)
+                integ += fabs(previousApprox[ibin] - currentApprox[ibin]);
+            integ *= binWidth;
+
+            // If requested, return this divergence
+            if (convergenceDelta)
+            {
+                *convergenceDelta = integ;
+                if (hasNegatives)
+                    *convergenceDelta *= -1.0;
+            }
+
+            // Swap the array pointers to prepare for the next iteration
+            std::swap(previousApprox, currentApprox);
+
+            // If we have reached the convergence target, we are done
+            if (integ <= convergenceEpsilon)
+                break;
+
+            if (hasNegatives && maxiter > maxIterations/2U)
+            {
+                // The solutions might oscillate. Introduce a damping factor.
+                for (unsigned ibin=0; ibin<nbins; ++ibin)
+                    previousApprox[ibin] = (previousApprox[ibin] +
+                                            currentApprox[ibin])/2.0;
+            }
+        }
+
+        // Fill out the output arrays
+        if (haveSignalBuffer)
+            for (unsigned ibin=0; ibin<nbins; ++ibin)
+                signalDensity[ibin] = static_cast<NumOut>(signalScan[ibin]);
+
+        if (haveBackgroundBuffer)
+            for (unsigned ibin=0; ibin<nbins; ++ibin)
+                result[ibin] = static_cast<NumOut>(previousApprox[ibin]);
+
+        // Calculate the cross validation density if requested
+        if (haveMinusOneBuffer)
+        {
+            const double nSignal = signalFraction*nEvents;
+            if (regularizationParameter >= 0.0)
+            {
+                const double nBg = nEvents - nSignal;
+                const double rFact = nBg*pow(nBg, regularizationParameter);
+
+             // for (unsigned ibin=0; ibin<nbins; ++ibin)
+             //     minimumDensity[ibin] = filter->selfContribution(ibin)/rFact;
+
+                const double w0 = symbetaWeightAt0(m, bandwidth);
+                for (unsigned ibin=0; ibin<nbins; ++ibin)
+                    minimumDensity[ibin] = w0/rFact;
+            }
+
+            double* outputBuffer = 0;
+            bool isNormalized = false;
+
+            switch (cvmode)
+            {
+            case CV_MODE_FAST:
+            {
+                for (unsigned ibin=0; ibin<nbins; ++ibin)
+                {
+                    const double denom = oneMinusSF*previousApprox[ibin] +
+                                         signalFraction*signalScan[ibin];
+                    double w = 0.0;
+                    if (denom > 0.0)
+                        w = previousApprox[ibin]/denom;
+                    weightedInput[ibin] = w*static_cast<double>(binData[ibin]);
+                }
+
+                filter = fbuilder.provideFilter(
+                    m, bandwidth, maxDegree, nbins, binWidth,
+                    bm, nbins, true);
+                filter->filter(weightedInput, nbins, currentApprox);
+                normalizeArrayAsDensity(currentApprox, nbins, binWidth);
+                isNormalized = true;
+                outputBuffer = currentApprox;
+            }
+            break;
+
+            case CV_MODE_MINUSBIN:
+            case CV_MODE_MINUSONE:
+            {
+                std::swap(fittedBackground, previousApprox);
+
+                for (unsigned minusBin=0; minusBin<nbins; ++minusBin)
+                {
+                    const double binValue = static_cast<double>(
+                        binData[minusBin]);
+                    double minusValue = binValue - 1.0;
+                    if (minusValue < 0.0 || cvmode == CV_MODE_MINUSBIN)
+                        minusValue = 0.0;
+                    const double eventsRemoved = binValue - minusValue;
+
+                    if (eventsRemoved <= 0.0)
+                    {
+                        minusOut[minusBin] = 0.0;
+                        continue;
+                    }
+
+                    double sigfrac = signalFraction;
+                    if (cvmode == CV_MODE_MINUSONE)
+                    {
+                        // Adjust the signal fraction in the sample according
+                        // to the probability that we are removing a signal
+                        // event from this particular bin
+                        const double sig = signalFraction*signalScan[minusBin];
+                        const double bg = oneMinusSF*fittedBackground[minusBin];
+                        const double denom = sig + bg;
+                        if (denom <= 0.0)
+                        {
+                            minusOut[minusBin] = 0.0;
+                            continue;
+                        }
+                        const double sigRemoved = sig/denom*eventsRemoved;
+                        sigfrac = (nSignal - sigRemoved)/
+                                  (nEvents - eventsRemoved);
+                    }
+                    const double bgfrac = 1.0 - sigfrac;
+
+                    for (unsigned ibin=0; ibin<nbins; ++ibin)
+                        previousApprox[ibin] = fittedBackground[ibin];
+
+                    if (cvmode == CV_MODE_MINUSBIN)
+                        filter = fbuilder.provideFilter(
+                            m, bandwidth, maxDegree, nbins, binWidth,
+                            bm, minusBin, false);
+
+                    unsigned iter = 0;
+                    for (; iter < maxIterations; ++iter)
+                    {
+                        // Reweight the bin contents
+                        for (unsigned ibin=0; ibin<nbins; ++ibin)
+                        {
+                            const double denom = bgfrac*previousApprox[ibin] +
+                                                 sigfrac*signalScan[ibin];
+                            double w = 0.0;
+                            if (denom > 0.0)
+                                w = previousApprox[ibin]/denom;
+                            if (ibin == minusBin)
+                                weightedInput[ibin] = w*minusValue;
+                            else
+                                weightedInput[ibin] = w*static_cast<double>(
+                                    binData[ibin]);
+                        }
+
+                        // Apply the filter to the reweighted contents
+                        filter->filter(weightedInput, nbins, currentApprox);
+
+                        // Normalize
+                        const bool hN = normalizeArrayAsDensity(
+                            currentApprox, nbins, binWidth);
+
+                        // Calculate the L1 divergence with the previous cycle
+                        long double integ = 0.0L;
+                        for (unsigned ibin=0; ibin<nbins; ++ibin)
+                            integ += fabs(previousApprox[ibin] -
+                                          currentApprox[ibin]);
+                        integ *= binWidth;
+
+                        // Swap the array pointers to prepare for
+                        // the next iteration
+                        std::swap(previousApprox, currentApprox);
+
+                        // If we have reached the convergence target, we are done
+                        if (integ <= convergenceEpsilon)
+                            break;
+
+                        if (hN && maxiter > maxIterations/2U)
+                        {
+                            // The solutions might oscillate.
+                            // Introduce a damping factor.
+                            for (unsigned ibin=0; ibin<nbins; ++ibin)
+                                previousApprox[ibin] = (previousApprox[ibin] +
+                                                        currentApprox[ibin])/2.0;
+                        }
+                    }
+
+                    if (iter > maxiter)
+                        maxiter = iter;
+
+                    minusOut[minusBin] = previousApprox[minusBin];
+                }
+
+                outputBuffer = minusOut;
+            }
+            break;
+
+            case CV_MODE_LINEARIZED:
+            {
+                //
+                // This approximates CV_MODE_MINUSONE with faster code
+                //
+                lorpeBackgroundCVDensity1D(*filter, histo, signalFraction,
+                                           signalScan, nbins,
+                                           previousApprox, nbins, workspace,
+                                           currentApprox, nbins);
+                outputBuffer = currentApprox;
+            }
+            break;
+
+            default:
+                assert(!"Missing switch case in npstat::lorpeBackground1D. "
+                        "This is a bug. Please report.");
+            }
+
+            if (regularizationParameter >= 0.0)
+                Private::regularizeDoubleArray(binData, minimumDensity,
+                                               outputBuffer, nbins,
+                                               binWidth, isNormalized);
+            copyBuffer(densityMinusOne, outputBuffer, nbins);
+        }
+
+        return maxiter;
+    }
+
+
+    template<typename Numeric, typename NumOut>
+    double lorpeBgCVPseudoLogli1D(
+        const HistoND<Numeric>& histo, const double signalFraction,
+        const NumOut* signalDensity, const unsigned lenSignalDensity,
+        const NumOut* bgDensity, const unsigned lenBgDensity,
+        const NumOut* densityMinusOne, const unsigned lenDensityMinusOne,
+        const double minLog)
+    {
+        const long double minDensity = expl(minLog);
+
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::lorpeBgCVPseudoLogli1D: "
+            "input histogram must be one-dimensional");
+        if (!histo.nFillsInRange()) throw std::invalid_argument(
+            "In npstat::lorpeBgCVPseudoLogli1D: "
+            "input histogram appears to be empty");
+        const unsigned nbins = histo.nBins();
+        assert(nbins);
+
+        if (fabs(signalFraction) >= 1.0)
+            throw std::invalid_argument(
+                "In npstat::lorpeBgCVPseudoLogli1D: "
+                "signal fraction is out of range");
+        const double oneMinusSF = 1.0 - signalFraction;
+
+        assert(signalDensity);
+        assert(lenSignalDensity >= nbins);
+        assert(bgDensity);
+        assert(lenBgDensity >= nbins);
+        assert(densityMinusOne);
+        assert(lenDensityMinusOne >= nbins);
+
+        const Numeric* binData = histo.binContents().data();
+
+        long double ll = 0.0L, logli = 0.0L, wsum = 0.0L, binsum = 0.0L;
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+        {
+            const double binValue = static_cast<double>(binData[ibin]);
+            if (binValue > 0.0)
+            {
+                const long double dens =
+                    static_cast<long double>(densityMinusOne[ibin]);
+                if (dens <= minDensity)
+                    ll = minLog;
+                else
+                    ll = logl(dens);
+
+                const double bg = static_cast<double>(bgDensity[ibin]);
+                const double sig = static_cast<double>(signalDensity[ibin]);
+                const double denom = oneMinusSF*bg + signalFraction*sig;
+
+                if (denom > 0.0)
+                {
+                    const double w = bg/denom;
+                    logli += ll*binValue*w;
+                    wsum += binValue*w;
+                    binsum += binValue;
+                }
+            }
+        }
+
+        assert(binsum > 0.0L);
+        const long double averageWeight = wsum/binsum;
+
+        return logli/averageWeight;
+    }
+
+
+    template<typename Numeric, typename NumOut>
+    double lorpeBgCVLeastSquares1D(
+        const HistoND<Numeric>& histo, const double signalFraction,
+        const NumOut* signalDensity, const unsigned lenSignalDensity,
+        const NumOut* bgDensity, const unsigned lenBgDensity,
+        const NumOut* densityMinusOne, const unsigned lenDensityMinusOne)
+    {
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::lorpeBgCVLeastSquares1D: "
+            "input histogram must be one-dimensional");
+        if (!histo.nFillsInRange()) throw std::invalid_argument(
+            "In npstat::lorpeBgCVLeastSquares1D: "
+            "input histogram appears to be empty");
+        const unsigned nbins = histo.nBins();
+        assert(nbins);
+
+        if (fabs(signalFraction) >= 1.0)
+            throw std::invalid_argument(
+                "In npstat::lorpeBgCVLeastSquares1D: "
+                "signal fraction is out of range");
+        const double oneMinusSF = 1.0 - signalFraction;
+
+        assert(signalDensity);
+        assert(lenSignalDensity >= nbins);
+        assert(bgDensity);
+        assert(lenBgDensity >= nbins);
+        assert(densityMinusOne);
+        assert(lenDensityMinusOne >= nbins);
+
+        const Numeric* binData = histo.binContents().data();
+
+        long double integ = 0.0L, sum = 0.0L, wsum = 0.0L;
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+        {
+            const double bg = static_cast<double>(bgDensity[ibin]);
+            integ += bg*bg;
+            const double sig = static_cast<double>(signalDensity[ibin]);
+            const double denom = oneMinusSF*bg + signalFraction*sig;
+
+            if (denom > 0.0)
+            {
+                const double w = bg/denom;
+                const double binValue = static_cast<double>(binData[ibin]);
+                sum += w*binValue*densityMinusOne[ibin];
+                wsum += w*binValue;
+            }
+        }
+        integ *= histo.binVolume();
+        return integ - 2.0L*sum/wsum;
+    }
+
+
+    template<typename Numeric, typename NumOut>
+    double lorpeBgLogli1D(
+        const HistoND<Numeric>& histo, const double signalFraction,
+        const NumOut* signalDensity, const unsigned lenSignalDensity,
+        const NumOut* bgDensity, const unsigned lenBgDensity,
+        const double minLog)
+    {
+        const long double minDensity = expl(minLog);
+
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::lorpeBgLogli1D: "
+            "input histogram must be one-dimensional");
+        if (!histo.nFillsInRange()) throw std::invalid_argument(
+            "In npstat::lorpeBgLogli1D: "
+            "input histogram appears to be empty");
+        const unsigned nbins = histo.nBins();
+        assert(nbins);
+
+        if (fabs(signalFraction) >= 1.0)
+            throw std::invalid_argument(
+                "In npstat::lorpeBgLogli1D: "
+                "signal fraction is out of range");
+        const double oneMinusSF = 1.0 - signalFraction;
+
+        assert(signalDensity);
+        assert(lenSignalDensity >= nbins);
+        assert(bgDensity);
+        assert(lenBgDensity >= nbins);
+
+        const Numeric* binData = histo.binContents().data();
+
+        long double ll = 0.0L, logli = 0.0L;
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+        {
+            const double binValue = static_cast<double>(binData[ibin]);
+            if (binValue > 0.0)
+            {
+                const long double dens = signalFraction*signalDensity[ibin] +
+                                         oneMinusSF*bgDensity[ibin];
+                if (dens <= minDensity)
+                    ll = minLog;
+                else
+                    ll = logl(dens);
+                logli += ll*binValue;
+            }
+        }
+
+        return logli;
+    }
+}

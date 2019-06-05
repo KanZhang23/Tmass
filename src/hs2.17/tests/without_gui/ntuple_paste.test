@@ -1,0 +1,31 @@
+test ntuple_paste-1.1 {ntuple paste} {} {
+    set id0 [hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c}]
+    hs::ntuple_block_fill $id0 [list \
+            1.0 3.0 7.0 \
+            2.0 1.0 5.0 \
+            4.0 1.5 1.0 \
+    ]
+    set id1 [hs::create_ntuple [next_uid] "Test ntuple" "tests" {d e}]
+    hs::ntuple_block_fill $id1 [list \
+            -3.0 -2.0 \
+            -7.0 -1.0 \
+            -1.0 -2.5 \
+    ]
+    set id2 [hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c d e}]
+    hs::ntuple_block_fill $id2 [list \
+            1.0 3.0 7.0 -3.0 -2.0 \
+            2.0 1.0 5.0 -7.0 -1.0 \
+            4.0 1.5 1.0 -1.0 -2.5 \
+    ]
+    set id3 [hs::ntuple_paste [next_uid] "Test ntuple" "tests" $id0 $id1]
+    verify_similarity $id2 $id3 0
+} {}
+
+catch {unset id0}
+catch {unset id1}
+catch {unset id2}
+catch {unset id3}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

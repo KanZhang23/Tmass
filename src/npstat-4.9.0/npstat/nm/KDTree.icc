@@ -1,0 +1,363 @@
+#include <limits>
+#include <cassert>
+
+#include "npstat/nm/CompareByIndex.hh"
+
+namespace npstat {
+    template <class Point, typename Numeric>
+    bool KDTree<Point,Numeric>::limitsInBox(
+        const BoxND<Numeric>& box, const Numeric* lowerLimit,
+        const Numeric* upperLimit) const
+    {
+        Numeric lo, hi;
+        const Interval<Numeric>* ptr = &box[0];
+        for (int i=dim_-1; i>=0; --i)
+        {
+            ptr[i].getBounds(&lo, &hi);
+            if (lowerLimit[i] <= lo)
+                return false;
+            if (upperLimit[i] > hi)
+                return false;
+        }
+        return true;
+    }
+
+    template <class Point, typename Numeric>
+    inline unsigned KDTree<Point,Numeric>::pointInBox(
+        const Point* pt, const BoxND<Numeric>& box) const
+    {
+        for (unsigned i=0; i<dim_; ++i)
+            if (!box[i].isInsideUpper((*pt)[indices_[i]]))
+                return 0U;
+        return 1U;
+    }
+
+    template <class Point, typename Numeric>
+    inline unsigned KDTree<Point,Numeric>::pointLessOrEqual(
+        const Point* pt, const Numeric* coords) const
+    {
+        for (unsigned i=0; i<dim_; ++i)
+            if ((*pt)[indices_[i]] > coords[i])
+                return 0U;
+        return 1U;
+    }
+
+    template <class Point, typename Numeric>
+    inline unsigned KDTree<Point,Numeric>::coordsLessOrEqual(
+        const Numeric* c1, const Numeric* c2) const
+    {
+        for (int i=dim_-1; i>=0; --i)
+            if (c1[i] > c2[i])
+                return 0U;
+        return 1U;
+    }
+
+    template <class Point, typename Numeric>
+    unsigned KDTree<Point,Numeric>::addNode(
+        std::vector<const Point*>& pointers,
+        const unsigned level, const unsigned ibegin, const unsigned iend)
+    {
+        const unsigned maxU = std::numeric_limits<unsigned>::max();
+        const unsigned idim = indices_[level % dim_];
+        const size_t inode = nodes_.size();
+        if (inode >= static_cast<size_t>(maxU)) throw std::runtime_error(
+            "In npstat::KDTree::addNode: maximum number of nodes exceeded");
+        assert(iend > ibegin);
+        const unsigned nPoints = iend - ibegin;
+        {
+            KDTreeNode newnode;
+            newnode.splitIndex = level % dim_;
+            newnode.nPoints = nPoints;
+
+            if (nPoints == 1U)
+            {
+                // Leaf node
+                newnode.point = pointers[ibegin];
+                newnode.split = (*newnode.point)[idim];
+            }
+            else
+            {
+                // Trunk node. We need to push it onto the "nodes_"
+                // vector before setting up the daughter nodes.
+                std::sort(pointers.begin()+ibegin, pointers.begin()+iend,
+                          LessByIndex<Point>(idim));
+                const Numeric lo((*pointers[ibegin + nPoints/2 - 1])[idim]);
+                const Numeric hi((*pointers[ibegin + nPoints/2])[idim]);
+                if (lo == hi)
+                    newnode.split = lo;
+                else
+                    newnode.split = static_cast<Numeric>((lo + hi)*0.5);
+            }
+            nodes_.push_back(newnode);
+        }
+
+        if (nPoints > 1U)
+        {
+            // Set up daughter nodes for the trunk node
+            unsigned u = addNode(pointers, level+1U, ibegin, ibegin+nPoints/2);
+            nodes_[inode].left = u;
+            u = addNode(pointers, level+1U, ibegin+nPoints/2, ibegin+nPoints);
+            nodes_[inode].right = u;
+        }
+        return inode;
+    }
+
+    template <class Point, typename Numeric>
+    KDTree<Point,Numeric>::KDTree(
+        const std::vector<Point>& points,
+        const unsigned* dimsToUse, const unsigned nDimsToUse)
+        : points_(points),
+          indices_(0)
+    {
+        if (!nDimsToUse) throw std::invalid_argument(
+            "In npstat::KDTree constructor: at least one "
+            "point index must be provided");
+        dim_ = nDimsToUse;
+
+        const size_t npoints = points.size();
+        if (!npoints) throw std::invalid_argument(
+            "In npstat::KDTree constructor: no data provided");
+        const unsigned maxU = std::numeric_limits<unsigned>::max();
+        if (npoints >= static_cast<size_t>(maxU/2U))
+            throw std::invalid_argument(
+                "In npstat::KDTree constructor: maximum "
+                "number of points exceeded");
+        nPoints_ = npoints;
+
+        assert(dimsToUse);
+        indices_ = new unsigned[nDimsToUse];
+        for (unsigned i=0; i<nDimsToUse; ++i)
+            indices_[i] = dimsToUse[i];
+
+        std::vector<const Point*> pointers;
+        pointers.reserve(npoints);
+        for (size_t i=0; i<npoints; ++i)
+            pointers.push_back(&points[i]);
+
+        nodes_.reserve(2U*npoints);
+        addNode(pointers, 0U, 0U, nPoints_);
+
+        lolim_.resize(dim_);
+        uplim_.resize(dim_);
+    }
+
+    template <class Point, typename Numeric>
+    inline KDTree<Point,Numeric>::~KDTree()
+    {
+        delete [] indices_;
+    }
+
+    template <class Point, typename Numeric>
+    unsigned KDTree<Point,Numeric>::countBelow(
+        const unsigned inode, const Numeric* limit, Numeric* upperLimit) const
+    {
+        const KDTreeNode* node = &nodes_[inode];
+        if (node->point)
+        {
+            // Leaf node. Root node can be a leaf node,
+            // so we have to do this branch.
+            return pointLessOrEqual(node->point, limit);
+        }
+        else
+        {
+            // Trunk node.
+            // Count the points on the right branch.
+            unsigned count = 0U;
+            if (node->split <= limit[node->splitIndex])
+                count += countBelow(node->right, limit, upperLimit);
+
+            // Take a look at the left branch.
+            // Terminate the recursion here if possible.
+            const KDTreeNode* leftDau = &nodes_[node->left];
+            if (leftDau->point)
+                count += pointLessOrEqual(leftDau->point, limit);
+            else
+            {
+                Numeric old(upperLimit[node->splitIndex]);
+                upperLimit[node->splitIndex] = node->split;
+                if (coordsLessOrEqual(upperLimit, limit))
+                    count += leftDau->nPoints;
+                else
+                    count += countBelow(node->left, limit, upperLimit);
+                upperLimit[node->splitIndex] = old;
+            }
+            return count;
+        }
+    }
+
+    template <class Point, typename Numeric>
+    unsigned KDTree<Point,Numeric>::countInBox(
+        const unsigned inode, const BoxND<Numeric>& box,
+        Numeric* lowerLimit, Numeric* upperLimit) const
+    {
+        const KDTreeNode* node = &nodes_[inode];
+        if (node->point)
+        {
+            // Leaf node. Root node can be a leaf node,
+            // so we have to do this branch.
+            return pointInBox(node->point, box);
+        }
+        else
+        {
+            // Trunk node
+            unsigned count = 0U;
+
+            // Count the points on the right branch
+            const KDTreeNode* rightDau = &nodes_[node->right];
+            if (rightDau->point)
+                count += pointInBox(rightDau->point, box);
+            else if (node->split <= box[node->splitIndex].max())
+            {
+                Numeric oldlimit(lowerLimit[node->splitIndex]);
+                lowerLimit[node->splitIndex] = node->split;
+                if (limitsInBox(box, lowerLimit, upperLimit))
+                    count += rightDau->nPoints;
+                else
+                    count += countInBox(node->right, box,
+                                        lowerLimit, upperLimit);
+                lowerLimit[node->splitIndex] = oldlimit;
+            }
+
+            // Count the points on the left branch
+            const KDTreeNode* leftDau = &nodes_[node->left];
+            if (leftDau->point)
+                count += pointInBox(leftDau->point, box);
+            else if (node->split > box[node->splitIndex].min())
+            {
+                Numeric oldlimit(upperLimit[node->splitIndex]);
+                upperLimit[node->splitIndex] = node->split;
+                if (limitsInBox(box, lowerLimit, upperLimit))
+                    count += leftDau->nPoints;
+                else
+                    count += countInBox(node->left, box,
+                                        lowerLimit, upperLimit);
+                upperLimit[node->splitIndex] = oldlimit;
+            }
+
+            return count;
+        }
+    }
+
+    template <class Point, typename Numeric>
+    template <class Result>
+    void KDTree<Point,Numeric>::visitorRecursion(
+        AbsVisitor<Point,Result>& visitor,
+        const unsigned inode, const BoxND<Numeric>& box,
+        Numeric* lowerLimit, Numeric* upperLimit,
+        const bool knownInside) const
+    {
+        const KDTreeNode* node = &nodes_[inode];
+        if (node->point)
+        {
+            // Leaf node. Root node can be a leaf node,
+            // so we have to do this branch. Avoid calling
+            // "pointInBox" function unnecessarily.
+            bool isInside = true;
+            if (!knownInside)
+                isInside = pointInBox(node->point, box);
+            if (isInside)
+                visitor.process(*node->point);
+        }
+        else
+        {
+            // Trunk node.
+            // Process the points on the right branch.
+            const KDTreeNode* rightDau = &nodes_[node->right];
+            if (rightDau->point)
+            {
+                bool isInside = true;
+                if (!knownInside)
+                    isInside = pointInBox(rightDau->point, box);
+                if (isInside)
+                    visitor.process(*rightDau->point);
+            }
+            else if (node->split <= box[node->splitIndex].max())
+            {
+                if (knownInside)
+                    visitorRecursion(visitor, node->right, box,
+                                     lowerLimit, upperLimit, true);
+                else
+                {
+                    Numeric oldlimit(lowerLimit[node->splitIndex]);
+                    lowerLimit[node->splitIndex] = node->split;
+                    bool allInside = limitsInBox(box, lowerLimit, upperLimit);
+                    visitorRecursion(visitor, node->right, box, lowerLimit,
+                                     upperLimit, allInside);
+                    lowerLimit[node->splitIndex] = oldlimit;
+                }
+            }
+
+            // Process the points on the left branch
+            const KDTreeNode* leftDau = &nodes_[node->left];
+            if (leftDau->point)
+            {
+                bool isInside = true;
+                if (!knownInside)
+                    isInside = pointInBox(leftDau->point, box);
+                if (isInside)
+                    visitor.process(*leftDau->point);
+            }
+            else if (node->split > box[node->splitIndex].min())
+            {
+                if (knownInside)
+                    visitorRecursion(visitor, node->left, box,
+                                     lowerLimit, upperLimit, true);
+                else
+                {
+                    Numeric oldlimit(upperLimit[node->splitIndex]);
+                    upperLimit[node->splitIndex] = node->split;
+                    bool allInside = limitsInBox(box, lowerLimit, upperLimit);
+                    visitorRecursion(visitor, node->left, box, lowerLimit,
+                                     upperLimit, allInside);
+                    upperLimit[node->splitIndex] = oldlimit;
+                }
+            }
+        }
+    }
+
+    template <class Point, typename Numeric>
+    inline unsigned KDTree<Point,Numeric>::nCdf(
+        const Numeric* limit, unsigned limitDim) const
+    {
+        if (limitDim != dim_) throw std::invalid_argument(
+            "In npstat::KDTree::nCdf: incompatible input point dimensionality");
+        Numeric* up = &uplim_[0];
+        for (unsigned i=0; i<limitDim; ++i)
+            up[i] = std::numeric_limits<Numeric>::max();
+        return countBelow(0U, limit, up);
+    }
+
+    template <class Point, typename Numeric>
+    inline unsigned KDTree<Point,Numeric>::nInBox(
+        const BoxND<Numeric>& box) const
+    {
+        if (box.dim() != dim_) throw std::invalid_argument(
+            "In npstat::KDTree::nInBox: incompatible box dimensionality");
+        Numeric* up = &uplim_[0];
+        Numeric* lo = &lolim_[0];
+        for (unsigned i=0; i<dim_; ++i)
+        {
+            up[i] = std::numeric_limits<Numeric>::max();
+            lo[i] = -up[i];
+        }
+        return countInBox(0U, box, lo, up);
+    }
+
+    template <class Point, typename Numeric>
+    template <class Result>
+    void KDTree<Point,Numeric>::visitInBox(
+        AbsVisitor<Point,Result>& visitor,
+        const BoxND<Numeric>& box) const
+    {
+        if (box.dim() != dim_) throw std::invalid_argument(
+            "In npstat::KDTree::visitInBox: incompatible box dimensionality");
+        Numeric* up = &uplim_[0];
+        Numeric* lo = &lolim_[0];
+        for (unsigned i=0; i<dim_; ++i)
+        {
+            up[i] = std::numeric_limits<Numeric>::max();
+            lo[i] = -up[i];
+        }
+        return visitorRecursion(visitor, 0U, box, lo, up, false);
+    }
+}

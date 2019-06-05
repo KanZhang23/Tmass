@@ -1,0 +1,14 @@
+April 2015:      Server socket now binds to INADDR_LOOPBACK instead
+                 of INADDR_ANY. This makes it compliant with Fermilab
+                 computer security guidelines. Forward the port via
+                 ssh if you want to connect a remote client.
+
+September 2012:  Conversion of the build system to autotools by igv.
+                 Fortran bindings and HBOOK I/O are disabled as obsolete.
+
+2006:            Ported to 64-bit platforms by igv.
+
+October 2002:    Numerous modifications by igv. Added color plots, extended
+                 communication abilities, fixed a set of bugs, etc.
+
+23-Jun-97:       Released Histo-Scope V4.0.1 Source Kit

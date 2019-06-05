@@ -1,0 +1,43 @@
+set tmpdir [file join $::tcltest::testsDirectory compile_dir]
+::tcltest::makeDirectory $tmpdir
+
+test sharedlib_compile-1.1 {test on-the-fly C compilation} {} {
+    set codefile [file join $tmpdir file1.c]
+    set sofile [file join $tmpdir file1.so]
+    ::tcltest::makeFile {
+	#include <stdio.h>
+        int howdy(void)
+	{
+	    printf("Howdy!\n");
+	    return 0;
+	}
+    } $codefile
+    hs::sharedlib_compile $codefile $sofile
+    catch {hs::sharedlib open $sofile} token
+    file delete $sofile
+    hs::sharedlib close $token
+} {}
+
+test sharedlib_compile-1.2 {test on-the-fly Fortran compilation} {} {
+    set codefile [file join $tmpdir file2.f]
+    set sofile [file join $tmpdir file2.so]
+    ::tcltest::makeFile {
+         DOUBLE PRECISION FUNCTION APLUSB(A,B)
+         DOUBLE PRECISION A,B
+         APLUSB = A + B
+         RETURN
+         END         
+    } $codefile
+    hs::sharedlib_compile $codefile $sofile
+    catch {hs::sharedlib open $sofile} token
+    file delete $sofile
+    hs::sharedlib close $token
+} {}
+
+unset tmpdir
+catch {unset token}
+catch {unset codefile}
+catch {unset sofile}
+
+::tcltest::cleanupTests
+return

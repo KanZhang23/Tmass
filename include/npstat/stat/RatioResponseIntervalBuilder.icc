@@ -1,0 +1,104 @@
+#include <cassert>
+#include <cfloat>
+#include <stdexcept>
+#include <algorithm>
+
+#include "npstat/nm/PointDimensionality.hh"
+
+namespace npstat {
+    template <class Point>
+    RatioResponseIntervalBuilder<Point>::RatioResponseIntervalBuilder(
+        const unsigned denomDim,
+        const double numeratorCut,
+        const double badFraction)
+        : predictorDim_(denomDim),
+          numeratorCut_(numeratorCut),
+          frac_(badFraction)
+    {
+        const unsigned ds = PointDimensionality<Point>::dim_size;
+        if (predictorDim_ >= ds) throw std::invalid_argument(
+            "In npstat::RatioResponseIntervalBuilder constructor: "
+            "invalid predictor dimension number");
+        if (numeratorCut_ <= 0.0) throw std::invalid_argument(
+            "In npstat::RatioResponseIntervalBuilder constructor: "
+            "numerator cut must be positive");
+        if (frac_ < 0.0 || frac_ > 1.0) throw std::invalid_argument(
+            "In npstat::RatioResponseIntervalBuilder constructor: "
+            "fraction argument is out of range");
+    }
+
+    template <class Point>
+    Interval<double> RatioResponseIntervalBuilder<Point>::makeResponseInterval(
+        unsigned long /* uniqueId */,
+        const double* /* predictorCoords */, unsigned /* nPredictors */,
+        const BoxND<double>& /* predictorBox */,
+        std::vector<typename Point::value_type>& /* data */) const
+    {
+        throw std::runtime_error(
+            "In npstat::RatioResponseIntervalBuilder::makeResponseInterval: "
+            "function not implemented");
+        return Interval<double>(0.0, 0.0);
+    }
+
+    template <class Point>
+    Interval<double> RatioResponseIntervalBuilder<Point>::makeResponseIntervalW(
+        unsigned long /* uniqueId */,
+        const double* /* predictorCoords */, unsigned /* nPredictors */,
+        const BoxND<double>& /* predictorBox */, const WeightedPtrVec& data,
+        const unsigned /* ratioDim */) const
+    {
+        typedef std::pair<typename Point::value_type, double> WeightedValue;
+        typedef std::vector<WeightedValue> WeightedValueVec;
+
+        const unsigned long nPoints = data.size();
+        if (nPoints == 0) throw std::invalid_argument(
+            "In npstat::RatioResponseIntervalBuilder::makeResponseIntervalW: "
+            "the vector of input points is empty");
+
+        WeightedValueVec predSorted;
+        predSorted.reserve(nPoints);
+        for (unsigned long ipt=0; ipt<nPoints; ++ipt)
+        {
+            const double w = data[ipt].second;
+            assert(w >= 0.0);
+            predSorted.push_back(WeightedValue(
+                                     (*data[ipt].first)[predictorDim_], w));
+        }
+        std::sort(predSorted.begin(), predSorted.end());
+        if (predSorted[0].first <= 0.0) throw std::invalid_argument(
+            "In npstat::RatioResponseBoxBuilder::makeResponseBoxW: "
+            "predictor values must be positive");
+
+        double rCut = -1.0;
+        if (frac_ == 0.0)
+            rCut = numeratorCut_/predSorted[0].first;
+        else if (frac_ == 1.0)
+            rCut = numeratorCut_/predSorted.back().first;
+        else
+        {
+            long double sum = 0.0L;
+            for (unsigned long ipt=0; ipt<nPoints; ++ipt)
+                sum += predSorted[ipt].second;
+            if (sum <= 0.0L) throw std::invalid_argument(
+                "In npstat::RatioResponseIntervalBuilder::makeResponseIntervalW:"
+                " sum of weights is not positive");
+            const long double sumNeeded = sum*frac_;
+            sum = 0.0L;
+            long double sumAbove = 0.0L;
+            for (unsigned long ipt=0; ipt<nPoints; ++ipt)
+            {
+                sumAbove += predSorted[ipt].second;
+                if (sum <= sumNeeded && sumNeeded < sumAbove)
+                {
+                    rCut = numeratorCut_/predSorted[ipt].first;
+                    break;
+                }
+                sum = sumAbove;
+            }
+        }
+        if (rCut < 0.0) throw std::runtime_error(
+            "In npstat::RatioResponseIntervalBuilder::makeResponseIntervalW: "
+            "ratio cut determination algorithm failed");
+        return Interval<double>(rCut, DBL_MAX);
+    }
+}

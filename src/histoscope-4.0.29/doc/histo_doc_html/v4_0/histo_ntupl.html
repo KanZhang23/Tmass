@@ -1,0 +1,623 @@
+<title>Ntuple Window</title>
+<h2>
+Ntuple Window
+</h2>
+<p>
+<IMG SRC="HSfig19.gif"><p>
+<p>
+Figure 21.  Ntuple Window<p>
+<p>
+Whenever an Ntuple is selected from the Main Window, an Ntuple window pops up
+that allows you to specify the variables to plot and the type of plot desired.
+The name of the Ntuple appears as the window title so that you can readily
+identify the Ntuple Window of one data item from another. <p>
+<p>
+First, select the type of plot you want from the <i>Plot Type</i> pull-down
+menu:<p>
+<p>
+<IMG SRC="HSfig20.gif"><p>
+<p>
+Figure 22.  Plot Type Pull-Down Menu<p>
+<p>
+
+Then, select variables from the <i>Variables</i> list box at left and assign
+the selected variable to the desired plot position by pressing the
+corresponding <i>Assign</i> push-button.  Double clicking on a variable name
+will assign the variable to the next vacant assignment position.  To de-assign
+a variable, click on "&lt;Clear Entry&gt;" and then click on the assignment
+position you'd like to clear.  How each variable is used in the plot depends on
+the plot type and the assignment position:<p>
+<p><pre>
+      Prefix	 Use<p>
+	V	Variable<p>
+	X	Variable plotted against X axis<p>
+	Y	Variable plotted against Y axis<p>
+	Z	Variable plotted against Z axis<p>
+	S	Variable not plotted, but used as a slider variable to see <p>
+	          "cuts" of data<p>
+	E+	Variable used as error values (+) for preceeding variable<p>
+	E-	Variable used as error values (-) for preceeding variable<p>
+	V+	Variable used as vertical error values (+) for preceeding<p> 
+	          variable (XY Plot only)<p>
+	V-	Variable used as vertical error values (-) for preceeding <p>
+	          variable (XY Plot only)<p>
+	H+	Variable used as horizontal error values (+) for preceeding<p>
+	          variable (XY Plot only)<p>
+	H-	Variable used as horizontal error values (-) for preceeding <p>
+	          variable (XY Plot only)<p>
+<p>
+<p></pre>
+Up to seventeen variables can be assigned for certain plot types.  To expose
+additional plot assignments, drag the bottom frame of the Ntuple window
+downward with the mouse.  The window will grow downward as you pull.<p>
+<a name="a">
+<p>
+If only positive </a>(+) errors are specified for a variable, Histo-Scope will display
+those error values as symmetric (+ and -) errors.<p>
+<p>
+In addition to the variables that are part of the Ntuple, you can use the <i>Create
+Variable</i> button to derive additional variables and constants for plotting.  This will pop up a
+window that allows you to enter the information for the created variable (see below). 
+Once you have created a variable, selecting it in the Variables list and pressing
+<i>Modify Variable</i> will pop up a window for making changes.<p>
+<p>
+When all the settings in the window are to your liking, press the <i>Plot
+</i>button for the chosen plot or histogram to be displayed.<p>
+<p>
+Many plots can be requested from the same Ntuple Window.  To request another
+plot, select the Ntuple window and repeat the above procedure.<p>
+<p><a name="1a">
+The <i>Dismiss</i> </a>button will dismiss only the Ntuple window.  Plots and
+histograms currently displayed will remain open until explicitly closed or
+until Histo-Scope exits.<p>
+<p>
+
+Use the <i>Create Variable</i> button to derive additional variables and constants for
+plotting.   This will pop up a window that allows you to enter the name and expression 
+for the created variable. <p>
+<p>
+<IMG SRC="HSfig23b.gif"><p>
+<p>
+Figure 23. XY Scatter Plot<p>
+<p>
+To create a derived variable, fill in the Variable Name and Expression fields in this 
+dialog and press <i>Create</i>.<p>
+<p>
+The variable name can be any arbitrary character string, although strings without spaces
+or punctuation are easier to use in expressions.<p>
+<p>
+The expression should be a Fortran or C style arithmetic expression.  Valid operators are:
++, -, /, *, ^ (or **).  There are also a number of built-in single-argument functions
+and constants.  These can be pasted into the expression at the current text cursor 
+position by clicking on the <i>Paste Function</i> or <i>Paste Constant</i> menus and
+selecting the expression or constant to insert.  Variable names can similarly be pasted
+into the expression area by clicking on the <i>Paste Variable</i> menu.  When typing
+variables that contain spaces or punctuation, or variables that start with a number, the
+variable name should be surrounded in double quotes (").  Multi-line expressions with
+temporary variable assignments are also allowed, for example: <p>
+<pre>
+     a = sqrt(X) + 2*Y
+     b = Z**2 / (4*X)
+     a**2 +b*a**3
+     
+ </pre>
+ The value of the last line of the expression is taken as the value of the created
+ variable.<p>
+ <p>
+ Once the variable is created, it can be modified or deleted using the same window.  
+ If you dismiss the window oe lose it under other windows on your screen, you can pop 
+ it up againby selecting the variable in the Ntuple Window and pressing <i>Modify Variable </i>.
+ <p>
+<h2>
+<a name="1">Time Series Plots
+</a></h2>
+<p>
+A Time Series plot will plot the value of a variable from your Ntuple in the
+sequence in which that variable was collected.  Thus, the x-axis values start
+at zero and increase to the number of occurrences in the Ntuple.  The value of
+the Ntuple variable is plotted along the y-axis of the plot.<p>
+<p>
+Up to eighteen variables can be plotted in one window.  To reveal additional
+assignment buttons, use the mouse to grab the bottom frame of the Ntuple Window
+and pull downward.  The window will grow as you move the mouse pointer
+downward.  <p>
+<IMG SRC="HSfig21.gif"><p>
+<b></b><p>
+<b></b>Figure 24. Time Series Plot<p>
+If only one variable is plotted, its name appears at the top of the y-axis.  If
+more than one variable is plotted, a legend of variable names appears at the
+bottom of the plot.<p>
+<p>
+Initially, the entire range of the plot is displayed.  You can change the size
+of the plot by changing the size of its window (by dragging on the window
+frame).  You can change the scale of the plot by using the mouse to drag a part
+of an axis (just outside of the plot) toward one direction or another.  Use a
+point near the upper half of the axis to change the maximum axis value.  Use an
+axis point near the lower half of the axis to change the minimum axis value.
+This will zoom in or out, depending on the direction you drag that axis
+point.<p>
+<p>
+<IMG SRC="HSfig22.gif"><p>
+Figure 25. Interacting with Time Series Plots<p>
+<p>
+Once you have scaled a plot, it is possible to grab a point inside the plot and
+pan the plot, moving it around inside the axes. <p>
+<p>
+Histo-Scope allows Time Series plots to be overlaid by other one-dimensional
+plots such as 1-D histograms, adaptive 1-D histograms, XY Plots, and other 
+Time Series Plots.  Up to ten plots can be overlaid in one window.  To insert 
+a plot on top of a Time Series plot, use the middle mouse button to drag a plot 
+onto the Time Series plot window  (To drag the plot, press the middle mouse 
+button while the pointer is over the plot area of the desired plot, and, while 
+holding the mouse button down, move the mouse pointer over to the receiving 
+time series plot, and then release the middle mouse button.  When you press the 
+middle mouse button, the pointer changes to indicate that your are initiating a 
+drag.)  If the drag succeeds, you will see both plots overlaid in the receiving 
+window (the source plot remains unchanged).  If the drag does not succeed, you 
+will see the drag icon move back to the source plot when you release the middle 
+mouse button.  <p>
+<p>
+You can use the <u>right</u> mouse button on a selected plot window to pop-up a
+menu which allows the following functions:<p>
+<pre>
+	                               (Accelerator Key):<p>
+Help<p>
+Show Statistics                 	(Ctrl T)<p>
+Set Mark & Line Style...                (Ctrl M)<p>
+Show Legend                             (Ctrl G)<p>
+Axis Settings...                	(Ctrl A)<p>
+Zoom In                  		(Ctrl Z)<p>
+Zoom Out	                	(Shift Ctrl Z)<p>
+Reset View                       	(Ctrl R)<p>
+Automatic Update<p>
+Update	                            	(Ctrl U)<p>
+Grow Only                               (Ctrl O)<p>
+Print...		                (Ctrl P)<p>
+Generate PostScript...	                (Ctrl F)<p>
+Change Window Title                     (Ctrl E)<p> 
+Close	                        	(Ctrl W)<p>
+<p>
+</pre>
+See the section <A HREF="histo_set.html"> <b>Adjusting Plot Settings</b></A>
+ in this guide for a detailed
+explanation of each of these settings.<p>
+<p>
+
+<h2>
+<a name="2">XY Plot
+</a></h2>
+<p>
+An XY Plot plots pairs of points in two dimensions.  The points are taken in
+sequence from the Ntuple and are initially drawn with lines connecting the
+points and no markers.  The XY Plot can also be used as an alternative to the
+Scatter Plot.  In this case, use the Set Mark and Line Style plot adjustment to
+turn on markers and turn off connecting lines.  (When the number of points is
+small, the marks drawn by the XY Plot are much more visible than the
+pixel-sized dots drawn by the Scatter Plot.)  The XY Plot can also plot
+multiple sets of variable X-Y pairs from the Ntuple, distinguish them with
+different marker styles, and draw both horizontal and vertical error bars.  Up
+to nine X-Y pairs can be plotted in one window.  To reveal additional
+assignment buttons, use the mouse to grab the bottom frame of the Ntuple Window
+and pull downward.  The window will grow as you move the mouse pointer
+downward. <p>
+<p>
+<IMG SRC="HSfig23.gif"><p>
+<p>
+Figure 26. Sorted XY Plot<p>
+<p>
+Since the points in an XY Plot are not sorted the initial appearance of the
+plot may include lines which loop back on themselves.  Another type of XY Plot
+is the <b>Sorted XY Plot</b>.  In a Sorted XY Plot, the x-axis variable is
+sorted in order of increasing value and each succeeding variable is plotted
+along the y-axis against the first (sorted) variable.  This can often be a
+better way to observe how y varies with x.  A Sorted XY Plot can display up to
+seventeen Y-variables in one window.  If only one Y-variable is plotted, its
+name appears at the top of the y-axis.  If more than one is plotted, a legend
+of variable names appears at the bottom of the plot.<p>
+<p>
+Both types of XY Plots allow you to specify variables as error values.  An XY
+Plot w/Errors can plot up to three X-Y pairs with their corresponding vertical
+and horizontal errors.  A Sorted XY Plot w/Errors can plot up to five
+Y-variables and their corresponding (vertical) errors.  (To expose hidden plot
+variable assignments, drag the bottom frame of the Ntuple window downward with
+the mouse.  The window will grow downward as you pull.)<p>
+<p>
+Initially, the entire range of the plot is displayed.  You can change the size
+of the plot by changing the size of its window (by dragging on the window
+frame).  You can change the scale of the plot by using the mouse to drag a part
+of an axis (just outside of the plot) toward one direction or another.  Use a
+point near the upper half of the axis to change the maximum axis value.  Use an
+axis point near the lower half of the axis to change the minimum axis value.
+This will zoom in or out, depending on the direction you drag that axis
+point.<p>
+<p>
+<IMG SRC="HSfig24.gif"><p>
+Figure 27. Interacting with XY Plots<p>
+<p>
+Once you have scaled a plot, it is possible to grab a point inside the plot and
+pan the plot, moving it around inside the axes. <p>
+<p>
+Histo-Scope allows XY plots to be overlaid by other one-dimensional plots such 
+as 1-D histograms, 1-D adaptive histograms, Time Series Plots, and other XY
+plots.  Up to ten plots can be overlaid in one window.  To insert a plot on 
+top of an XY plot, use the middle mouse button to drag another plot onto the XY
+plot window  (To drag the plot, press the middle mouse button while the pointer
+is over the plot area of the desired plot, and, while holding the mouse button
+down, move the mouse pointer over to the receiving XY plot, and then release
+the middle mouse button.  When you press the middle mouse button, the pointer
+changes to indicate that your are initiating a drag.)  If the drag succeeds,
+you will see both plots overlaid in the receiving window (the source plot
+remains unchanged).  If the drag does not succeed, you will see the drag icon
+move back to the source plot when you release the middle mouse button.  <p>
+<p>
+You can use the right mouse button on a selected plot window to pop-up a menu
+which allows the following functions:<p>
+<p>
+<pre>
+	                               (Accelerator Key):<p>
+Help<p>
+Show Statistics                 	(Ctrl T)<p>
+Set Mark & Line Style...                (Ctrl M)<p>
+Show Legend                             (Ctrl G)<p>
+Axis Settings...                	(Ctrl A)<p>
+Zoom In                  		(Ctrl Z)<p>
+Zoom Out	                	(Shift Ctrl Z)<p>
+Reset View                       	(Ctrl R)<p>
+Automatic Update<p>
+Update	                            	(Ctrl U)<p>
+Grow Only                               (Ctrl O)<p>
+Print...		                (Ctrl P)<p>
+Generate PostScript...	                (Ctrl F)<p>
+Change Window Title                     (Ctrl E)<p> 
+Close	                        	(Ctrl W)<p>
+<p>
+</pre>
+<i></i>See the section <A HREF="histo_set.html"> <b>Adjusting Plot
+Settings</b></A> in this guide for a
+detailed explanation of each of these settings.<p>
+<p>
+
+<h2>
+<a name="3">XY Scatter Plot
+</a></h2>
+<p>
+<IMG SRC="HSfig25.gif"><p>
+<p>
+Figure 28. XY Scatter Plot<p>
+<p>
+An XY Scatter Plot will plot two variables against each other using a dot for
+each plotted point.  This kind of plot is useful when there are enough data
+points to be seen and their values form some visual pattern.  A plot adjustment
+for the Scatter Plot can make the pixel sizes dots "darker" or "lighter" to 
+optimize the data display.  (For sparse data that may not show well as a Scatter
+Plot, try using an XY Plot with markers and turn off the connecting lines.)<p>
+<p>
+In addition to the variables plotted along the x- and y-axis, up to three
+additional variables can be selected to adjust the plot as animation slider
+variables.<p>
+<p>
+<p>
+Initially, the entire range (excluding overflows) of the plot is displayed.
+You can change the size of the plot by changing the size of its window (by
+dragging on the window frame).  You can change the scale of the plot by using
+the mouse to drag a part of an axis (just outside of the plot) toward one
+direction or another.  Use a point near the upper half of the axis to change
+the maximum axis value.  Use an axis point near the lower half of the axis to
+change the minimum axis value.  This will zoom in or out, depending on the
+direction you drag that axis point.<p>
+<p>
+<IMG SRC="HSfig26.gif"><p>
+Figure 29. Interacting with 2D Scatter Plots<p>
+<p>
+Once you have scaled a plot, it is possible to grab a point inside the plot and
+pan the plot, moving it around inside the axes. <p>
+<p>
+You can use the right mouse button on a selected plot window to pop-up a menu
+which allows the following functions:<p>
+<p>
+<pre>
+	                               (Accelerator Key):<p>
+Help<p>
+Show Statistics                 	(Ctrl T)<p>
+Show Slider                             (Ctrl G)<p>
+Axis Settings...                	(Ctrl A)<p>
+Zoom In                  		(Ctrl Z)<p>
+Zoom Out	                	(Shift Ctrl Z)<p>
+Reset View                       	(Ctrl R)<p>
+Thicken Points      
+Automatic Update<p>
+Update	                            	(Ctrl U)<p>
+Grow Only                               (Ctrl O)<p>
+Print...		                (Ctrl P)<p>
+Generate PostScript...	                (Ctrl F)<p>
+Close	                        	(Ctrl W)<p>
+<p>
+</pre>	
+See the section <A HREF="histo_set.html"> <b>Adjusting Plot Settings</b></A>
+in this guide for a
+detailed explanation of each of these settings.<p>
+
+<h2>
+<a name="4">XYZ Scatter Plot
+</a></h2>
+<p>
+<p>
+<IMG SRC="HSfig27.gif"><p>
+<p>
+Figure 30. XYZ Scatter Plot<p>
+<p>
+An XYZ Scatter Plot plots three variables against each other using a dot for
+each plotted point.  This kind of plot is useful when there are enough data
+points to be seen and their values form some visual pattern.  Plotted dots can
+be thickened or lightened by selecting <i>Thicken Points</i> from the plot
+settings menu.  In addition to the variables plotted along the x- and y-axis,
+additional variables can be selected for animation sliders.<p>
+<p>
+Initially, the entire range of the Ntuple data is displayed.  You can change
+the size of the plot by changing the size of its window.  Just drag on the
+window frame to make the window the size you desire.  <p>
+<p>
+To rotate the plot, use the mouse to drag inside of the boundaries of the cube
+frame.  Dragging outside of the cube frame rotates the plot about an axis
+perpendicular to the plane of the window.   <p>
+<p>
+You can change the scale of the plot by dragging on the axis tics (just outside
+of the plot) toward one direction or another.  Use a point near the upper half
+of the axis to change the maximum axis value.  Use a point near the lower half
+of the axis to change the minimum axis value.  This will zoom in or out,
+depending on the direction you drag that axis point. <p>
+<p>
+<IMG SRC="HSfig28.gif"><p>
+Figure 31.  Interacting with 3D Scatter Plots<p>
+<p>
+Once you have scaled the plot, it is possible to grab points inside the axis
+lines and pan the plot, moving it around inside the axes.<p>
+<p>
+Using the Ctrl key along with the mouse button for scaling, panning, and
+rotation functions will provide a continuous display of the XYZ Scatter plot.
+Without using the Ctrl key, only the axes and labels are displayed while you
+are adjusting the plot.  (This is the default mode to accomodate slow
+displays).<p>
+<p>
+You can use the right mouse button on a selected plot window to pop-up a menu
+which allows the following functions:<p>
+<pre>
+	                               (Accelerator Key):<p>
+Help<p>
+Show Statistics                 	(Ctrl T)<p>
+Show Slider                             (Ctrl G)<p>
+Axis Settings...                	(Ctrl A)<p>
+Zoom In                  		(Ctrl Z)<p>
+Zoom Out	                	(Shift Ctrl Z)<p>
+Reset View                       	(Ctrl R)<p>
+Thicken Points      
+Automatic Update<p>
+Update	                            	(Ctrl U)<p>
+Grow Only                               (Ctrl O)<p>
+Print...		                (Ctrl P)<p>
+Generate PostScript...	                (Ctrl F)<p>
+Close	                        	(Ctrl W)<p>
+<p>
+</pre>
+<i></i>See the section <A HREF="histo_set.html"> <b>Adjusting Plot
+Settings</b></A> in this guide for a
+detailed explanation of each of these settings.<p>
+<p>
+
+<h2>
+<a name="5">Adaptive Histogram
+</a><a name="bk8"></h2>
+<p>
+<IMG SRC="HSfig29.gif"><p>
+<p>
+Figure 32. Adaptive Histogram<p>
+<p>
+A 1-dimensional histogram is a plot of one variable over a pre-specified range
+divided into a number of bins.  An adaptive histogram is a histogram whose
+bins, rather than being spaced evenly, are partitioned according to the density
+of the data.  A threshold value determines the number of fills at which a
+single bin is divided into additional bins.  Thus, the resolution of an
+adaptive histogram is highest where the data is densest, and lowest where the
+data is sparse.  <p>
+<p>
+Histo-Scope provides two adaptive histogram binning strategies: <i>Split in
+Half</i>, and <i>Center of Gravity</i>.  The split in half strategy simply
+divides the bins into two equal parts when the threshold number of fills is
+reached.  The center of gravity strategy starts with the whole data set and
+begins splitting the bins at their median value until the bins all contain less
+than the threshold number of fills.  (Because there is also a limit on the
+number of splits (20), bins can actually have more than the threshold number of
+fills, but these bins will already be imperceptibly narrow except at very high
+magnifications.)  <p>
+<p>
+Initially, the entire range (excluding overflows) of a histogram is displayed.
+You can change the size of the plot by changing the size of its window.  Just
+drag on the window frame to make the window the size you desire.<p>
+<p>
+<IMG SRC="HSfig30.gif"><p>
+Figure 33. Interacting with Adaptive Histogram Plots<p>
+<p>
+You can change the scale of the plot by using the mouse to drag a part of an
+axis (just outside of the plot) toward one direction or another.  Use a point
+near the upper half of the axis to change the maximum axis value.  Use a point
+near the lower half of the axis to change the minimum axis value.  This will
+zoom in or out, depending on the direction you drag that axis point.<p>
+<p>
+Once you have scaled the plot, it is possible to grab a point inside the<p>
+plot and pan the plot, moving it around inside the axes.<p>
+
+<p>
+Histo-Scope allows Adaptive Histogram plots to be overlaid by other 
+one-dimensional plots such as 1-D histograms,  XY Plots, Time Series Plots
+and otherAdaptive Histogram Plots.  Up to ten plots can be overlaid in one 
+window.  To insert a plot on top of a Time Series plot, use the middle mouse 
+button to drag a plot onto the Time Series plot window  (To drag the plot, 
+press the middle mouse button while the pointer is over the plot area of the 
+desired plot, and, while holding the mouse button down, move the mouse pointer 
+over to the receiving time series plot, and then release the middle mouse 
+button.  When you press the middle mouse button, the pointer changes to 
+indicate that your are initiating a drag.)  If the drag succeeds, you will 
+see both plots overlaid in the receiving window (the source plot remains 
+unchanged).  If the drag does not succeed, you will see the drag icon move 
+back to the source plot when you release the middle mouse button.  <p>
+<p>
+
+You can also use the <u>right</u> mouse button to pop-up a menu which allows
+the following functions:<p>
+<p>
+<pre>
+	                               (Accelerator Key):<p>
+Help<p>
+Show Statistics                 	(Ctrl T)<p>
+Show Slider                             (Ctrl G)<p>
+Show Bin Limit Sliders                  (Ctrl R)<p>
+Axis Settings...                	(Ctrl A)<p>
+Zoom In                  		(Ctrl Z)<p>
+Zoom Out	                	(Shift Ctrl Z)<p>
+Reset View                       	(Ctrl R)<p>
+Split in Half Stategy  
+Center of Grav. Strategy    
+Automatic Update<p>
+Update	                            	(Ctrl U)<p>
+Grow Only                               (Ctrl O)<p>
+Print...		                (Ctrl P)<p>
+Generate PostScript...	                (Ctrl F)<p>
+Close	                        	(Ctrl W)<p>
+<p>
+</pre>
+See the section <A HREF="histo_set.html"> <b>Adjusting Plot Settings</b></A> in this guide for a detailed
+explanation of each of these settings.<p>
+<p>
+
+<h2>
+<a name="6">Adaptive Two-Dimensional Histogram
+</a><a name="bk9"></h2>
+<p>
+A 2-dimensional histogram is a plot of two variables, where each axis is
+divided into a number of bins.  An adaptive histogram is a histogram whose
+bins, rather than being spaced evenly, are partitioned according to the density
+of the data.  A threshold value determines the number of fills at which a
+single bin is divided into additional bins.  Thus, the resolution of an
+adaptive histogram is highest where the data is densest, and lowest where the
+data is sparse. <p>
+<p>
+<IMG SRC="HSfig31.gif"><p>
+<p>
+Figure 34. Adaptive 2-D Histogram<p>
+<p>
+<p>
+<IMG SRC="HSfig32.gif"><p>
+Figure 35. Interacting with 2D Histograms<p>
+<p>
+Histo-Scope provides two adaptive histogram binning strategies:  <i>Split in
+Half</i>, and <i>Center of Gravity</i>.  The split in half strategy simply
+divides the bins into two equal parts when the threshold number of fills is
+reached.  The center of gravity strategy starts with the whole data set and
+begins splitting the bins at their median value until the bins all contain less
+than the threshold number of fills.  (Because there is also a limit on the
+number of splits (20), bins can actually have more than the threshold number of
+fills, but these bins will already be imperceptibly narrow except at very high
+magnifications)  <p>
+<p>
+Initially, the entire range of the data is displayed.<p>
+<p>
+You can change the size of the plot by changing the size of its window.  Just
+drag on the window frame to make the window the size you desire.  <p>
+<p>
+You can change the scale of the plot by using the mouse to drag a part of an
+axis (just outside of the plot) toward one direction or another.  Use a point
+near the upper half of the axis to change the maximum axis value.  Use a point
+near the lower half of the axis to change the minimum axis value.   This will
+zoom in or out, depending on the direction you drag that axis point.  <p>
+<p>
+Once you have scaled the plot on an axis, it is possible to grab a point just
+inside of the axis and pan the plot so that it moves along the axis.  <p>
+<p>
+The orientation of the histogram can be changed by grabbing a part of the
+display (away from an axis) with the mouse and moving the display in space to a
+different orientation.  <p>
+<p>
+You can also use the <u>right</u> mouse button to pop-up a menu which allows
+the following functions:<p><pre>
+	                               (Accelerator Key):<p>
+Help<p>
+Show Statistics                 	(Ctrl T)<p>
+Show Slider                             (Ctrl G)<p>
+Show Bin Limit Sliders                  (Ctrl R)<p>
+Axis Settings...                	(Ctrl A)<p>
+Zoom In                  		(Ctrl Z)<p>
+Zoom Out	                	(Shift Ctrl Z)<p>
+Reset View                       	(Ctrl R)<p>
+Split in Half Stategy  
+Center of Grav. Strategy    
+Automatic Update<p>
+Update	                            	(Ctrl U)<p>
+Grow Only                               (Ctrl O)<p>
+Print...		                (Ctrl P)<p>
+Generate PostScript...	                (Ctrl F)<p>
+Close	                        	(Ctrl W)<p>
+<p>
+
+</pre>
+See the section <A HREF="histo_set.html"> <b>Adjusting Plot
+Settings</b></A> in this guide for a
+detailed explanation of each of these settings.<p>
+<p>
+
+<h2>
+<a name="7">Two-Dimensional Cell Plot
+</a><a name="bk10"><a name="bk11"></h2>
+<p>
+<p>
+<IMG SRC="HSfig33.gif"><p>
+<p>
+Figure 36. 2-D Cell Plot<p>
+<p>
+A two-dimensional cell plot is a flat representation of a two-dimensional
+histogram, with bin contents represented by the size of a shaded rectangle
+drawn on the center of the bin.  If the source of the data is an n-tuple,
+additional variables can be selected for animation sliders.<p>
+<p>
+Initially, the entire range of the data is displayed.  You can change the size
+of the plot by changing the size of its window.  Just drag on the window frame
+to make the window the size you desire.  <p>
+<p>
+You can change the scale of the plot by using the mouse to drag a part of an
+axis (just outside of the plot) toward one direction or another.  Use a point
+near the upper half of the axis to change the maximum axis value.  Use a point
+near the lower half of the axis to change the minimum axis value.   This will
+zoom in or out, depending on the direction you drag that axis point.  <p>
+<p>
+Once you have scaled the plot on an axis, it is possible to grab a point just
+inside of the axis and pan the plot so that it moves along the axis.  <p>
+<IMG SRC="HSfig34.gif"><p>
+Figure 37. Interacting with 2D Cell Plots<p>
+<p>
+You can also use the <u>right</u> mouse button to pop-up a menu which allows
+the following functions:<p>
+	<pre>
+	                               (Accelerator Key):<p>
+Help<p>
+Show Statistics                 	(Ctrl T)<p>
+Show Slider                             (Ctrl G)<p>
+Show Rebin Sliders                      (Ctrl R)<p>
+Show Normalization Sliders              (Ctrl N)<p>
+Other Views
+Axis Settings...                	(Ctrl A)<p>
+Zoom In                  		(Ctrl Z)<p>
+Zoom Out	                	(Shift Ctrl Z)<p>
+Reset View                       	(Ctrl R)<p>
+Automatic Update<p>
+Update	                            	(Ctrl U)<p>
+Grow Only                               (Ctrl O)<p>
+Print...		                (Ctrl P)<p>
+Generate PostScript...	                (Ctrl F)<p>
+Change Window Title                     (Ctrl E)<p> 
+Close	                        	(Ctrl W)<p>
+<p>
+</pre>
+A Normalization Slider can be selected from the Plot Settings menu which will
+adjust the cell size in relation to the bin value of the cell.  See the section
+<A HREF="histo_set.html"> <b>Adjusting Plot Settings</b></A> in this guide for a detailed explanation of the
+Normalization Slider and each of the other plot settings.</a></a><p>
+

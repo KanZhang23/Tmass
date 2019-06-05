@@ -1,0 +1,11 @@
+Version 2.0.0 - May 26 2014, by I. Volobouev
+
+* Initial repackaging of the version 1.1 code from
+  http://www.iro.umontreal.ca/~simardr/ksdir/
+
+* Switched from C to C++ and changed all occurrences of malloc/free to
+  automatic memory management by std::vector.
+
+* Introduced "const" qualifiers in various places.
+
+* Changed "int n" to "unsigned n" for the sample size.

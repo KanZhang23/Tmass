@@ -1,0 +1,2775 @@
+#include <cassert>
+#include <string>
+#include <sstream>
+#include <cmath>
+#include <stdexcept>
+#include <utility>
+
+#include "geners/GenericIO.hh"
+#include "geners/IOException.hh"
+
+#include "npstat/nm/allocators.hh"
+#include "npstat/nm/lapack_interface.hh"
+#include "npstat/nm/PreciseType.hh"
+
+namespace npstat {
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>::Matrix()
+        : data_(0), nrows_(0), ncols_(0), len_(0),
+          isDiagonal_(false), diagonalityKnown_(false)
+    {
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>::Matrix(const Matrix& r)
+        : data_(0), nrows_(r.nrows_), ncols_(r.ncols_), len_(r.len_),
+          isDiagonal_(r.isDiagonal_), diagonalityKnown_(r.diagonalityKnown_)
+    {
+        if (len_)
+        {
+            if (len_ <= Len)
+                data_ = local_;
+            else
+                data_ = new Numeric[len_];
+            for (unsigned i=0; i<len_; ++i)
+                data_[i] = r.data_[i];
+        }
+        else
+        {
+            nrows_ = 0U;
+            ncols_ = 0U;
+        }
+    }
+
+#ifdef CPP11_STD_AVAILABLE
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>::Matrix(Matrix&& r)
+        : data_(0), nrows_(r.nrows_), ncols_(r.ncols_), len_(r.len_),
+          isDiagonal_(r.isDiagonal_), diagonalityKnown_(r.diagonalityKnown_)
+    {
+        if (len_)
+        {
+            if (len_ <= Len)
+            {
+                data_ = local_;
+                for (unsigned i=0; i<len_; ++i)
+                    data_[i] = r.data_[i];
+            }
+            else
+            {
+                data_ = r.data_;
+                r.data_ = 0;
+            }
+        }
+        else
+        {
+            nrows_ = 0U;
+            ncols_ = 0U;
+        }
+    }
+#endif
+
+    template<typename Numeric, unsigned Len>
+    template <typename Num2, unsigned Len2>
+    inline Matrix<Numeric,Len>::Matrix(const Matrix<Num2, Len2>& r)
+        : data_(0), nrows_(r.nrows_), ncols_(r.ncols_), len_(r.len_),
+          isDiagonal_(false), diagonalityKnown_(false)
+    {
+        if (len_)
+        {
+            if (len_ <= Len)
+                data_ = local_;
+            else
+                data_ = new Numeric[len_];
+            copyBuffer(data_, r.data_, len_);
+        }
+        else
+        {
+            nrows_ = 0U;
+            ncols_ = 0U;
+        }
+    }
+
+    template<typename Numeric, unsigned Len>
+    template<typename Iterator>
+    inline void Matrix<Numeric,Len>::setFromTriplets(
+        Iterator first, Iterator const last)
+    {
+        zeroOut();
+        for (; first != last; ++first)
+        {
+            const unsigned r = static_cast<unsigned>(first->row());
+            if (r >= nrows_) throw std::invalid_argument(
+                "In npstat::Matrix::setFromTriplets: row number out of range");
+            const unsigned c = static_cast<unsigned>(first->col());
+            if (c >= ncols_) throw std::invalid_argument(
+                "In npstat::Matrix::setFromTriplets: column number out of range");
+            data_[r*ncols_ + c] += first->value();
+        }
+    }
+
+    template<typename Numeric, unsigned Len>
+    template <typename Num2, unsigned Len2>
+    inline Matrix<Numeric,Len>::Matrix(
+        const Matrix<Num2, Len2>& r,
+        const unsigned rowMin, const unsigned rowMax,
+        const unsigned columnMin, const unsigned columnMax)
+        : data_(0), nrows_(rowMax - rowMin), ncols_(columnMax - columnMin),
+          len_(nrows_*ncols_), isDiagonal_(false), diagonalityKnown_(false)
+    {
+        if (rowMin > rowMax || columnMin > columnMax)
+            throw std::invalid_argument(
+                "In npstat::Matrix subrange constructor: "
+                "invalid subrange specification");
+        if (len_)
+        {
+            if (rowMax > r.nrows_)
+                throw std::invalid_argument(
+                    "In npstat::Matrix subrange constructor: "
+                    "maximum row number out of range");
+            if (columnMax > r.ncols_)
+                throw std::invalid_argument(
+                    "In npstat::Matrix subrange constructor: "
+                    "maximum column number out of range");
+            if (len_ <= Len)
+                data_ = local_;
+            else
+                data_ = new Numeric[len_];
+            for (unsigned row=0; row<nrows_; ++row)
+                copyBuffer(data_+ row*ncols_,
+                           r.data_+(rowMin+row)*r.ncols_ + columnMin,
+                           ncols_);
+        }
+        else
+        {
+            nrows_ = 0U;
+            ncols_ = 0U;
+        }
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>::Matrix(const unsigned nrows,
+                                       const unsigned ncols)
+        : data_(0), nrows_(nrows), ncols_(ncols), len_(nrows*ncols),
+          isDiagonal_(false), diagonalityKnown_(false)
+    {
+        if (!len_) throw std::invalid_argument(
+            "In npstat::Matrix constructor: both number of "
+            "rows and number of columns must be positive");
+        if (len_ <= Len)
+            data_ = local_;
+        else
+            data_ = new Numeric[len_];
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>::Matrix(const unsigned nrows,
+                                       const unsigned ncols,
+                                       const Numeric* data)
+        : data_(0), nrows_(nrows), ncols_(ncols), len_(nrows*ncols),
+          isDiagonal_(false), diagonalityKnown_(false)
+    {
+        if (!len_) throw std::invalid_argument(
+            "In npstat::Matrix constructor: both number of "
+            "rows and number of columns must be positive");
+        assert(data);
+        if (len_ <= Len)
+            data_ = local_;
+        else
+            data_ = new Numeric[len_];
+        for (unsigned i=0; i<len_; ++i)
+            data_[i] = data[i];
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>& Matrix<Numeric,Len>::zeroOut()
+    {
+        const Numeric null = Numeric();
+        for (unsigned i=0; i<len_; ++i)
+            data_[i] = null;
+        return *this;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>& Matrix<Numeric,Len>::constFill(const Numeric c)
+    {
+        for (unsigned i=0; i<len_; ++i)
+            data_[i] = c;
+        diagonalityKnown_ = false;
+        return *this;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>::Matrix(const unsigned nrows,
+                                       const unsigned ncols,
+                                       const int initCode)
+        : data_(0), nrows_(nrows), ncols_(ncols), len_(nrows*ncols),
+          isDiagonal_(false), diagonalityKnown_(false)
+    {
+        if (!len_) throw std::invalid_argument(
+            "In npstat::Matrix constructor: both number of "
+            "rows and number of columns must be positive");
+        if (len_ <= Len)
+            data_ = local_;
+        else
+            data_ = new Numeric[len_];
+        zeroOut();
+
+        switch (initCode)
+        {
+        case 0:
+            break;
+        case 1:
+            {
+                if (nrows_ != ncols_)
+                {
+                    if (len_ > Len)
+                        delete [] data_;
+                    throw std::invalid_argument(
+                        "In npstat::Matrix constructor: "
+                        "unit matrix must be square");
+                }
+                const Numeric one(static_cast<Numeric>(1));
+                for (unsigned i=0; i<nrows_; ++i)
+                    data_[i*ncols_ + i] = one;
+                isDiagonal_ = true;
+                diagonalityKnown_ = true;
+            }
+            break;
+        default:
+            {
+                if (len_ > Len)
+                    delete [] data_;
+                throw std::invalid_argument(
+                    "In npstat::Matrix constructor: "
+                    "invalid initialization code");
+            }
+        }
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>::~Matrix()
+    {
+        if (data_ != local_)
+            delete [] data_;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>& Matrix<Numeric,Len>::uninitialize()
+    {
+        if (data_ != local_)
+            delete [] data_;
+        data_ = 0;
+        nrows_ = 0;
+        ncols_ = 0;
+        len_ = 0;
+        diagonalityKnown_ = false;
+        isDiagonal_ = false;
+        return *this;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline void Matrix<Numeric,Len>::invertDiagonal(Matrix* result) const
+    {
+        assert(result != this);
+
+        Numeric* rdata = result->data_;
+        const unsigned len = nrows_*ncols_;
+        const Numeric zero = Numeric();
+        const Numeric one = static_cast<Numeric>(1);
+        for (unsigned i=0; i<len; ++i)
+            rdata[i] = zero;
+        for (unsigned row=0; row<nrows_; ++row)
+        {
+            const unsigned idx = row*ncols_ + row;
+            if (data_[idx] == zero) throw std::invalid_argument(
+                "In npstat::Matrix::invertDiagonal: matrix is not invertible");
+            rdata[idx] = one/data_[idx];
+        }
+        result->diagonalityKnown_ = true;
+        result->isDiagonal_ = true;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::symPDInv() const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::symPDInv: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::symPDInv: matrix is not square");
+        Matrix result(nrows_, nrows_);
+        if (isDiagonal())
+            invertDiagonal(&result);
+        else
+            invert_posdef_sym_matrix(data_, nrows_, result.data_);
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::symInv() const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::symInv: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::symInv: matrix is not square");
+        Matrix result(nrows_, nrows_);
+        if (isDiagonal())
+            invertDiagonal(&result);
+        else
+            invert_sym_matrix(data_, nrows_, result.data_);
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::inv() const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::inv: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::inv: matrix is not square");
+        Matrix result(nrows_, nrows_);
+        if (isDiagonal())
+            invertDiagonal(&result);
+        else
+            invert_general_matrix(data_, nrows_, result.data_);
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline void Matrix<Numeric,Len>::genEigen(
+        typename GeneralizedComplex<Numeric>::type *eigvals,
+        const unsigned lenEigvals,
+        Matrix* rightEigenvectors, Matrix* leftEigenvectors) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::genEigen: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::genEigen: matrix is not square");
+        if (lenEigvals < ncols_) throw std::invalid_argument(
+            "In npstat::Matrix::genEigen: "
+            "insufficient length of the eigenvalue buffer");
+        assert(eigvals);
+
+        Numeric* right = 0;
+        if (rightEigenvectors)
+        {
+            if (rightEigenvectors == this)
+                throw std::invalid_argument(
+                    "In npstat::Matrix::genEigen: "
+                    "can not replace matrix with its own right eigenvectors");
+            if (rightEigenvectors->data_ == 0)
+                *rightEigenvectors = *this;
+            if (!(nrows_ == rightEigenvectors->nrows_ && 
+                  nrows_ == rightEigenvectors->ncols_))
+                throw std::invalid_argument(
+                    "In npstat::Matrix::genEigen: "
+                    "incompatible matrix for storing right eigenvectors");
+            right = rightEigenvectors->data_;
+            rightEigenvectors->isDiagonal_ = false;
+            rightEigenvectors->diagonalityKnown_ = false;
+        }
+
+        Numeric* left = 0;
+        if (leftEigenvectors)
+        {
+            if (leftEigenvectors == this)
+                throw std::invalid_argument(
+                    "In npstat::Matrix::genEigen: "
+                    "can not replace matrix with its own left eigenvectors");
+            if (leftEigenvectors->data_ == 0)
+                *leftEigenvectors = *this;
+            if (!(nrows_ == leftEigenvectors->nrows_ && 
+                  nrows_ == leftEigenvectors->ncols_))
+                throw std::invalid_argument(
+                    "In npstat::Matrix::genEigen: "
+                    "incompatible matrix for storing left eigenvectors");
+            left = leftEigenvectors->data_;
+            leftEigenvectors->isDiagonal_ = false;
+            leftEigenvectors->diagonalityKnown_ = false;
+        }
+
+        if (left || right)
+            gen_matrix_eigensystem(data_, ncols_, eigvals, right, left);
+        else
+            gen_matrix_eigenvalues(data_, ncols_, eigvals);
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline void Matrix<Numeric,Len>::svd(Numeric* singularValues,
+                                         const unsigned lenSingularValues,
+                                         Matrix* U, Matrix* V,
+                                         const SvdMethod m) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::svd: uninitialized matrix");
+        if (lenSingularValues < std::min(nrows_, ncols_))
+            throw std::invalid_argument(
+                "In npstat::Matrix::svd: "
+                "insufficient length of the singular values buffer");
+        assert(singularValues);
+        assert(U);
+        assert(V);
+        if (U == this || V == this)
+            throw std::invalid_argument(
+                "In npstat::Matrix::svd: "
+                "can not replace matrix with its own decomposition");
+        U->resize(nrows_, nrows_);
+        V->resize(ncols_, ncols_);
+        bool status = false;
+        switch (m)
+        {
+            case SVD_SIMPLE:
+                status = gen_matrix_svd(data_, nrows_, ncols_, U->data_,
+                                        singularValues, V->data_);
+                break;
+            case SVD_D_AND_C:
+                status = gen_matrix_svd_dc(data_, nrows_, ncols_, U->data_,
+                                           singularValues, V->data_);
+                break;
+            default:
+                assert(!"In npstat::Matrix::svd: incomplete switch "
+                       "statement. This is a bug. Please report.");
+        }
+        if (!status) throw std::runtime_error(
+            "In npstat::Matrix::svd: algorithm did not converge");
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline void Matrix<Numeric,Len>::symEigen(Numeric* eigenvalues,
+                                              const unsigned lenEigenvalues,
+                                              Matrix* eigenvectors,
+                                              const EigenMethod m) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::symEigen: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::symEigen: matrix is not square");
+        if (lenEigenvalues < ncols_) throw std::invalid_argument(
+            "In npstat::Matrix::symEigen: "
+            "insufficient length of the eigenvalue buffer");
+        assert(eigenvalues);
+        if (eigenvectors)
+        {
+            if (eigenvectors == this)
+                throw std::invalid_argument(
+                    "In npstat::Matrix::symEigen: "
+                    "can not replace matrix with its own eigenvectors");
+            if (eigenvectors->data_ == 0)
+                *eigenvectors = *this;
+            if (!(nrows_ == eigenvectors->nrows_ && 
+                  nrows_ == eigenvectors->ncols_))
+                throw std::invalid_argument(
+                    "In npstat::Matrix::symEigen: "
+                    "incompatible matrix for storing eigenvectors");
+            eigenvectors->isDiagonal_ = false;
+            eigenvectors->diagonalityKnown_ = false;
+            switch (m)
+            {
+            case EIGEN_SIMPLE:
+                sym_matrix_eigensystem(data_, ncols_, eigenvalues,
+                                       eigenvectors->data_);
+                break;
+            case EIGEN_D_AND_C:
+                sym_matrix_eigensystem_dc(data_, ncols_, eigenvalues,
+                                          eigenvectors->data_);
+                break;
+            case EIGEN_RRR:
+                sym_matrix_eigensystem_rrr(data_, ncols_, eigenvalues,
+                                           eigenvectors->data_);
+                break;
+            default:
+                assert(!"In npstat::Matrix::symEigen: incomplete switch "
+                       "statement 1. This is a bug. Please report.");
+            }
+        }
+        else
+            switch (m)
+            {
+            case EIGEN_SIMPLE:
+                sym_matrix_eigenvalues(data_, ncols_, eigenvalues);
+                break;
+            case EIGEN_D_AND_C:
+                sym_matrix_eigenvalues_dc(data_, ncols_, eigenvalues);
+                break;
+            case EIGEN_RRR:
+                sym_matrix_eigenvalues_rrr(data_, ncols_, eigenvalues);
+                break;
+            default:
+                assert(!"In npstat::Matrix::symEigen: incomplete switch "
+                       "statement 2. This is a bug. Please report.");
+            }
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline void Matrix<Numeric,Len>::tdSymEigen(Numeric* eigenvalues,
+                                                const unsigned lenEigenvalues,
+                                                Matrix* eigenvectors,
+                                                const EigenMethod m) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::tdSymEigen: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::tdSymEigen: matrix is not square");
+        if (lenEigenvalues < ncols_) throw std::invalid_argument(
+            "In npstat::Matrix::tdSymEigen: "
+            "insufficient length of the eigenvalue buffer");
+        assert(eigenvalues);
+        if (eigenvectors)
+        {
+            if (eigenvectors == this)
+                throw std::invalid_argument(
+                    "In npstat::Matrix::tdSymEigen: "
+                    "can not replace matrix with its own eigenvectors");
+            if (eigenvectors->data_ == 0)
+                *eigenvectors = *this;
+            if (!(nrows_ == eigenvectors->nrows_ && 
+                  nrows_ == eigenvectors->ncols_))
+                throw std::invalid_argument(
+                    "In npstat::Matrix::tdSymEigen: "
+                    "incompatible matrix for storing eigenvectors");
+            eigenvectors->isDiagonal_ = false;
+            eigenvectors->diagonalityKnown_ = false;
+            switch (m)
+            {
+            case EIGEN_SIMPLE:
+                td_sym_matrix_eigensystem(data_, ncols_, eigenvalues,
+                                          eigenvectors->data_);
+                break;
+            case EIGEN_D_AND_C:
+                td_sym_matrix_eigensystem_dc(data_, ncols_, eigenvalues,
+                                             eigenvectors->data_);
+                break;
+            case EIGEN_RRR:
+                td_sym_matrix_eigensystem_rrr(data_, ncols_, eigenvalues,
+                                              eigenvectors->data_);
+                break;
+            default:
+                assert(!"In npstat::Matrix::tdSymEigen: incomplete switch "
+                       "statement 1. This is a bug. Please report.");
+            }
+        }
+        else
+            switch (m)
+            {
+            case EIGEN_SIMPLE:
+                td_sym_matrix_eigenvalues(data_, ncols_, eigenvalues);
+                break;
+            case EIGEN_D_AND_C:
+                td_sym_matrix_eigenvalues_dc(data_, ncols_, eigenvalues);
+                break;
+            case EIGEN_RRR:
+                td_sym_matrix_eigenvalues_rrr(data_, ncols_, eigenvalues);
+                break;
+            default:
+                assert(!"In npstat::Matrix::tdSymEigen: incomplete switch "
+                       "statement 2. This is a bug. Please report.");
+            }
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::symPDEigenInv(
+        const double tol, const bool extend, const EigenMethod eigenm) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::symPDEigenInv: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::symPDEigenInv: matrix is not square");
+        if (!(tol > 0.0 && tol < 1.0)) throw std::domain_error(
+            "In npstat::Matrix::symPDEigenInv: invalid tolerance parameter");
+
+        Matrix evec;
+        std::vector<Numeric> evBuf(nrows_);
+        Numeric* eigenvalues = &evBuf[0];
+        this->symEigen(eigenvalues, nrows_, &evec, eigenm);
+        const unsigned nm1 = nrows_ - 1U;
+        const double emax = eigenvalues[nm1];
+        if (emax <= 0.0) throw std::domain_error(
+            "In npstat::Matrix::symPDEigenInv: "
+            "largest eigenvalue is not positive");
+        const Numeric ecut = emax*tol;
+        const Numeric replacementValue = 1.0/(emax*tol);
+        const Numeric one = 1.0;
+        eigenvalues[nm1] = one/eigenvalues[nm1];
+        for (unsigned i=0; i<nm1; ++i)
+        {
+            if (eigenvalues[i] > ecut)
+                eigenvalues[i] = one/eigenvalues[i];
+            else if (extend)
+                eigenvalues[i] = replacementValue;
+            else
+                eigenvalues[i] = 0;
+        }
+        Matrix dmat(nrows_, nrows_);
+        dmat.diagFill(eigenvalues, nrows_);
+        return dmat.bilinear(evec);
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline double Matrix<Numeric,Len>::symPSDefEffectiveRank(
+        const double tol, const EigenMethod m, double* eigenSum) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::symPSDefEffectiveRank: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::symPSDefEffectiveRank: matrix is not square");
+        if (tol < 0.0) throw std::domain_error(
+            "In npstat::Matrix::symPSDefEffectiveRank: "
+            "tolerance can not be negative");
+        std::vector<Numeric> eigenvaluesVec(nrows_);
+        this->symEigen(&eigenvaluesVec[0], nrows_, 0, m);
+        const Numeric* eigenvalues = &eigenvaluesVec[0];
+        if (eigenvalues[nrows_ - 1] <= static_cast<Numeric>(0))
+        {
+            if (eigenSum)
+                *eigenSum = 0.0;
+            return 0.0;
+        }
+        const Numeric cutoff = tol*eigenvalues[nrows_ - 1];
+        unsigned ifirst = nrows_ - 1U;
+        for (; ifirst; --ifirst)
+            if (eigenvalues[ifirst - 1] <= cutoff)
+                break;
+        long double sum = 0.0L, entropy = 0.0L;
+        Numeric largest = Numeric();
+        for (unsigned i=ifirst; i<nrows_; ++i)
+        {
+            sum += eigenvalues[i];
+            if (eigenvalues[i] > largest)
+                largest = eigenvalues[i];
+            entropy -= eigenvalues[i]*std::log(eigenvalues[i]);
+        }
+        if (eigenSum)
+            *eigenSum = sum/static_cast<long double>(largest);
+        return sum*std::exp(entropy/sum);
+    }
+
+    template<typename Numeric, unsigned Len>
+    template <class Functor>
+    inline Matrix<Numeric,Len>
+    Matrix<Numeric,Len>::symFcn(const Functor& fcn) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::symFcn: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::symFcn: matrix is not square");
+        Matrix evectors(nrows_, nrows_);
+        Matrix evalues(nrows_, nrows_);
+        symEigen(evalues.data_, nrows_, &evectors);
+        const Numeric zero = Numeric();
+        for (unsigned i=1; i<nrows_; ++i)
+            evalues.data_[i*nrows_ + i] = evalues.data_[i];
+        for (unsigned i=0; i<nrows_; ++i)
+            for (unsigned j=0; j<nrows_; ++j)
+            {
+                if (j == i)
+                    evalues.data_[i*nrows_ + j] = 
+                        fcn(evalues.data_[i*nrows_ + j]);
+                else
+                    evalues.data_[i*nrows_ + j] = zero;
+            }
+        evalues.tagAsDiagonal();
+        return evalues.bilinear(evectors);
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>
+    Matrix<Numeric,Len>::pow(const unsigned degree) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::pow: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::pow: matrix is not square");
+        if (degree == 0U)
+            return Matrix(nrows_, ncols_, 1);
+        if (degree == 1U)
+            return *this;
+        Matrix result(*this);
+        for (unsigned i=1; i<degree; ++i)
+            result = result * *this;
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline bool Matrix<Numeric,Len>::isSymmetric() const
+    {
+        if (nrows_ == 0)
+            return false;
+        if (nrows_ != ncols_)
+            return false;
+        for (unsigned i=1; i<nrows_; ++i)
+            for (unsigned j=0; j<i; ++j)
+                if (data_[i*ncols_+j] != data_[j*ncols_+i])
+                    return false;
+        return true;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline void Matrix<Numeric,Len>::calcDiagonal()
+    {
+        isDiagonal_ = false;
+        if (len_)
+        {
+            const Numeric null = Numeric();
+            isDiagonal_ = (nrows_ == ncols_);
+            for (unsigned i=0; i<nrows_ && isDiagonal_; ++i)
+                for (unsigned j=0; j<ncols_ && isDiagonal_; ++j)
+                    if (i != j)
+                        isDiagonal_ = (data_[i*ncols_ + j] == null);
+            diagonalityKnown_ = true;
+        }
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline bool Matrix<Numeric,Len>::isDiagonal() const
+    {
+        if (!diagonalityKnown_)
+            (const_cast<Matrix*>(this))->calcDiagonal();
+        return isDiagonal_;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline bool Matrix<Numeric,Len>::isAntiSymmetric() const
+    {
+        if (nrows_ == 0)
+            return false;
+        if (nrows_ != ncols_)
+            return false;
+        for (unsigned i=1; i<nrows_; ++i)
+            for (unsigned j=0; j<i; ++j)
+                if (data_[i*ncols_+j] != -data_[j*ncols_+i])
+                    return false;
+        return true;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>
+    Matrix<Numeric,Len>::directSum(const Matrix& r) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::directSum: uninitialized matrix");
+        if (!r.nrows_) throw std::runtime_error(
+            "In npstat::Matrix::directSum: uninitialized argument");
+        const unsigned newCols = ncols_+r.ncols_;
+        Matrix result(nrows_+r.nrows_, newCols, 0);
+        for (unsigned row=0; row<nrows_; ++row)
+        {
+            Numeric* to = result.data_ + row*newCols;
+            const Numeric* from = data_ + row*ncols_;
+            for (unsigned col=0; col<ncols_; ++col)
+                *to++ = *from++;
+        }
+        for (unsigned row=0; row<r.nrows_; ++row)
+        {
+            Numeric* to = result.data_ + (row+nrows_)*newCols + ncols_;
+            const Numeric* from = r.data_ + row*r.ncols_;
+            for (unsigned col=0; col<r.ncols_; ++col)
+                *to++ = *from++;
+        }
+        result.diagonalityKnown_ = diagonalityKnown_ && r.diagonalityKnown_;
+        result.isDiagonal_ = isDiagonal_ && r.isDiagonal_;
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::symmetrize() const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::symmetrize: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::symmetrize: matrix is not square");
+        Matrix result(ncols_, nrows_);
+        const Numeric two(static_cast<Numeric>(2));
+        for (unsigned i=0; i<nrows_; ++i)
+        {
+            result.data_[i*ncols_+i] = data_[i*ncols_+i];
+            for (unsigned j=0; j<i; ++j)
+            {
+                const Numeric s((data_[i*ncols_+j]+data_[j*ncols_+i])/two);
+                result.data_[i*ncols_+j] = s;
+                result.data_[j*ncols_+i] = s;
+            }
+        }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::antiSymmetrize() const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::antiSymmetrize: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::antiSymmetrize: matrix is not square");
+        Matrix result(ncols_, nrows_);
+        const Numeric two(static_cast<Numeric>(2));
+        const Numeric zero = Numeric();
+        for (unsigned i=0; i<nrows_; ++i)
+        {
+            result.data_[i*ncols_+i] = zero;
+            for (unsigned j=0; j<i; ++j)
+            {
+                const Numeric s((data_[i*ncols_+j]-data_[j*ncols_+i])/two);
+                result.data_[i*ncols_+j] = s;
+                result.data_[j*ncols_+i] = -s;
+            }
+        }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>& Matrix<Numeric,Len>::resize(
+        const unsigned nrows, const unsigned ncols)
+    {
+        if (nrows != nrows_ || ncols != ncols_)
+        {
+            uninitialize();
+            len_ = nrows*ncols;
+            if (len_)
+            {
+                nrows_ = nrows;
+                ncols_ = ncols;
+                if (len_ <= Len)
+                    data_ = local_;
+                else
+                    data_ = new Numeric[len_];
+            }
+        }
+        else
+        {
+            isDiagonal_ = false;
+            diagonalityKnown_ = false;
+        }
+        return *this;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>& Matrix<Numeric,Len>::tagAsDiagonal()
+    {
+        if (!data_) throw std::runtime_error(
+            "In npstat::Matrix::tagAsDiagonal: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::tagAsDiagonal: matrix is not square");
+        diagonalityKnown_ = true;
+        isDiagonal_ = true;
+        return *this;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>& Matrix<Numeric,Len>::clearMainDiagonal()
+    {
+        const Numeric null = Numeric();
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::clearMainDiagonal: matrix is not square");
+        for (unsigned i=0; i<nrows_; ++i)
+            data_[i*ncols_ + i] = null;
+        return *this;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>& Matrix<Numeric,Len>::Tthis()
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::Tthis: uninitialized matrix");
+        if (!(diagonalityKnown_ && isDiagonal_))
+        {
+            if (nrows_ == ncols_)
+            {
+                for (unsigned i=0; i<nrows_; ++i)
+                    for (unsigned j=i+1U; j<nrows_; ++j)
+                        std::swap(data_[i*ncols_ + j], data_[j*ncols_ + i]);
+            }
+            else
+            {
+                if (len_ <= Len)
+                {
+                    Numeric tmp[Len];
+                    transposeBuffer(tmp, data_, nrows_, ncols_);
+                    copyBuffer(data_, tmp, len_);
+                }
+                else
+                {
+                    Numeric* tmp = new Numeric[len_];
+                    transposeBuffer(tmp, data_, nrows_, ncols_);
+                    delete [] data_;
+                    data_ = tmp;
+                }
+                std::swap(nrows_, ncols_);
+            }
+        }
+        return *this;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>& Matrix<Numeric,Len>::makeDiagonal()
+    {
+        const Numeric null = Numeric();
+        tagAsDiagonal();
+        for (unsigned i=0; i<len_; ++i)
+            if (i % ncols_ != i / ncols_)
+                data_[i] = null;
+        return *this;
+    }
+
+    template<typename Numeric, unsigned Len>
+    template<typename Num2>
+    inline Matrix<Numeric,Len>&
+    Matrix<Numeric,Len>::diagFill(const Num2* data, const unsigned dataLen)
+    {
+        if (dataLen)
+            assert(data);
+        if (data_)
+        {
+            if (nrows_ != ncols_) throw std::domain_error(
+                "In npstat::Matrix::diagFill: matrix is not square");
+            if (nrows_ != dataLen) throw std::invalid_argument(
+                "In npstat::Matrix::diagFill: "
+                "incompatible size of the input array");
+        }
+        else if (dataLen)
+        {
+            nrows_ = dataLen;
+            ncols_ = dataLen;
+            len_ = dataLen*dataLen;
+            if (len_ <= Len)
+                data_ = local_;
+            else
+                data_ = new Numeric[len_];
+        }
+        if (dataLen)
+        {
+            if (!(diagonalityKnown_ && isDiagonal_))
+                zeroOut();
+            for (unsigned i=0; i<dataLen; ++i)
+                data_[i*ncols_ + i] = static_cast<Numeric>(data[i]);
+            diagonalityKnown_ = true;
+            isDiagonal_ = true;
+        }
+        return *this;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline bool Matrix<Numeric,Len>::isCompatible(const Matrix& r) const
+    {
+        if (!nrows_)
+            return false;
+        else
+            return nrows_ == r.nrows_ && ncols_ == r.ncols_;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>&
+    Matrix<Numeric,Len>::operator=(const Matrix& r)
+    {
+        if (this == &r)
+            return *this;
+        if (data_)
+        {
+            if (!(nrows_ == r.nrows_ && ncols_ == r.ncols_))
+                throw std::domain_error(
+                    "In npstat::Matrix::operator=: "
+                    "incompatible argument dimensions");
+        }
+        else
+        {
+            nrows_ = r.nrows_;
+            ncols_ = r.ncols_;
+            len_ = r.len_;
+            if (len_ <= Len)
+                data_ = local_;
+            else
+                data_ = new Numeric[len_];
+        }
+        for (unsigned i=0; i<len_; ++i)
+            data_[i] = r.data_[i];
+        diagonalityKnown_ = r.diagonalityKnown_;
+        isDiagonal_ = r.isDiagonal_;
+        return *this;
+    }
+
+#ifdef CPP11_STD_AVAILABLE
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>&
+    Matrix<Numeric,Len>::operator=(Matrix&& r)
+    {
+        if (this == &r)
+            return *this;
+        if (data_)
+        {
+            if (!(nrows_ == r.nrows_ && ncols_ == r.ncols_))
+                throw std::domain_error(
+                    "In npstat::Matrix::operator=: "
+                    "incompatible argument dimensions");
+            if (data_ != local_)
+            {
+                delete [] data_;
+                data_ = 0;
+            }
+        }
+        nrows_ = r.nrows_;
+        ncols_ = r.ncols_;
+        len_ = r.len_;
+        if (len_ <= Len)
+        {
+            data_ = local_;
+            for (unsigned i=0; i<len_; ++i)
+                data_[i] = r.data_[i];
+        }
+        else
+        {
+            data_ = r.data_;
+            r.data_ = 0;
+        }
+        diagonalityKnown_ = r.diagonalityKnown_;
+        isDiagonal_ = r.isDiagonal_;
+        return *this;
+    }
+#endif
+
+    template<typename Numeric, unsigned Len>
+    template<typename Num2, unsigned Len2>
+    inline Matrix<Numeric,Len>&
+    Matrix<Numeric,Len>::operator=(const Matrix<Num2,Len2>& r)
+    {
+        if (reinterpret_cast<void*>(this) == reinterpret_cast<void*>(&r))
+            return *this;
+        if (data_)
+        {
+            if (!(nrows_ == r.nrows_ && ncols_ == r.ncols_))
+                throw std::domain_error(
+                    "In npstat::Matrix::operator=: "
+                    "incompatible argument dimensions");
+        }
+        else
+        {
+            nrows_ = r.nrows_;
+            ncols_ = r.ncols_;
+            len_ = r.len_;
+            if (len_ <= Len)
+                data_ = local_;
+            else
+                data_ = new Numeric[len_];
+        }
+        copyBuffer(data_, r.data_, len_);
+        if (r.diagonalityKnown_ && r.isDiagonal_)
+        {
+            diagonalityKnown_ = true;
+            isDiagonal_ = true;
+        }
+        else
+        {
+            diagonalityKnown_ = false;
+            isDiagonal_ = false;
+        }
+        return *this;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline bool Matrix<Numeric,Len>::operator==(const Matrix& r) const
+    {
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::operator==: uninitialized matrix");
+        if (!(nrows_ == r.nrows_ && ncols_ == r.ncols_))
+            throw std::domain_error(
+                "In npstat::Matrix::operator==: "
+                "incompatible argument dimensions");
+        for (unsigned i=0; i<len_; ++i)
+            if (data_[i] != r.data_[i])
+                return false;
+        return true;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline bool Matrix<Numeric,Len>::operator!=(const Matrix& r) const
+    {
+        return !(*this == r);
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline const Numeric* Matrix<Numeric,Len>::operator[](const unsigned i) const
+    {
+        return data_ + i*ncols_;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Numeric* Matrix<Numeric,Len>::operator[](const unsigned i)
+    {
+        diagonalityKnown_ = false;
+        return data_ + i*ncols_;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Numeric Matrix<Numeric,Len>::operator()(
+        const unsigned row, const unsigned column) const
+    {
+        return data_[row*ncols_ + column];
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Numeric Matrix<Numeric,Len>::at(
+        const unsigned row, const unsigned column) const
+    {
+        if (row >= nrows_)
+            throw std::out_of_range("npstat::Matrix::at: "
+                                    "row index out of range");
+        if (column >= ncols_)
+            throw std::out_of_range("npstat::Matrix::at: "
+                                    "column index out of range");
+        return data_[row*ncols_ + column];
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Numeric Matrix<Numeric,Len>::rowSum(const unsigned row) const
+    {
+        typedef typename PreciseType<Numeric>::type Precise;
+
+        if (row >= nrows_)
+            throw std::out_of_range("npstat::Matrix::rowSum: "
+                                    "row index out of range");
+        Precise sum = Precise();
+        const Numeric* rData = data_ + row*ncols_;
+        for (unsigned col=0; col<ncols_; ++col)
+            sum += *rData++;
+        return static_cast<Numeric>(sum);
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Numeric Matrix<Numeric,Len>::columnSum(const unsigned column) const
+    {
+        typedef typename PreciseType<Numeric>::type Precise;
+
+        if (column >= ncols_)
+            throw std::out_of_range("npstat::Matrix::columnSum: "
+                                    "column index out of range");
+        Precise sum = Precise();
+        const Numeric* columnData = data_ + column;
+        for (unsigned row=0; row<nrows_; ++row)
+            sum += columnData[row*ncols_];
+        return static_cast<Numeric>(sum);
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>& Matrix<Numeric,Len>::set(
+        const unsigned row, const unsigned column, const Numeric value)
+    {
+        if (row >= nrows_)
+            throw std::out_of_range("npstat::Matrix::set: "
+                                    "row index out of range");
+        if (column >= ncols_)
+            throw std::out_of_range("npstat::Matrix::set: "
+                                    "column index out of range");
+        data_[row*ncols_ + column] = value;
+        diagonalityKnown_ = false;
+        return *this;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>
+    Matrix<Numeric,Len>::operator+(const Matrix& r) const
+    {
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::operator+: uninitialized matrix");
+        if (!(nrows_ == r.nrows_ && ncols_ == r.ncols_))
+            throw std::domain_error(
+                "In npstat::Matrix::operator+: "
+                "incompatible argument dimensions");
+        Matrix result(nrows_, ncols_);
+        for (unsigned i=0; i<len_; ++i)
+            result.data_[i] = data_[i] + r.data_[i];
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>
+    Matrix<Numeric,Len>::hadamardProduct(const Matrix& r) const
+    {
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::hadamardProduct: uninitialized matrix");
+        if (!(nrows_ == r.nrows_ && ncols_ == r.ncols_))
+            throw std::domain_error(
+                "In npstat::Matrix::hadamardProduct: "
+                "incompatible argument dimensions");
+        Matrix result(nrows_, ncols_);
+        for (unsigned i=0; i<len_; ++i)
+            result.data_[i] = data_[i]*r.data_[i];
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>
+    Matrix<Numeric,Len>::hadamardRatio(const Matrix& r) const
+    {
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::hadamardRatio: uninitialized matrix");
+        if (!(nrows_ == r.nrows_ && ncols_ == r.ncols_))
+            throw std::domain_error(
+                "In npstat::Matrix::hadamardRatio: "
+                "incompatible argument dimensions");
+        Matrix result(nrows_, ncols_);
+        for (unsigned i=0; i<len_; ++i)
+        {
+            if (r.data_[i] == static_cast<Numeric>(0)) throw std::domain_error(
+                "In npstat::Matrix::hadamardRatio: division by zero");
+            result.data_[i] = data_[i]/r.data_[i];
+        }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline void
+    Matrix<Numeric,Len>::plus(const Matrix& r, Matrix* result) const
+    {
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::plus: uninitialized matrix");
+        if (!(nrows_ == r.nrows_ && ncols_ == r.ncols_))
+            throw std::domain_error(
+                "In npstat::Matrix::plus: "
+                "incompatible argument dimensions");
+        assert(result);
+        if (result != this)
+            result->resize(nrows_, ncols_);
+        Numeric* const rdata = result->data_;
+        for (unsigned i=0; i<len_; ++i)
+            rdata[i] = data_[i] + r.data_[i];
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>
+    Matrix<Numeric,Len>::operator-(const Matrix& r) const
+    {
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::operator-: uninitialized matrix");
+        if (!(nrows_ == r.nrows_ && ncols_ == r.ncols_))
+            throw std::domain_error(
+                "In npstat::Matrix::operator-: "
+                "incompatible argument dimensions");
+        Matrix result(nrows_, ncols_);
+        for (unsigned i=0; i<len_; ++i)
+            result.data_[i] = data_[i] - r.data_[i];
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline void
+    Matrix<Numeric,Len>::minus(const Matrix& r, Matrix* result) const
+    {
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::minus: uninitialized matrix");
+        if (!(nrows_ == r.nrows_ && ncols_ == r.ncols_))
+            throw std::domain_error(
+                "In npstat::Matrix::minus: "
+                "incompatible argument dimensions");
+        assert(result);
+        result->resize(nrows_, ncols_);
+        Numeric* const rdata = result->data_;
+        for (unsigned i=0; i<len_; ++i)
+            rdata[i] = data_[i] - r.data_[i];
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::T() const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::T: uninitialized matrix");
+        Matrix result(ncols_, nrows_);
+        if (diagonalityKnown_ && isDiagonal_)
+            copyBuffer(result.data_, data_, nrows_*ncols_);
+        else
+            transposeBuffer(result.data_, data_, nrows_, ncols_);
+        result.isDiagonal_ = isDiagonal_;
+        result.diagonalityKnown_ = diagonalityKnown_;
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::TtimesThis() const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::TtimesThis: uninitialized matrix");
+        Matrix result(ncols_, ncols_);
+        if (isDiagonal())
+        {
+            result.zeroOut();
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                const unsigned i = row*ncols_ + row;
+                result.data_[i] = data_[i] * data_[i];
+            }
+            result.diagonalityKnown_ = true;
+            result.isDiagonal_ = true;
+        }
+        else
+        {
+            for (unsigned row=0; row<ncols_; ++row)
+            {
+                const Numeric* s1 = data_ + row;
+                Numeric* pres = result.data_ + row*ncols_;
+                for (unsigned col=0; col<=row; ++col)
+                {
+                    const Numeric* slice = data_ + col;
+                    Numeric sum = Numeric();
+                    for (unsigned k=0; k<nrows_; ++k)
+                        sum += s1[k*ncols_]*slice[k*ncols_];
+                    pres[col] = sum;
+                    result.data_[col*ncols_ + row] = sum;
+                }
+            }
+        }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::bilinearT(const Matrix& r) const
+    {
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::bilinearT: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::bilinearT: matrix is not square");
+        if (ncols_ != r.ncols_) throw std::domain_error(
+            "In npstat::Matrix::bilinearT: incompatible matrix dimensions");
+        Matrix result(r.nrows_, r.nrows_);
+        const bool thisDiag = isDiagonal();
+        const bool rDiag = r.isDiagonal();
+        if (thisDiag && rDiag)
+        {
+            result.zeroOut();
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                const unsigned i = row*ncols_ + row;
+                result.data_[i] = data_[i]*r.data_[i]*r.data_[i];
+            }
+            result.diagonalityKnown_ = true;
+            result.isDiagonal_ = true;
+        }
+        else if (thisDiag)
+        {
+            for (unsigned row=0; row<r.nrows_; ++row)
+            {
+                Numeric* pres = result.data_ + row*r.nrows_;
+                for (unsigned col=0; col<r.nrows_; ++col)
+                {
+                    Numeric sum = Numeric();
+                    const Numeric* pr2 = r.data_ + r.ncols_*col;
+                    const Numeric* pr1 = r.data_ + r.ncols_*row;
+                    for (unsigned k=0; k<ncols_; ++k)
+                        sum += data_[k*ncols_ + k] * *pr1++ * *pr2++;
+                    pres[col] = sum;
+                }
+            }
+        }
+        else if (rDiag)
+        {
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                Numeric* pres = result.data_ + row*ncols_;
+                const Numeric* from = data_ + row*ncols_;
+                const Numeric f1 = r.data_[row*ncols_ + row];
+                for (unsigned col=0; col<ncols_; ++col)
+                    *pres++ = f1 * r.data_[col*ncols_ + col] * *from++;
+            }
+        }
+        else
+        {
+            Numeric localBuf[Len];
+            Numeric* buf = localBuf;
+            if (nrows_ > Len)
+                buf = new Numeric[nrows_];
+            for (unsigned col=0; col<r.nrows_; ++col)
+            {
+                for (unsigned j=0; j<nrows_; ++j)
+                {
+                    Numeric sum = Numeric();
+                    const Numeric* slice = data_ + j*ncols_;
+                    const Numeric* r1 = r.data_ + col*r.ncols_;
+                    for (unsigned k=0; k<ncols_; ++k)
+                        sum += *slice++ * *r1++;
+                    buf[j] = sum;
+                }
+                for (unsigned row=0; row<r.nrows_; ++row)
+                {
+                    Numeric sum = Numeric();
+                    const Numeric* r2 = r.data_ + row*r.ncols_;
+                    for (unsigned j=0; j<nrows_; ++j)
+                        sum += *r2++ * buf[j];
+                    result.data_[row*result.ncols_ + col] = sum;
+                }
+            }
+            if (buf != localBuf)
+                delete [] buf;
+        }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::bilinear(const Matrix& r) const
+    {
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::bilinear: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::bilinear: matrix is not square");
+        if (ncols_ != r.nrows_) throw std::domain_error(
+            "In npstat::Matrix::bilinear: incompatible matrix dimensions");
+        Matrix result(r.ncols_, r.ncols_);
+        const bool thisDiag = isDiagonal();
+        const bool rDiag = r.isDiagonal();
+        if (thisDiag && rDiag)
+        {
+            result.zeroOut();
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                const unsigned i = row*ncols_ + row;
+                result.data_[i] = data_[i]*r.data_[i]*r.data_[i];
+            }
+            result.diagonalityKnown_ = true;
+            result.isDiagonal_ = true;
+        }
+        else if (thisDiag)
+        {
+            for (unsigned row=0; row<r.ncols_; ++row)
+            {
+                const Numeric* pr1 = r.data_ + row;
+                Numeric* pres = result.data_ + row*r.ncols_;
+                for (unsigned col=0; col<r.ncols_; ++col)
+                {
+                    Numeric sum = Numeric();
+                    const Numeric* pr2 = r.data_ + col;
+                    for (unsigned k=0; k<ncols_; ++k)
+                        sum += data_[k*ncols_ + k] * pr1[k*r.ncols_] * pr2[k*r.ncols_];
+                    pres[col] = sum;
+                }
+            }
+        }
+        else if (rDiag)
+        {
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                Numeric* pres = result.data_ + row*ncols_;
+                const Numeric* from = data_ + row*ncols_;
+                const Numeric f1 = r.data_[row*ncols_ + row];
+                for (unsigned col=0; col<ncols_; ++col)
+                    *pres++ = f1 * r.data_[col*ncols_ + col] * *from++;
+            }
+        }
+        else
+        {
+            Numeric localBuf[Len];
+            Numeric* buf = localBuf;
+            if (nrows_ > Len)
+                buf = new Numeric[nrows_];
+            for (unsigned col=0; col<r.ncols_; ++col)
+            {
+                const Numeric* r1 = r.data_ + col;
+                for (unsigned j=0; j<nrows_; ++j)
+                {
+                    Numeric sum = Numeric();
+                    const Numeric* slice = data_ + j*ncols_;
+                    for (unsigned k=0; k<ncols_; ++k)
+                        sum += *slice++ * r1[k*r.ncols_];
+                    buf[j] = sum;
+                }
+                for (unsigned row=0; row<r.ncols_; ++row)
+                {
+                    const Numeric* r2 = r.data_ + row;
+                    Numeric sum = Numeric();
+                    for (unsigned j=0; j<nrows_; ++j)
+                        sum += buf[j] * r2[j*r.ncols_];
+                    result.data_[row*result.ncols_ + col] = sum;
+                }
+            }
+            if (buf != localBuf)
+                delete [] buf;
+        }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::Ttimes(const Matrix& r) const
+    {
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::Ttimes: uninitialized matrix");
+        if (nrows_ != r.nrows_) throw std::domain_error(
+            "In npstat::Matrix::Ttimes: incompatible matrix dimensions");
+        Matrix result(ncols_, r.ncols_);
+        const bool thisDiag = isDiagonal();
+        const bool rDiag = r.isDiagonal();
+        if (thisDiag && rDiag)
+        {
+            result.zeroOut();
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                const unsigned i = row*ncols_ + row;
+                result.data_[i] = data_[i]*r.data_[i];
+            }
+            result.diagonalityKnown_ = true;
+            result.isDiagonal_ = true;
+        }
+        else if (thisDiag)
+        {
+            // scale each row of the matrix r
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                const Numeric factor = data_[row*ncols_ + row];
+                Numeric* pres = result.data_ + row*r.ncols_;
+                const Numeric* pright = r.data_ + row*r.ncols_;
+                for (unsigned col=0; col<r.ncols_; ++col)
+                    *pres++ = factor * *pright++;
+            }
+        }
+        else if (rDiag)
+        {
+            // scale each row of this matrix
+            for (unsigned col=0; col<r.ncols_; ++col)
+            {
+                const Numeric factor = r.data_[col*r.ncols_ + col];
+                const Numeric* slice = data_ + col*ncols_;
+                Numeric* res = result.data_ + col;
+                for (unsigned row=0; row<ncols_; ++row)
+                    res[row*r.ncols_] = factor * *slice++;
+            }
+        }
+        else
+        {
+            for (unsigned row=0; row<ncols_; ++row)
+            {
+                Numeric* pres = result.data_ + row*r.ncols_;
+                const Numeric* pthis = data_ + row;
+                for (unsigned col=0; col<r.ncols_; ++col)
+                {
+                    Numeric sum = Numeric();
+                    const Numeric* pr = r.data_ + col;
+                    for (unsigned k=0; k<nrows_; ++k)
+                        sum += pthis[k*ncols_] * pr[k*r.ncols_];
+                    pres[col] = sum;
+                }
+            }
+        }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::timesT(const Matrix& r) const
+    {
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::timesT: uninitialized matrix");
+        if (ncols_ != r.ncols_) throw std::domain_error(
+            "In npstat::Matrix::timesT: incompatible matrix dimensions");
+        Matrix result(nrows_, r.nrows_);
+        const bool thisDiag = isDiagonal();
+        const bool rDiag = r.isDiagonal();
+        if (thisDiag && rDiag)
+        {
+            result.zeroOut();
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                const unsigned i = row*ncols_ + row;
+                result.data_[i] = data_[i]*r.data_[i];
+            }
+            result.diagonalityKnown_ = true;
+            result.isDiagonal_ = true;
+        }
+        else if (thisDiag)
+        {
+            // scale each row of the transposed r
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                const Numeric factor = data_[row*ncols_ + row];
+                Numeric* pres = result.data_ + row*r.nrows_;
+                for (unsigned col=0; col<r.nrows_; ++col)
+                    pres[col] = factor*r.data_[col*r.ncols_ + row];
+            }
+        }
+        else if (rDiag)
+        {
+            // scale each column of this matrix
+            for (unsigned col=0; col<ncols_; ++col)
+            {
+                const Numeric factor = r.data_[col*ncols_ + col];
+                const Numeric* slice = data_ + col;
+                Numeric* res = result.data_ + col;
+                for (unsigned row=0; row<nrows_; ++row)
+                    res[row*ncols_] = factor*slice[row*ncols_];
+            }
+        }
+        else
+        {
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                Numeric* pres = result.data_ + row*r.nrows_;
+                for (unsigned col=0; col<r.nrows_; ++col)
+                {
+                    Numeric sum = Numeric();
+                    const Numeric* prow = data_ + row*ncols_;
+                    const Numeric* slice = r.data_ + col*ncols_;
+                    for (unsigned k=0; k<ncols_; ++k)
+                        sum += *prow++ * *slice++;
+                    pres[col] = sum;
+                }
+            }
+        }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::timesT() const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::timesT: uninitialized matrix");
+        Matrix result(nrows_, nrows_);
+        if (isDiagonal())
+        {
+            result.zeroOut();
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                const unsigned i = row*ncols_ + row;
+                result.data_[i] = data_[i] * data_[i];
+            }
+            result.diagonalityKnown_ = true;
+            result.isDiagonal_ = true;
+        }
+        else
+        {
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                Numeric* pres = result.data_ + row*nrows_;
+                for (unsigned col=0; col<=row; ++col)
+                {
+                    const Numeric* prow = data_ + row*ncols_;
+                    const Numeric* prow2 = data_ + col*ncols_;
+                    Numeric sum = Numeric();
+                    for (unsigned k=0; k<ncols_; ++k)
+                        sum += *prow++ * *prow2++;
+                    pres[col] = sum;
+                    result.data_[col*nrows_ + row] = sum;
+                }
+            }
+        }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline double Matrix<Numeric,Len>::frobeniusNorm() const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::frobeniusNorm: uninitialized matrix");
+        long double sum = 0.0L;
+        for (unsigned i=0; i<len_; ++i)
+        {
+            const long double a = std::abs(data_[i]);
+            sum += a*a;
+        }
+        return std::sqrt(sum);
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::covarToCorr() const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::covarToCorr: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::covarToCorr: matrix is not square");
+        Matrix result(ncols_, nrows_);
+        Numeric* rdata = result.data_;
+        for (unsigned row=0; row<nrows_; ++row)
+        {
+            if (data_[row*nrows_ + row] <= 0.0)
+                throw std::domain_error(
+                    "In npstat::Matrix::covarToCorr: "
+                    "all variances must be positive");
+            rdata[row*nrows_ + row] = std::sqrt(data_[row*nrows_ + row]);
+        }
+        for (unsigned row=0; row<nrows_; ++row)
+            for (unsigned col=0; col<ncols_; ++col)
+                if (col != row)
+                    rdata[row*nrows_ + col] = data_[row*nrows_ + col]/
+                        (rdata[row*nrows_ + row]*rdata[col*nrows_ + col]);
+        for (unsigned row=0; row<nrows_; ++row)
+            rdata[row*nrows_ + row] = static_cast<Numeric>(1);
+        if (diagonalityKnown_ && isDiagonal_)
+        {
+            result.diagonalityKnown_ = true;
+            result.isDiagonal_ = true;
+        }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline void Matrix<Numeric,Len>::makeCoarse(
+        const unsigned n, const unsigned m, Matrix* result) const
+    {
+        assert(result);
+        if (result == this) throw std::invalid_argument(
+            "In npstat::Matrix::makeCoarse: "
+            "can not replace matrix with its own coarse version");
+        const unsigned newRows = nrows_ / n;
+        const unsigned newCols = ncols_ / m;
+        result->resize(newRows, newCols);
+
+        if (m == 1U && n == 1U)
+        {
+            copyBuffer(result->data_, data_, len_);
+            result->isDiagonal_ = isDiagonal_;
+            result->diagonalityKnown_ = diagonalityKnown_;
+        }
+        else if (m == 1U)
+        {
+            // Sum the rows
+            for (unsigned row=0; row<newRows; ++row)
+            {
+                const unsigned rstart = row*n;
+                const unsigned rstop = rstart + n;
+                Numeric* const rdata = result->data_ + row*ncols_;
+                for (unsigned col=0; col<ncols_; ++col)
+                {
+                    Numeric sum = Numeric();
+                    const Numeric* off = data_ + col;
+                    for (unsigned i=rstart; i<rstop; ++i)
+                        sum += off[i*ncols_];
+                    rdata[col] = sum;
+                }
+            }
+        }
+        else if (n == 1U)
+        {
+            // Sum the columns
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                Numeric* const rdata = result->data_ + row*newCols;
+                const Numeric* off = data_ + row*ncols_;
+                for (unsigned col=0; col<newCols; ++col)
+                {
+                    const unsigned endCol = (col + 1U)*m;
+                    Numeric sum = Numeric();
+                    for (unsigned i=col*m; i<endCol; ++i)
+                        sum += off[i];
+                    rdata[col] = sum;
+                }
+            }
+        }
+        else
+        {
+            for (unsigned row=0; row<newRows; ++row)
+            {
+                Numeric* const rdata = result->data_ + row*newCols;
+                const unsigned rstart = row*n;
+                const unsigned rstop = rstart + n;
+                for (unsigned col=0; col<newCols; ++col)
+                {
+                    Numeric sum = Numeric();
+                    const unsigned startCol = col*m;
+                    const unsigned endCol = startCol + m;
+                    for (unsigned i=rstart; i<rstop; ++i)
+                        for (unsigned j=startCol; j<endCol; ++j)
+                            sum += data_[i*ncols_ + j];
+                    rdata[col] = sum;
+                }
+            }
+        }
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline void Matrix<Numeric,Len>::coarseSum(
+        const unsigned n, const unsigned m, Matrix* result) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::coarseSum: uninitialized matrix");
+        if (!(n && m)) throw std::invalid_argument(
+            "In npstat::Matrix::coarseSum: "
+            "number of divisions must be positive");
+        if (nrows_ % n) throw std::invalid_argument(
+            "In npstat::Matrix::coarseSum: "
+            "n is not a divisor of the number or rows");
+        if (ncols_ % m) throw std::invalid_argument(
+            "In npstat::Matrix::coarseSum: "
+            "m is not a divisor of the number or columns");
+        makeCoarse(n, m, result);
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline void Matrix<Numeric,Len>::coarseAverage(
+        const unsigned n, const unsigned m, Matrix* result) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::coarseAverage: uninitialized matrix");
+        const unsigned nm = n*m;
+        if (!nm) throw std::invalid_argument(
+            "In npstat::Matrix::coarseAverage: "
+            "number of divisions must be positive");
+        if (nrows_ % n) throw std::invalid_argument(
+            "In npstat::Matrix::coarseAverage: "
+            "n is not a divisor of the number or rows");
+        if (ncols_ % m) throw std::invalid_argument(
+            "In npstat::Matrix::coarseAverage: "
+            "m is not a divisor of the number or columns");
+        makeCoarse(n, m, result);
+        if (nm > 1U)
+            *result /= static_cast<double>(nm);
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::removeRowAndColumn(
+        const unsigned rRow, const unsigned rColumn) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::removeRowAndColumn: uninitialized matrix");
+        unsigned newRows = nrows_;
+        unsigned newCols = ncols_;
+        if (rRow < nrows_)
+            --newRows;
+        if (rColumn < ncols_)
+            --newCols;
+        if (!(newRows && newCols)) throw std::invalid_argument(
+            "In npstat::Matrix::removeRowAndColumn: can not remove the only "
+            "row and/or column");
+        Matrix result(newRows, newCols);
+        unsigned fromrow = 0U;
+        for (unsigned torow=0U; torow<newRows; ++torow, ++fromrow)
+        {
+            if (fromrow == rRow)
+                ++fromrow;
+            Numeric* to = result.data_ + torow*newCols;
+            const Numeric* from = data_ + fromrow*ncols_;
+            for (unsigned tocol=0U; tocol<newCols; ++tocol)
+            {
+                if (tocol == rColumn) ++from;
+                *to++ = *from++;
+            }
+        }
+        if (diagonalityKnown_ && isDiagonal_ && newRows == newCols)
+        {
+            result.diagonalityKnown_ = true;
+            result.isDiagonal_ = true;
+        }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>
+    Matrix<Numeric,Len>::outer(const Matrix& r) const
+    {
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::outer: uninitialized matrix");
+        const unsigned nrows = nrows_*r.nrows_;
+        const unsigned ncols = ncols_*r.ncols_;
+        Matrix result(nrows, ncols);
+        for (unsigned tr=0; tr<nrows_; ++tr)
+            for (unsigned tc=0; tc<ncols_; ++tc)
+            {
+                const Numeric& datum(data_[tr*ncols_ + tc]);
+                for (unsigned rr=0; rr<r.nrows_; ++rr)
+                    for (unsigned rc=0; rc<r.ncols_; ++rc)
+                        result.data_[(tr*r.nrows_+rr)*ncols+tc*r.ncols_+rc] =
+                            datum*r.data_[rr*r.ncols_ + rc];
+            }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>
+    Matrix<Numeric,Len>::operator*(const Matrix& r) const
+    {
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::operator*: uninitialized matrix");
+        if (ncols_ != r.nrows_) throw std::domain_error(
+            "In npstat::Matrix::operator*: incompatible matrix dimensions");
+        Matrix result(nrows_, r.ncols_);
+        const bool thisDiag = isDiagonal();
+        const bool rDiag = r.isDiagonal();
+        if (thisDiag && rDiag)
+        {
+            result.zeroOut();
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                const unsigned i = row*ncols_ + row;
+                result.data_[i] = data_[i]*r.data_[i];
+            }
+            result.diagonalityKnown_ = true;
+            result.isDiagonal_ = true;
+        }
+        else if (thisDiag)
+        {
+            // scale each row of the matrix r
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                const Numeric factor = data_[row*ncols_ + row];
+                Numeric* pres = result.data_ + row*r.ncols_;
+                const Numeric* pright = r.data_ + row*r.ncols_;
+                for (unsigned col=0; col<r.ncols_; ++col)
+                    *pres++ = factor * *pright++;
+            }
+        }
+        else if (rDiag)
+        {
+            // scale each column of this matrix
+            for (unsigned col=0; col<ncols_; ++col)
+            {
+                const Numeric factor = r.data_[col*ncols_ + col];
+                const Numeric* slice = data_ + col;
+                Numeric* res = result.data_ + col;
+                for (unsigned row=0; row<nrows_; ++row)
+                    res[row*ncols_] = factor*slice[row*ncols_];
+            }
+        }
+        else
+        {
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                const Numeric* prow = data_ + row*ncols_;
+                Numeric* pres = result.data_ + row*r.ncols_;
+                for (unsigned col=0; col<r.ncols_; ++col)
+                {
+                    Numeric sum = Numeric();
+                    const Numeric* slice = r.data_ + col;
+                    for (unsigned k=0; k<ncols_; ++k)
+                        sum += prow[k]*slice[k*r.ncols_];
+                    pres[col] = sum;
+                }
+            }
+        }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline void
+    Matrix<Numeric,Len>::times(const Matrix& r, Matrix* result) const
+    {
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::times: uninitialized matrix");
+        if (ncols_ != r.nrows_) throw std::domain_error(
+            "In npstat::Matrix::times: incompatible matrix dimensions");
+        assert(result);
+        if (result == this || result == &r) throw std::invalid_argument(
+            "In npstat::Matrix::times: "
+            "can not have result set to one of the arguments");
+        result->resize(nrows_, r.ncols_);
+        Numeric* const rdata = result->data_;
+        const bool thisDiag = isDiagonal();
+        const bool rDiag = r.isDiagonal();
+        if (thisDiag && rDiag)
+        {
+            result->zeroOut();
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                const unsigned i = row*ncols_ + row;
+                rdata[i] = data_[i]*r.data_[i];
+            }
+            result->diagonalityKnown_ = true;
+            result->isDiagonal_ = true;
+        }
+        else if (thisDiag)
+        {
+            // scale each row of the matrix r
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                const Numeric factor = data_[row*ncols_ + row];
+                Numeric* pres = rdata + row*r.ncols_;
+                const Numeric* pright = r.data_ + row*r.ncols_;
+                for (unsigned col=0; col<r.ncols_; ++col)
+                    pres[col] = factor*pright[col];
+            }
+        }
+        else if (rDiag)
+        {
+            // scale each column of this matrix
+            for (unsigned col=0; col<ncols_; ++col)
+            {
+                const Numeric factor = r.data_[col*ncols_ + col];
+                const Numeric* slice = data_ + col;
+                Numeric* res = rdata + col;
+                for (unsigned row=0; row<nrows_; ++row)
+                    res[row*ncols_] = factor*slice[row*ncols_];
+            }
+        }
+        else
+        {
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                const Numeric* prow = data_ + row*ncols_;
+                Numeric* pres = rdata + row*r.ncols_;
+                for (unsigned col=0; col<r.ncols_; ++col)
+                {
+                    Numeric sum = Numeric();
+                    const Numeric* slice = r.data_ + col;
+                    for (unsigned k=0; k<ncols_; ++k)
+                        sum += prow[k]*slice[k*r.ncols_];
+                    pres[col] = sum;
+                }
+            }
+        }
+    }
+
+    template<typename Numeric, unsigned Len>
+    template <typename Num2>
+    inline Matrix<Numeric,Len>
+    Matrix<Numeric,Len>::timesVector(
+        const Num2* data, const unsigned dataLen) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::timesVector: uninitialized matrix");
+        if (ncols_ != dataLen) throw std::domain_error(
+            "In npstat::Matrix::timesVector: incompatible vector length");
+        assert(data);
+        Matrix result(nrows_, 1U);
+        Numeric* res = result[0];
+        if (isDiagonal())
+        {
+            for (unsigned row=0; row<nrows_; ++row)
+                res[row] = data_[row*ncols_ + row]*data[row];
+        }
+        else
+        {
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                const Numeric* prow = data_ + row*ncols_;
+                Numeric sum = Numeric();
+                for (unsigned k=0; k<ncols_; ++k)
+                    sum += prow[k]*data[k];
+                res[row] = sum;
+            }
+        }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    template <typename Num2>
+    inline Numeric Matrix<Numeric,Len>::timesVector(
+        const unsigned row, const Num2* data, const unsigned dataLen) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::timesVector: uninitialized matrix");
+        if (ncols_ != dataLen) throw std::domain_error(
+            "In npstat::Matrix::timesVector: incompatible vector length");
+        if (row >= nrows_) throw std::invalid_argument(
+            "In npstat::Matrix::timesVector: row number out of range");
+        assert(data);
+
+        if (isDiagonal())
+            return data_[row*ncols_ + row]*data[row];
+        else
+        {
+            const Numeric* prow = data_ + row*ncols_;
+            Numeric sum = Numeric();
+            for (unsigned k=0; k<ncols_; ++k)
+                sum += *prow++ * *data++;
+            return sum;
+        }
+    }
+
+    template<typename Numeric, unsigned Len>
+    template <typename Num2, typename Num3>
+    inline void Matrix<Numeric,Len>::timesVector(
+        const Num2* data, const unsigned dataLen,
+        Num3* res, const unsigned resultLen) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::timesVector: uninitialized matrix");
+        if (nrows_ > resultLen) throw std::invalid_argument(
+            "In npstat::Matrix::timesVector: "
+            "insufficient length of the output buffer");
+        if (ncols_ != dataLen) throw std::domain_error(
+            "In npstat::Matrix::timesVector: incompatible vector length");
+        assert(data);
+        assert(res);
+        if (isDiagonal())
+        {
+            for (unsigned row=0; row<nrows_; ++row)
+                res[row] = data_[row*ncols_ + row]*data[row];
+        }
+        else
+        {
+            for (unsigned row=0; row<nrows_; ++row)
+            {
+                const Numeric* prow = data_ + row*ncols_;
+                Numeric sum = Numeric();
+                for (unsigned k=0; k<ncols_; ++k)
+                    sum += prow[k]*data[k];
+                res[row] = sum;
+            }
+        }
+    }
+
+    template<typename Numeric, unsigned Len>
+    template <typename Num2>
+    inline Matrix<Numeric,Len>
+    Matrix<Numeric,Len>::rowMultiply(
+        const Num2* data, const unsigned dataLen) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::rowMultiply: uninitialized matrix");
+        if (nrows_ != dataLen) throw std::domain_error(
+            "In npstat::Matrix::rowMultiply: incompatible row length");
+        assert(data);
+        Matrix result(1U, ncols_);
+        Numeric* res = result[0];
+        if (isDiagonal())
+        {
+            for (unsigned col=0; col<ncols_; ++col)
+                res[col] = data[col]*data_[col*ncols_ + col];
+        }
+        else
+        {
+            const Numeric* pcol = data_;
+            for (unsigned col=0; col<ncols_; ++col, ++pcol)
+            {
+                Numeric sum = Numeric();
+                for (unsigned k=0; k<nrows_; ++k)
+                    sum += pcol[k*ncols_]*data[k];
+                res[col] = sum;
+            }
+        }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    template <typename Num2>
+    inline Numeric Matrix<Numeric,Len>::rowMultiply(
+        const unsigned col, const Num2* data, const unsigned dataLen) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::rowMultiply: uninitialized matrix");
+        if (nrows_ != dataLen) throw std::domain_error(
+            "In npstat::Matrix::rowMultiply: incompatible row length");
+        if (col >= ncols_) throw std::invalid_argument(
+            "In npstat::Matrix::rowMultiply: column number out of range");
+        assert(data);
+
+        if (isDiagonal())
+            return data[col]*data_[col*ncols_ + col];
+        else
+        {
+            const Numeric* pcol = data_ + col;
+            Numeric sum = Numeric();
+            for (unsigned k=0; k<nrows_; ++k)
+                sum += pcol[k*ncols_] * *data++;
+            return sum;
+        }
+    }
+
+    template<typename Numeric, unsigned Len>
+    template <typename Num2, typename Num3>
+    inline void Matrix<Numeric,Len>::rowMultiply(
+        const Num2* data, const unsigned dataLen,
+        Num3* res, const unsigned resultLen) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::rowMultiply: uninitialized matrix");
+        if (ncols_ > resultLen) throw std::invalid_argument(
+            "In npstat::Matrix::rowMultiply: "
+            "insufficient length of the output buffer");
+        if (nrows_ != dataLen) throw std::domain_error(
+            "In npstat::Matrix::rowMultiply: incompatible row length");
+        assert(data);
+        assert(res);
+        if (isDiagonal())
+        {
+            for (unsigned col=0; col<ncols_; ++col)
+                res[col] = data[col]*data_[col*ncols_ + col];
+        }
+        else
+        {
+            const Numeric* pcol = data_;
+            for (unsigned col=0; col<ncols_; ++col, ++pcol)
+            {
+                Numeric sum = Numeric();
+                for (unsigned k=0; k<nrows_; ++k)
+                    sum += pcol[k*ncols_]*data[k];
+                res[col] = sum;
+            }
+        }
+    }
+
+    template<typename Numeric, unsigned Len>
+    template <typename Num2>
+    inline Numeric Matrix<Numeric,Len>::bilinear(
+        const Num2* data, const unsigned dataLen) const
+    {
+        typedef typename PreciseType<Numeric>::type Precise;
+
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::bilinear: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::bilinear: matrix is not square");
+        if (ncols_ != dataLen) throw std::domain_error(
+            "In npstat::Matrix::bilinear: incompatible vector length");
+        assert(data);
+
+        Precise sum = Precise();
+        if (isDiagonal())
+        {
+            for (unsigned row=0; row<nrows_; ++row)
+                sum += data_[row*ncols_+row]*data[row]*data[row];
+        }
+        else
+        {
+            const Numeric* local = data_;
+            for (unsigned row=0; row<nrows_; ++row)
+                for (unsigned col=0; col<ncols_; ++col)
+                    sum += *local++ * data[row] * data[col];
+        }
+        return static_cast<Numeric>(sum);
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline bool Matrix<Numeric,Len>::solveLinearSystem(
+        const Numeric* rhs, const unsigned lenRhs, Numeric* solution) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::solveLinearSystem: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::solveLinearSystem: matrix is not square");
+        if (nrows_ != lenRhs) throw std::invalid_argument(
+            "In npstat::Matrix::solveLinearSystem: "
+            "incompatible dimensionality of the right hand side vector");
+        assert(rhs);
+        assert(solution);
+        return solve_linear_system(data_, lenRhs, rhs, solution);
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline bool Matrix<Numeric,Len>::linearLeastSquares(
+        const Numeric* rhs, const unsigned lenRhs,
+        Numeric* solution, const unsigned lenSolution) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::linearLeastSquares: uninitialized matrix");
+        if (nrows_ != lenRhs) throw std::invalid_argument(
+            "In npstat::Matrix::linearLeastSquares: "
+            "incompatible dimensionality of the right hand side vector");
+        if (ncols_ != lenSolution) throw std::invalid_argument(
+            "In npstat::Matrix::linearLeastSquares: "
+            "incompatible dimensionality of the solution vector");
+        if (nrows_ <= ncols_) throw std::domain_error(
+            "In npstat::Matrix::linearLeastSquares: "
+            "the system is not overdetermined");
+        assert(rhs);
+        assert(solution);
+        return linear_least_squares(data_, nrows_, ncols_, rhs, solution);
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline bool Matrix<Numeric,Len>::weightedLeastSquares(
+        const Numeric* rhsVec, const unsigned lenRhs,
+        const Matrix& vinv, Numeric* solution, const unsigned lenSolution,
+        Numeric* resultChiSquare, Matrix* resultCovarianceMatrix) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::weightedLeastSquares: uninitialized matrix");
+        if (nrows_ != lenRhs) throw std::invalid_argument(
+            "In npstat::Matrix::weightedLeastSquares: "
+            "incompatible dimensionality of the right hand side vector");
+        if (ncols_ != lenSolution) throw std::invalid_argument(
+            "In npstat::Matrix::weightedLeastSquares: "
+            "incompatible dimensionality of the solution vector");
+        if (vinv.nrows_ != nrows_) throw std::invalid_argument(
+            "In npstat::Matrix::weightedLeastSquares: "
+            "incompatible inverse covariance matrix dimensionality");
+        if (!vinv.isSquare()) throw std::invalid_argument(
+            "In npstat::Matrix::weightedLeastSquares: "
+            "inverse covariance matrix is not square");
+        if (nrows_ <= ncols_) throw std::domain_error(
+            "In npstat::Matrix::weightedLeastSquares: "
+            "the system is not overdetermined");
+        assert(rhsVec);
+        assert(solution);
+
+        Matrix rhs(lenRhs, 1, rhsVec);
+        const Matrix& rcov = vinv.bilinear(*this).symPDInv();
+        const Matrix& sol = rcov * Ttimes(vinv * rhs);
+        assert(sol.nrows_ == lenSolution);
+        copyBuffer(solution, sol.data_, lenSolution);
+
+        if (resultChiSquare)
+        {
+            rhs -= *this * sol;
+            *resultChiSquare = vinv.bilinear(rhs.data_, lenRhs);
+        }
+
+        if (resultCovarianceMatrix)
+        {
+            if (!rcov.isCompatible(*resultCovarianceMatrix))
+                resultCovarianceMatrix->uninitialize();
+            *resultCovarianceMatrix = rcov;
+        }
+
+        return true;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline bool Matrix<Numeric,Len>::constrainedLeastSquares(
+        const Numeric* rhs1, const unsigned lenRhs1,
+        const Matrix& B, const Numeric* rhs2, const unsigned lenRhs2,
+        Numeric* solution, const unsigned lenSolution,
+        Numeric* resultChiSquare, Matrix* resultCovarianceMatrix) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::constrainedLeastSquares: uninitialized matrix");
+        if (nrows_ != lenRhs1) throw std::invalid_argument(
+            "In npstat::Matrix::constrainedLeastSquares: "
+            "incompatible dimensionality of the right hand side vector");
+        if (ncols_ != lenSolution) throw std::invalid_argument(
+            "In npstat::Matrix::constrainedLeastSquares: "
+            "incompatible dimensionality of the solution vector");
+        if (!B.nrows_) throw std::runtime_error(
+            "In npstat::Matrix::constrainedLeastSquares: "
+            "uninitialized constraint matrix");
+        if (B.ncols_ != lenSolution) throw std::runtime_error(
+            "In npstat::Matrix::constrainedLeastSquares: "
+            "incompatible constraint matrix");
+        if (B.nrows_ != lenRhs2) throw std::invalid_argument(
+            "In npstat::Matrix::constrainedLeastSquares: "
+            "incompatible dimensionality of the constraint vector");
+        if (nrows_ + lenRhs2 <= ncols_) throw std::domain_error(
+            "In npstat::Matrix::constrainedLeastSquares: "
+            "the system is not overdetermined");
+        assert(rhs1);
+        assert(rhs2);
+        assert(solution);
+
+        bool status = false;
+        if (resultCovarianceMatrix)
+        {
+            if (nrows_ < ncols_) throw std::domain_error(
+                "In npstat::Matrix::constrainedLeastSquares: "
+                "unconstrained system is underdetermined");
+
+            // Solution of the unconstrained problem
+            const Matrix& cov0 = TtimesThis().symPDInv();
+            const Matrix& sol0 = cov0 * T().timesVector(rhs1, lenRhs1);
+            assert(sol0.nrows_ == lenSolution);
+
+            // Solve the constrained problem
+            const Matrix& tmp = cov0.timesT(B);
+            const Matrix& A = tmp * (B * tmp).symPDInv();
+            const Matrix& CP = Matrix(lenSolution, lenSolution, 1) - A * B;
+            const Matrix& sol = CP * sol0 + A.timesVector(rhs2, lenRhs2);
+            copyBuffer(solution, sol.data_, lenSolution);
+
+            // Evaluate the result covariance matrix
+            const Matrix& rcov = cov0.bilinearT(CP);
+            if (!rcov.isCompatible(*resultCovarianceMatrix))
+                resultCovarianceMatrix->uninitialize();
+            *resultCovarianceMatrix = rcov;
+
+            status = true;
+        }
+        else
+            status = constrained_least_squares(data_, nrows_, ncols_, rhs1,
+                                               B.data_, B.nrows_, B.ncols_,
+                                               rhs2, solution);
+        if (resultChiSquare)
+        {
+            if (status)
+            {
+                long double chisq = 0.0L;
+                for (unsigned i=0; i<lenRhs1; ++i)
+                {
+                    const Numeric delta = rhs1[i] -
+                        timesVector(i, solution, lenSolution);
+                    chisq += delta*delta;
+                }
+                *resultChiSquare = static_cast<Numeric>(chisq);
+            }
+            else
+                *resultChiSquare = static_cast<Numeric>(-1);
+        }
+        return status;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline bool Matrix<Numeric,Len>::solveLinearSystems(
+        const Matrix& rhs, Matrix* solution) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::solveLinearSystems: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::solveLinearSystems: matrix is not square");
+        if (nrows_ != rhs.nrows_) throw std::invalid_argument(
+            "In npstat::Matrix::solveLinearSystems: "
+            "incompatible dimensionality of the right hand side matrix");
+        assert(solution);
+        if (solution == this || solution == &rhs) throw std::invalid_argument(
+            "In npstat::Matrix::solveLinearSystems: "
+            "can not have result set to one of the arguments");
+        solution->resize(rhs.nrows_, rhs.ncols_);
+        const bool ok = solve_linear_systems(data_, rhs.nrows_, rhs.ncols_,
+                                             rhs.data_, solution->data_);
+        if (!ok)
+        {
+            const Numeric zero = Numeric();
+            const unsigned len = solution->length();
+            Numeric* sdata = solution->data_;
+            for (unsigned i=0; i<len; ++i)
+                *sdata++ = zero;
+        }
+        return ok;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Numeric Matrix<Numeric,Len>::maxAbsValue() const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::maxAbsValue: uninitialized matrix");
+        Numeric maxval = Numeric();
+        for (unsigned i=0; i<len_; ++i)
+            if (std::abs(data_[i]) > maxval)
+                maxval = std::abs(data_[i]);
+        return maxval;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Numeric Matrix<Numeric,Len>::tr() const
+    {
+        typedef typename PreciseType<Numeric>::type Precise;
+
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::tr: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::tr: matrix is not square");
+        Precise sum = Precise();
+        for (unsigned row=0; row<nrows_; ++row)
+            sum += data_[row*ncols_+row];
+        return static_cast<Numeric>(sum);
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Numeric Matrix<Numeric,Len>::productTr(const Matrix& r) const
+    {
+        typedef typename PreciseType<Numeric>::type Precise;
+
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::productTr: uninitialized matrix");
+        if (ncols_ != r.nrows_ || nrows_ != r.ncols_) throw std::domain_error(
+            "In npstat::Matrix::productTr: incompatible matrix dimensions");
+        Precise dsum = Precise();
+        for (unsigned row=0; row<nrows_; ++row)
+        {
+            const Numeric* prow = data_ + row*ncols_;
+            const Numeric* slice = r.data_ + row;
+            Precise sum = Precise();
+            for (unsigned k=0; k<ncols_; ++k)
+                sum += prow[k]*slice[k*r.ncols_];
+            dsum += sum;
+        }
+        return static_cast<Numeric>(dsum);
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Numeric Matrix<Numeric,Len>::det() const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::det: uninitialized matrix");
+        if (nrows_ != ncols_) throw std::domain_error(
+            "In npstat::Matrix::det: matrix is not square");
+        Numeric dvalue = Numeric();
+        if (nrows_ == 1)
+            dvalue = data_[0];
+        else if (nrows_ == 2)
+            dvalue = data_[0]*data_[3] - data_[1]*data_[2];
+        else if (nrows_ == 3)
+            dvalue = -(data_[2]*data_[4]*data_[6]) + 
+                data_[1]*data_[5]*data_[6] + 
+                data_[2]*data_[3]*data_[7] - data_[0]*data_[5]*data_[7] - 
+                data_[1]*data_[3]*data_[8] + data_[0]*data_[4]*data_[8];
+        else if (nrows_ == 4)
+            dvalue = data_[3]*data_[6]*data_[9]*data_[12] - 
+                data_[2]*data_[7]*data_[9]*data_[12] - 
+                data_[3]*data_[5]*data_[10]*data_[12] + 
+                data_[1]*data_[7]*data_[10]*data_[12] + 
+                data_[2]*data_[5]*data_[11]*data_[12] - 
+                data_[1]*data_[6]*data_[11]*data_[12] - 
+                data_[3]*data_[6]*data_[8]*data_[13] + 
+                data_[2]*data_[7]*data_[8]*data_[13] + 
+                data_[3]*data_[4]*data_[10]*data_[13] - 
+                data_[0]*data_[7]*data_[10]*data_[13] - 
+                data_[2]*data_[4]*data_[11]*data_[13] + 
+                data_[0]*data_[6]*data_[11]*data_[13] + 
+                data_[3]*data_[5]*data_[8]*data_[14] - 
+                data_[1]*data_[7]*data_[8]*data_[14] - 
+                data_[3]*data_[4]*data_[9]*data_[14] + 
+                data_[0]*data_[7]*data_[9]*data_[14] + 
+                data_[1]*data_[4]*data_[11]*data_[14] - 
+                data_[0]*data_[5]*data_[11]*data_[14] - 
+                data_[2]*data_[5]*data_[8]*data_[15] + 
+                data_[1]*data_[6]*data_[8]*data_[15] + 
+                data_[2]*data_[4]*data_[9]*data_[15] - 
+                data_[0]*data_[6]*data_[9]*data_[15] - 
+                data_[1]*data_[4]*data_[10]*data_[15] + 
+                data_[0]*data_[5]*data_[10]*data_[15];
+        else
+            dvalue = lu_decomposition_matrix_det(data_, nrows_);
+        return dvalue;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>
+    Matrix<Numeric,Len>::operator*(const Numeric r) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::operator*: uninitialized matrix");
+        Matrix result(nrows_, ncols_);
+        for (unsigned i=0; i<len_; ++i)
+            result.data_[i] = data_[i]*r;
+        if (diagonalityKnown_ && isDiagonal_)
+        {
+            result.diagonalityKnown_ = true;
+            result.isDiagonal_ = true;
+        }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline void
+    Matrix<Numeric,Len>::times(const Numeric r, Matrix* result) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::times: uninitialized matrix");
+        assert(result);
+        if (result != this)
+            result->resize(nrows_, ncols_);
+        Numeric* const rdata = result->data_;
+        for (unsigned i=0; i<len_; ++i)
+            rdata[i] = data_[i]*r;
+        if (diagonalityKnown_ && isDiagonal_)
+        {
+            result->diagonalityKnown_ = true;
+            result->isDiagonal_ = true;
+        }
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>
+    Matrix<Numeric,Len>::operator/(const Numeric r) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::operator/: uninitialized matrix");
+        if (r == static_cast<Numeric>(0)) throw std::domain_error(
+            "In npstat::Matrix::operator/: division by zero");
+        Matrix result(nrows_, ncols_);
+        for (unsigned i=0; i<len_; ++i)
+            result.data_[i] = data_[i]/r;
+        if (diagonalityKnown_ && isDiagonal_)
+        {
+            result.diagonalityKnown_ = true;
+            result.isDiagonal_ = true;
+        }
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline void
+    Matrix<Numeric,Len>::over(const Numeric r, Matrix* result) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::over: uninitialized matrix");
+        if (r == static_cast<Numeric>(0)) throw std::domain_error(
+            "In npstat::Matrix::over: division by zero");
+        assert(result);
+        if (result != this)
+            result->resize(nrows_, ncols_);
+        Numeric* const rdata = result->data_;
+        for (unsigned i=0; i<len_; ++i)
+            rdata[i] = data_[i]/r;
+        if (diagonalityKnown_ && isDiagonal_)
+        {
+            result->diagonalityKnown_ = true;
+            result->isDiagonal_ = true;
+        }
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::operator+() const
+    {
+        return *this;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len> Matrix<Numeric,Len>::operator-() const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::operator-(unary): uninitialized matrix");
+        Matrix result(nrows_, ncols_);
+        for (unsigned i=0; i<len_; ++i)
+            result.data_[i] = -data_[i];
+        result.isDiagonal_ = isDiagonal_;
+        result.diagonalityKnown_ = diagonalityKnown_;
+        return result;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>&
+    Matrix<Numeric,Len>::operator*=(const Numeric r)
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::operator*=: uninitialized matrix");
+        for (unsigned i=0; i<len_; ++i)
+            data_[i] *= r;
+        // Diagonality can change due to floating point numbers -> 0
+        if (!(diagonalityKnown_ && isDiagonal_))
+            diagonalityKnown_ = false;
+        return *this;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>&
+    Matrix<Numeric,Len>::operator/=(const Numeric r)
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::operator/=: uninitialized matrix");
+        if (r == static_cast<Numeric>(0)) throw std::domain_error(
+            "In npstat::Matrix::operator/=: division by zero");
+        for (unsigned i=0; i<len_; ++i)
+            data_[i] /= r;
+        // Diagonality can change due to floating point numbers -> 0
+        if (!(diagonalityKnown_ && isDiagonal_))
+            diagonalityKnown_ = false;
+        return *this;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>&
+    Matrix<Numeric,Len>::operator+=(const Matrix& r)
+    {
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::operator+=: uninitialized matrix");
+        if (!(nrows_ == r.nrows_ && ncols_ == r.ncols_))
+            throw std::domain_error(
+                "In npstat::Matrix::operator+=: "
+                "incompatible argument dimensions");
+        for (unsigned i=0; i<len_; ++i)
+            data_[i] += r.data_[i];
+        if (&r != this)
+            diagonalityKnown_ = false;
+        return *this;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline Matrix<Numeric,Len>&
+    Matrix<Numeric,Len>::operator-=(const Matrix& r)
+    {
+        if (!(nrows_ && r.nrows_)) throw std::runtime_error(
+            "In npstat::Matrix::operator-=: uninitialized matrix");
+        if (!(nrows_ == r.nrows_ && ncols_ == r.ncols_))
+            throw std::domain_error(
+                "In npstat::Matrix::operator-=: "
+                "incompatible argument dimensions");
+        for (unsigned i=0; i<len_; ++i)
+            data_[i] -= r.data_[i];
+        diagonalityKnown_ = false;
+        return *this;
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline const char* Matrix<Numeric,Len>::classname()
+    {
+        static const std::string name(
+            gs::template_class_name<Numeric>("npstat::Matrix"));
+        return name.c_str();
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline bool Matrix<Numeric,Len>::write(std::ostream& os) const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::write: uninitialized matrix");
+        assert(data_);
+        gs::write_pod(os, nrows_);
+        gs::write_pod(os, ncols_);
+        gs::write_array(os, data_, len_);
+        return !os.fail();
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline void Matrix<Numeric,Len>::restore(const gs::ClassId& id,
+                                             std::istream& in, Matrix* m)
+    {
+        static const gs::ClassId current(
+            gs::ClassId::makeId<Matrix<Numeric,Len> >());
+        current.ensureSameId(id);
+
+        assert(m);
+        m->uninitialize();
+        gs::read_pod(in, &m->nrows_);
+        gs::read_pod(in, &m->ncols_);
+        m->len_ = m->nrows_ * m->ncols_;
+        if (m->len_ <= Len)
+            m->data_ = m->local_;
+        else
+            m->data_ = new Numeric[m->len_];
+        gs::read_array(in, m->data_, m->len_);
+        if (in.fail())
+        {
+            m->uninitialize();
+            throw gs::IOReadFailure("In npstat::Matrix::restore: "
+                                    "input stream failure");
+        }
+    }
+
+    template<typename Numeric, unsigned Len>
+    inline unsigned Matrix<Numeric,Len>::nonZeros() const
+    {
+        if (!nrows_) throw std::runtime_error(
+            "In npstat::Matrix::nonZeros: uninitialized matrix");
+        const Numeric null = Numeric();
+        unsigned cnt = 0U;
+        for (unsigned i=0; i<len_; ++i)
+            if (data_[i] == null)
+                ++cnt;
+        return len_ - cnt;
+    }
+
+    template<typename Numeric>
+    inline Matrix<Numeric> diag(const Numeric* data, const unsigned nrows)
+    {
+        Matrix<Numeric> m(nrows, nrows);
+        m.diagFill(data, nrows);
+        return m;
+    }
+
+    template<typename Numeric>
+    inline Matrix<Numeric> diag(const Numeric* data,
+                                const unsigned nrows, const unsigned ncols)
+    {
+        Matrix<Numeric> m(nrows, ncols, 0);
+        assert(data);
+        const unsigned imax = std::min(nrows, ncols);
+        for (unsigned i=0; i<imax; ++i)
+            m[i][i] = data[i];
+        if (nrows == ncols)
+            m.tagAsDiagonal();
+        return m;
+    }
+}
+
+template<typename N, unsigned Len>
+inline std::ostream& operator<<(
+    std::ostream& os, const npstat::Matrix<N, Len>& m)
+{
+    // Figure out the largest string length needed to print an element
+    const unsigned nrows = m.nRows();
+    const unsigned ncols = m.nColumns();
+    const unsigned len = nrows*ncols;
+    if (!len) throw std::runtime_error(
+        "In ::operator<<: can not write uninitialized npstat::Matrix object");
+    const N* data = m.data();
+    unsigned maxlen = 0;
+    for (unsigned i=0; i<len; ++i)
+    {
+        std::stringstream s;
+        s.setf(os.flags());
+        s << data[i];
+        const unsigned siz = s.str().size();
+        if (siz > maxlen)
+            maxlen = siz;
+    }
+    ++maxlen;
+
+    for (unsigned i=0; i<nrows; ++i)
+    {
+        for (unsigned j=0; j<ncols; ++j)
+        {
+            os.width(maxlen);
+            os << m[i][j];
+        }
+        if (i+1 < nrows)
+            os << std::endl;
+    }
+
+    return os;
+}

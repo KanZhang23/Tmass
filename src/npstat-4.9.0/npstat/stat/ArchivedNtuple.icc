@@ -1,0 +1,566 @@
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/stat/NtupleRecordTypes.hh"
+#include "geners/CatalogEntry.hh"
+
+namespace npstat {
+    template <typename T>
+    unsigned long ArchivedNtuple<T>::nextObjectNumber()
+    {
+        static unsigned long oCounter = 0;
+        return oCounter++;
+    }
+
+    template <typename T>
+    ArchivedNtuple<T>::ArchivedNtuple(
+        const std::vector<std::string>& columnNames, const char* ntTitle,
+        gs::AbsArchive& ar, const char* name, const char* category,
+        unsigned long rowsPerBuffer, bool writeColumnWise)
+        : AbsNtuple<T>(columnNames, ntTitle),
+          ar_(ar),
+          name_(name ? name : ""),
+          category_(category ? category : ""),
+          fillBuffer_(rowsPerBuffer, columnNames.size(), writeColumnWise),
+          readBuffer_(rowsPerBuffer, columnNames.size(), writeColumnWise),
+          bufferClass_(fillBuffer_.classId()),
+          headerSaved_(0),
+          ncols_(columnNames.size()),
+          objectNumber_(nextObjectNumber()),
+          readable_(ar_.isReadable()),
+          writable_(ar_.isWritable())
+    {
+    }
+
+    template <typename T>
+    const char* ArchivedNtuple<T>::classname()
+    {
+        static const std::string myClass(gs::template_class_name<T>(
+                                             "npstat::ArchivedNtuple"));
+        return myClass.c_str();
+    }
+
+    // The following function returns "true" if the row
+    // is inside fillBuffer_, and "false" if it is inside
+    // "readBuffer_".
+    template <typename T>
+    bool ArchivedNtuple<T>::loadRowData(
+        const unsigned long rowNumber) const
+    {
+        if (!readable_)
+            throw std::invalid_argument(
+                "In npstat::ArchivedNtuple::loadRowData: "
+                "archive is write-only");
+        if (rowNumber >= fillBuffer_.nRows())
+            throw std::out_of_range("In npstat::ArchivedNtuple::loadRowData: "
+                                    "row number is out of range");
+        if (readBuffer_.rowInRange(rowNumber))
+            return false;
+        if (fillBuffer_.rowInRange(rowNumber))
+            return true;
+
+        // The row number is not in any buffer. We need to load
+        // the row data from the archive.
+        const unsigned long bucket = rowNumber/fillBuffer_.maxrows();
+        const Private::NtupleBufferReference<MyNtuple>& ref = 
+            Private::NtupleBufferReference<MyNtuple>(*this,idlist_.at(bucket));
+        ref.restore(0, &readBuffer_);
+        if (!(readBuffer_.rowInRange(rowNumber)))
+            throw gs::IOInvalidData("In npstat::ArchivedNtuple::loadRowData: "
+                                    "failed to load the data from the archive");
+        return false;
+    }
+
+    template <typename T>
+    inline void ArchivedNtuple<T>::saveHeader()
+    {
+        if (writable_ && !headerSaved_)
+        {
+            Private::NtupleHeaderRecord<ArchivedNtuple<T> >
+                hrec(*this);
+            ar_ << hrec;
+            headerSaved_ = hrec.id();
+            if (!headerSaved_) throw gs::IOWriteFailure(
+                "In npstat::ArchivedNtuple::saveHeader: "
+                "failed to store the header record in the archive");
+        }
+    }
+
+    template <typename T>
+    inline void ArchivedNtuple<T>::saveFillBuffer()
+    {
+        saveHeader();
+        Private::NtupleBufferRecord<ArchivedNtuple<T> > record(*this);
+        ar_ << record;
+        idlist_.push_back(record.id());
+        if (fillBuffer_.writeByColumn())
+        {
+            const std::vector<long long>& offsets = 
+                fillBuffer_.columnOffsets();
+            std::copy(offsets.begin(), offsets.end(),
+                      std::back_inserter(columnOffsets_));
+        }
+        fillBuffer_.clear();
+    }
+
+    template <typename T>
+    bool ArchivedNtuple<T>::loadColumnSection(
+        const unsigned long rowNumber, const unsigned long col,
+        T* buf, const unsigned long lenBuf) const
+    {
+        if (readBuffer_.rowInRange(rowNumber))
+        {
+            // Get the column from the read buffer in the usual way
+            if (!readBuffer_.columnContents(col, buf, lenBuf))
+                throw std::runtime_error(
+                    "In npstat::ArchivedNtuple::loadColumnSection: "
+                    "failed to load read buffer column contents");
+            return true;
+        }
+        else if (fillBuffer_.rowInRange(rowNumber))
+        {
+            // Get the column from the fill buffer in the usual way
+            if (!fillBuffer_.columnContents(col, buf, lenBuf))
+                throw std::runtime_error(
+                    "In npstat::ArchivedNtuple::loadColumnSection: "
+                    "failed to load fill buffer column contents");
+            return true;
+        }
+        else
+        {
+            // We must load the data from the archive
+            const unsigned long bucket = rowNumber/fillBuffer_.maxrows();
+            Private::NtupleColumnReference<MyNtuple> ref(
+                *this, idlist_.at(bucket), col,
+                columnOffsets_.at(bucket*ncols_ + col));
+            assert(ref.unique());
+            return ref.fillItems(buf, lenBuf);
+        }
+    }
+
+    template <typename T>
+    inline void ArchivedNtuple<T>::fill(
+        const T* values, const unsigned long lenValues)
+    {
+        if (lenValues)
+        {
+            if (lenValues % ncols_)
+                throw std::invalid_argument(
+                    "In npstat::ArchivedNtuple::fill: incompatible data size");
+            if (writable_)
+            {
+                const unsigned long nCycles = lenValues / ncols_;
+                for (unsigned long i=0; i<nCycles; ++i)
+                    if (!fillBuffer_.fill(values + i*ncols_, ncols_))
+                        saveFillBuffer();
+            }
+            else
+                throw std::runtime_error("In npstat::ArchivedNtuple::fill:"
+                                         " archive is read-only");
+        }
+    }
+
+    template <typename T>
+    void ArchivedNtuple<T>::fill(const T& v0)
+    {
+        const unsigned nExpected = 1U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument("In npstat::ArchivedNtuple::fill: "
+                                        "wrong number of arguments");
+        fill(&v0, nExpected);
+    }
+
+    template <typename T>
+    void ArchivedNtuple<T>::fill(const T& v0, const T& v1)
+    {
+        static std::vector<T> buf;
+        const unsigned nExpected = 2U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument("In npstat::ArchivedNtuple::fill: "
+                                        "wrong number of arguments");
+        buf.clear();
+        buf.reserve(nExpected);
+        buf.push_back(v0);
+        buf.push_back(v1);
+        fill(&buf[0], nExpected);
+    }
+
+    template <typename T>
+    void ArchivedNtuple<T>::fill(const T& v0, const T& v1, const T& v2)
+    {
+        static std::vector<T> buf;
+        const unsigned nExpected = 3U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument("In npstat::ArchivedNtuple::fill: "
+                                        "wrong number of arguments");
+        buf.clear();
+        buf.reserve(nExpected);
+        buf.push_back(v0);
+        buf.push_back(v1);
+        buf.push_back(v2);
+        fill(&buf[0], nExpected);
+    }
+
+    template <typename T>
+    void ArchivedNtuple<T>::fill(const T& v0, const T& v1, const T& v2,
+                                 const T& v3)
+    {
+        static std::vector<T> buf;
+        const unsigned nExpected = 4U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument("In npstat::ArchivedNtuple::fill: "
+                                        "wrong number of arguments");
+        buf.clear();
+        buf.reserve(nExpected);
+        buf.push_back(v0);
+        buf.push_back(v1);
+        buf.push_back(v2);
+        buf.push_back(v3);
+        fill(&buf[0], nExpected);
+    }
+
+    template <typename T>
+    void ArchivedNtuple<T>::fill(const T& v0, const T& v1, const T& v2,
+                                 const T& v3, const T& v4)
+    {
+        static std::vector<T> buf;
+        const unsigned nExpected = 5U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument("In npstat::ArchivedNtuple::fill: "
+                                        "wrong number of arguments");
+        buf.clear();
+        buf.reserve(nExpected);
+        buf.push_back(v0);
+        buf.push_back(v1);
+        buf.push_back(v2);
+        buf.push_back(v3);
+        buf.push_back(v4);
+        fill(&buf[0], nExpected);
+    }
+
+    template <typename T>
+    void ArchivedNtuple<T>::fill(const T& v0, const T& v1, const T& v2,
+                                 const T& v3, const T& v4, const T& v5)
+    {
+        static std::vector<T> buf;
+        const unsigned nExpected = 6U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument("In npstat::ArchivedNtuple::fill: "
+                                        "wrong number of arguments");
+        buf.clear();
+        buf.reserve(nExpected);
+        buf.push_back(v0);
+        buf.push_back(v1);
+        buf.push_back(v2);
+        buf.push_back(v3);
+        buf.push_back(v4);
+        buf.push_back(v5);
+        fill(&buf[0], nExpected);
+    }
+
+    template <typename T>
+    void ArchivedNtuple<T>::fill(const T& v0, const T& v1, const T& v2,
+                                 const T& v3, const T& v4, const T& v5,
+                                 const T& v6)
+    {
+        static std::vector<T> buf;
+        const unsigned nExpected = 7U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument("In npstat::ArchivedNtuple::fill: "
+                                        "wrong number of arguments");
+        buf.clear();
+        buf.reserve(nExpected);
+        buf.push_back(v0);
+        buf.push_back(v1);
+        buf.push_back(v2);
+        buf.push_back(v3);
+        buf.push_back(v4);
+        buf.push_back(v5);
+        buf.push_back(v6);
+        fill(&buf[0], nExpected);
+    }
+
+    template <typename T>
+    void ArchivedNtuple<T>::fill(const T& v0, const T& v1, const T& v2,
+                                 const T& v3, const T& v4, const T& v5,
+                                 const T& v6, const T& v7)
+    {
+        static std::vector<T> buf;
+        const unsigned nExpected = 8U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument("In npstat::ArchivedNtuple::fill: "
+                                        "wrong number of arguments");
+        buf.clear();
+        buf.reserve(nExpected);
+        buf.push_back(v0);
+        buf.push_back(v1);
+        buf.push_back(v2);
+        buf.push_back(v3);
+        buf.push_back(v4);
+        buf.push_back(v5);
+        buf.push_back(v6);
+        buf.push_back(v7);
+        fill(&buf[0], nExpected);
+    }
+
+    template <typename T>
+    void ArchivedNtuple<T>::fill(const T& v0, const T& v1, const T& v2,
+                                 const T& v3, const T& v4, const T& v5,
+                                 const T& v6, const T& v7, const T& v8)
+    {
+        static std::vector<T> buf;
+        const unsigned nExpected = 9U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument("In npstat::ArchivedNtuple::fill: "
+                                        "wrong number of arguments");
+        buf.clear();
+        buf.reserve(nExpected);
+        buf.push_back(v0);
+        buf.push_back(v1);
+        buf.push_back(v2);
+        buf.push_back(v3);
+        buf.push_back(v4);
+        buf.push_back(v5);
+        buf.push_back(v6);
+        buf.push_back(v7);
+        buf.push_back(v8);
+        fill(&buf[0], nExpected);
+    }
+
+    template <typename T>
+    void ArchivedNtuple<T>::fill(const T& v0, const T& v1, const T& v2,
+                                 const T& v3, const T& v4, const T& v5,
+                                 const T& v6, const T& v7, const T& v8,
+                                 const T& v9)
+    {
+        static std::vector<T> buf;
+        const unsigned nExpected = 10U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument("In npstat::ArchivedNtuple::fill: "
+                                        "wrong number of arguments");
+        buf.clear();
+        buf.reserve(nExpected);
+        buf.push_back(v0);
+        buf.push_back(v1);
+        buf.push_back(v2);
+        buf.push_back(v3);
+        buf.push_back(v4);
+        buf.push_back(v5);
+        buf.push_back(v6);
+        buf.push_back(v7);
+        buf.push_back(v8);
+        buf.push_back(v9);
+        fill(&buf[0], nExpected);
+    }
+
+    template <typename T>
+    inline T ArchivedNtuple<T>::operator()(
+        const unsigned long r, const unsigned long c) const
+    {
+        if (loadRowData(r))
+            return fillBuffer_(r, c);
+        else
+            return readBuffer_(r, c);
+    }
+
+    template <typename T>
+    inline T ArchivedNtuple<T>::at(
+        const unsigned long r, const unsigned long c) const
+    {
+        if (c >= ncols_)
+            throw std::out_of_range("In npstat::ArchivedNtuple::at: "
+                                    "column number is out of range");
+        if (loadRowData(r))
+            return fillBuffer_(r, c);
+        else
+            return readBuffer_(r, c);
+    }
+
+    template <typename T>
+    inline void ArchivedNtuple<T>::rowContents(
+        const unsigned long row, T* buf,
+        const unsigned long lenBuf) const
+    {
+        if (row >= fillBuffer_.nRows())
+            throw std::out_of_range("In npstat::ArchivedNtuple::rowContents:"
+                                    " row number is out of range");
+        bool status;
+        if (loadRowData(row))
+            status = fillBuffer_.rowContents(row, buf, lenBuf);
+        else
+            status = readBuffer_.rowContents(row, buf, lenBuf);
+        if (!status)
+            throw std::runtime_error("In npstat::ArchivedNtuple::rowContents: "
+                                     "failed to load row contents from buffer");
+    }
+
+    template <typename T>
+    void ArchivedNtuple<T>::columnContents(
+        const Column& c, T* buf, const unsigned long lenBuf) const
+    {
+        if (!c.isValid(*this))
+            throw std::invalid_argument(
+                "In npstat::ArchivedNtuple::columnContents: invalid column");
+        if (!readable_)
+            throw std::invalid_argument(
+                "In npstat::ArchivedNtuple::columnContents: "
+                "archive is write-only");
+        const unsigned long nrows = fillBuffer_.nRows();
+        if (nrows == 0)
+            return;
+        assert(buf);
+        if (lenBuf < nrows) throw std::invalid_argument(
+            "In npstat::ArchivedNtuple::columnContents: buffer is too small");
+        const unsigned long col = c(*this);
+
+        const unsigned long bufstep = fillBuffer_.maxrows();
+        if (fillBuffer_.writeByColumn())
+	{
+            for (unsigned long ibase=0; ibase<nrows; ibase+=bufstep)
+                if (!loadColumnSection(ibase, col, buf+ibase, lenBuf-ibase))
+                    throw std::runtime_error(
+                        "In npstat::ArchivedNtuple::columnContents: "
+                        "failed to load column section columnwise");
+	}
+        else
+            for (unsigned long ibase=0; ibase<nrows; ibase+=bufstep)
+            {
+                bool status;
+                if (loadRowData(ibase))
+                    status = fillBuffer_.columnContents(
+                        col, buf+ibase, lenBuf-ibase);
+                else
+                    status = readBuffer_.columnContents(
+                        col, buf+ibase, lenBuf-ibase);
+                if (!status) throw std::runtime_error(
+                    "In npstat::ArchivedNtuple::columnContents: "
+                    "failed to load column section rowwise");
+            }
+    }
+
+    template <typename T>
+    bool ArchivedNtuple<T>::write()
+    {
+        if (writable_)
+        {
+            saveHeader();
+            if (fillBuffer_.itemsBuffered())
+                saveFillBuffer();
+            ar_ << Private::NtupleFooterRecord<MyNtuple>(*this);
+            writable_ = false;
+            return true;
+        }
+        else
+            return false;
+    }
+
+    template <typename T>
+    ArchivedNtuple<T>* ArchivedNtuple<T>::read(
+        gs::AbsArchive& ar, std::istream& is, const unsigned long long headerId)
+    {
+        static const gs::ClassId current(gs::ClassId::makeId<MyNtuple>());
+
+        if (!ar.isReadable())
+            throw std::invalid_argument("In npstat::ArchivedNtuple::read:"
+                                        " archive is not open for reading");
+        if (!headerId)
+            throw std::invalid_argument("In npstat::ArchivedNtuple::read:"
+                                        " invalid id for the header record");
+        CPP11_shared_ptr<const gs::CatalogEntry> headerRecord = 
+            ar.catalogEntry(headerId);
+        if (!(headerRecord.get() && headerRecord->id() == headerId))
+            throw gs::IOInvalidData("In npstat::ArchivedNtuple::read: failed "
+                                    "to load header record from the archive");
+
+        // The header order is defined in the NtupleHeaderRecord::writeData
+        // method
+        gs::ClassId ntupleClass(is, 1);
+        current.ensureSameId(ntupleClass);
+
+        gs::ClassId bufferClass(is, 1);
+        std::vector<std::string> columnNames;
+        gs::read_pod_vector(is, &columnNames);
+        std::string titl;
+        gs::read_pod(is, &titl);
+        unsigned long rowsPerBuffer = 0;
+        gs::read_pod(is, &rowsPerBuffer);
+        bool writeColumnWise = false;
+        gs::read_pod(is, &writeColumnWise);
+        if (is.fail())
+            throw gs::IOReadFailure("In npstat::ArchivedNtuple::read: "
+                                    "input stream failure");
+
+        // Now we have all the info from the ntuple header record.
+        // Find the corresponding footer.
+        Private::NtupleFooterReference footerInfo(
+            ar, ntupleClass, headerRecord->name().c_str(),
+            headerRecord->category().c_str());
+        const unsigned long nfooters = footerInfo.size();
+
+        // In principle, we should be able to restore the information
+        // that was contained in the missing footer record. Code this
+        // when time permits.
+        if (nfooters == 0)
+            throw gs::IOInvalidData("In npstat::ArchivedNtuple::read: failed "
+                                    "to load footer record from the archive");
+
+        unsigned long nrows = 0;
+        unsigned long long writtenHeaderId = 0;
+        std::vector<unsigned long long> bufferIds;
+        std::vector<long long> columnOffsets;
+        unsigned long long idOffset = 0;
+
+        // Find the right footer if we have more than one of them
+        for (unsigned long ifoot = 0; ifoot < nfooters; ++ifoot)
+        {
+            if (!footerInfo.fillItems(
+                       &nrows, &writtenHeaderId, &bufferIds,
+                       &columnOffsets, &idOffset, ifoot))
+                throw std::runtime_error("In npstat::ArchivedNtuple::read: "
+                                         "failed to fill footer info");
+            if (writtenHeaderId + idOffset == headerId)
+                break;
+        }
+        assert(writtenHeaderId + idOffset == headerId);
+
+        // Recalculate the buffer ids
+        if (idOffset)
+        {
+            const unsigned long nbuf = bufferIds.size();
+            for (unsigned long i=0; i<nbuf; ++i)
+                bufferIds[i] += idOffset;
+        }
+
+        // Finally, build the ntuple
+        MyNtuple* nt = new MyNtuple(
+            columnNames, titl.c_str(), ar, headerRecord->name().c_str(),
+            headerRecord->category().c_str(), rowsPerBuffer, writeColumnWise);
+
+        nt->bufferClass_ = bufferClass;
+        nt->idlist_ = bufferIds;
+        nt->columnOffsets_ = columnOffsets;
+        nt->headerSaved_ = writtenHeaderId;
+        nt->writable_ = false;
+
+        if (nrows)
+        {
+            assert(!bufferIds.empty());
+            nt->fillBuffer_.setFirstRow(nrows);
+        }
+
+        return nt;
+    }
+
+    template <typename T>
+    bool ArchivedNtuple<T>::isEqual(const AbsNtuple<T>& other) const
+    {
+        if (!AbsNtuple<T>::isEqual(other))
+            return false;
+        const ArchivedNtuple<T>& r = 
+            static_cast<const ArchivedNtuple<T>&>(other);
+        return name_ == r.name_ &&
+               category_ == r.category_ &&
+               fillBuffer_ == r.fillBuffer_ &&
+               columnOffsets_ == r.columnOffsets_;
+    }
+}

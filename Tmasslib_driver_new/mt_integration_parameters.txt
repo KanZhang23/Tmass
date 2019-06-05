@@ -1,0 +1,577 @@
+
+Integration Parameters
+----------------------
+
+The current code supports only quasi-MC integration. The code parameters
+described below are defined in the "scan_parameters.c" file.
+
+"print_integration_parameters" -- This instructs the system to print
+                         integration parameters to the standard output
+                         before the first event is integrated. The
+                         default value is 0 (do not print).
+
+"fill_result_ntuple"  -- Can be used to turn off creation and filling of
+                         the ntuple of results (useful for debugging purposes
+                         only). Default value is 1 (fill the ntuple).
+
+"process_tcl_events"  -- If set to 1, tcl events will be processed during
+                         integration. Default is 0.
+
+"debug_level"         -- Defines the verbosity of various diagnostic
+                         messages. Set to 0 in order to turn off all such
+                         messages. Default is 10.
+
+"jes_min"             -- These parameters define the JES scanning grid in
+"jes_max"                units of sigma. Default values are -5.1, 5.1, and
+"n_jes_points"           51, respectively. This results in a scan from
+                         -5 to 5 sigma with the step of 0.2.
+
+"topscan_min"         -- These parameters define the top mass scanning
+"topscan_max"            grid. Default values are 111.0, 239.0, and 64.
+"topscan_points"         This scans from 112 GeV to 238 GeV with 2 GeV
+                         step. Note that this scan corresponds to the
+                         top masses for which we have generated large
+                         samples of Pythia HEPG events.
+
+"permute_jets"        -- If set to 0, the code will not permute jets.
+                         If set to 1, the code will make sure that the
+                         b-tagged jets are assigned to b partons.
+                         If set to something else, the code will use
+                         all permutations weighted by the tag probability.
+
+"light_jet_mass"      -- These parameters are used to set the masses of
+"lep_b_jet_mass"         the partons when the integration over the parton
+"had_b_jet_mass"         masses is turned off. When permutations are also
+                         turned off, one can set these numbers to negative
+                         values. In this case the code will pick up correct
+                         parton masses from HEPG. The default values are
+                         0.0, 4.8, and 4.8, respectively.
+
+"cms_energy"          -- The center-of-mass energy of the collision. The
+                         default value of this parameter is 1960.0.
+
+"matrel_code"         -- Defines which matrix element (ME) to use. Reasonable
+                         vaues of this parameter are 5 (use Kleiss-Stirling
+                         ME) and 3 (use Mahlon-Parke ME). Other values are
+                         reserved for testing purposes.
+
+"top_width"           -- These are the parameters of top and W mass
+"nominal_w_mass"         Breit-Wigners. The default values are 1.2,
+"nominal_w_width"        80.42, and 2.12, respectively.
+
+"parton_syserr_pt_cutoff" -- This parameter determines the minimum Pt
+                         value for determining the systematic error using
+                         the parton information only. If the parton has
+                         Pt less than this cutoff, the cutoff value will
+                         be used instead of parton Pt. The default value
+                         of this parameter is 21.0.
+
+"wlep_npoints"        -- Number of points in the leptonic MW^2 grid. This
+                         is the only regular grid in the quasi-MC integrator.
+                         It has to stay regular because the phase space
+                         factor diverges at the MW^2 phase space boundary,
+                         so the boundary must be carefully taken care of
+                         by switching to nu_z integration. The default
+                         value of 7 is probably insufficient for precision
+                         integration.
+
+                         If this parameter is set to 1 then the code will
+                         use the value "hepg_mwlep" provided as the
+                         argument to the "mc_top_jes_scan" function.
+
+"wlep_coverage"       -- The coverage of the partial leptonic MW^2 grid.
+                         The "whole" grid covers the leptonic MW range
+                         between 0 and the mass of the leptonic top.
+                         The "partial" grid used by the integration code
+                         covers "wlep_coverage" part of the Breit-Wigner
+                         between 0 and Mt. The default value is 0.99.
+
+"whad_coverage"       -- Coverage of the hadronic MW^2 grid. The default
+                         value of this parameter is 0.998. The point will
+                         be rejected if the random MW value is negative or
+                         exceeds the hadronic top mass.
+
+"thad_coverage"       -- Coverages of the Mt grids. The default value for
+"tlep_coverage"          both parameters is 0.98.
+
+"eta_q_sigma_factor"  -- These are the correction factors for angular
+"phi_q_sigma_factor"     resolution modeling. They can be used to adjust
+"eta_b_sigma_factor"     the width of the corresponding angular transfer
+"phi_b_sigma_factor"     functions when the parton masses are _not_
+                         integrated over (see "random_jet_angles.h" header).
+                         When the parton masses _are_ integrated over,
+                         different angular transfer functions are used
+                         which depend on the parton mass (see header
+                         "angular_transfer_function.h"). In this case
+                         one has to use the "adjust_angular_tf_width" tcl
+                         command in order to change the width. The format
+                         of this command is explained later in this text.
+
+"param_grid_absolute" -- If this parameter is set to 0 then the lower
+                         and upper limits for integration over log(pq/pqbar)
+                         will be shifted by the observed value of
+                         log(pq/pqbar). For example, if observed value
+                         of pq is 80 and observed value of pqbar is 40
+                         then the log(pq/pqbar) integration range will
+                         be from mc_rel_param_min + log(2) to
+                         mc_rel_param_max + log(2). In the 3-jet mode
+                         the shift will not be performed in case one
+                         of the "missing" jets is q or qbar. The default
+                         value of this parameter is 0.
+
+"prob_factor"         -- The overall factor by which the likelihood is
+                         multiplied. Useful for keeping the results
+                         within the dynamic range of "float" instead
+                         of double. The default value 2.0e9 seems
+                         to be appropriate for the 4-jet integration.
+
+"skipevents"          -- Number of events to skip at the beginning of
+                         the file.
+
+"maxevents"           -- Maximum number of events to process. Note that
+                         skipped events are counted towards the maximum.
+                         The default is a very large number (INT_MAX).
+
+"periodic_script"     -- One can run a tcl script (in the global context)
+"script_period"          every "script_period" events. By default, no
+                         such script is run.
+
+"category"            -- Histo-Scope category for the result ntuples.
+                         Default value is "Work".
+
+"sample_pole_mass" -- This parameter can be useful when the integration
+                      over top mass Breit-Wigners is turned off. When
+                      this parameter is set, the kinematic solvers will
+                      know and use the exact difference between the HEPG
+                      top quark masses and the pole mass. The default
+                      value of this parameter is 0 which means that the
+                      sample pole mass is unknown (as in the data).
+
+"mc_rand_method"  -- Determines the quasi (or pseudo) random number
+                     generator used to build the integration grid.
+                     The following values are currently allowed: "sobol",
+                     "scramsobol", "fortsobol", "halton", "nieder",
+                     and "drand48". These values mean the following:
+
+                     "sobol" -- use the Sobol low-discrepancy sequence.
+                                This is the default.
+
+                     "scramsobol" -- use the Sobol sequence with additional
+                                bit scrambling by a linear congruential
+                                generator (LCG). This method does not
+                                preserve the "low discrepancy" property of
+                                the sequence and, therefore, can not be
+                                recommended. The LCG multiplier can be set
+                                by the "set_sobol_scrambling_multiplier"
+                                tcl command.
+
+                     "fortsobol" -- use the Sobol sequence with other types
+                                of bit scrambling (which do preserve the
+                                "low discrepancy" property but do not solve
+                                the problem of low-dimensional substructure
+                                completely). The type of scrambling to use
+                                is specified by the "mc_random_gen_param"
+                                parameter.
+
+                     "halton" -- use the Halton low-discrepancy sequence.
+
+                     "nieder" -- use the scrambled Niederreiter sequence.
+
+                     "drand48" -- Use the "drand48" random number generator
+                                from Linux. When "drand48" is used, the
+                                integration scheme becomes very similar to
+                                a normal MC-based integration. The grid,
+                                however, is built just once and then later
+                                reused for all permutations and all events.
+
+"mc_random_gen_param"  -- An integer parameter given to the random
+                     number generator initialization code. The meaning
+                     of this parameter depends on the generator specified
+                     by the "mc_rand_method" parameter:
+
+                     "sobol", "scramsobol" and "halton" -- The value is
+                                the number of points to skip at the beginning
+                                of the sequence. This allows the generator
+                                to "warm up". One common strategy is to set
+                                this parameter to the smallest power of 2
+                                which is equal to or greater than
+                                "mc_max_points".
+
+                     "fortsobol" and "nieder" -- If the parameter value is
+                                between 0 and 3, it is used to indicate
+                                the type of bit scrambling:
+                                0 : no scrambling
+                                1 : Owen type scrambling
+                                2 : Faure-Tezuka type scrambling
+                                3 : Owen + Faure-Tezuka type scrambling
+                                For details, see TOMS algorithm 823 and
+                                comments inside the "sobol_f.f" file.
+                                If the parameter value is 4 or larger,
+                                it is treated as the number of points to
+                                skip at the beginning of an unscrambled
+                                sequence, similar to the case of "sobol"
+                                generator.
+
+                     "drand48" -- Any number except 0 means to use that number
+                                as the "srand48" random seed. If the number
+                                is 0, it is assumed that "drand48" will be
+                                initialized from a default seed (or has
+                                already been initialized by some other code).
+
+                     The default value of this parameter is 0.
+
+"mc_max_points"   -- The maximum number of points one expects to use
+                     in the integration grid. This should not exceed
+                     a few millions because the whole grid will be
+                     stored in memory, and it can use up to 80 bytes
+                     per point. The default value is 262144.
+
+"mc_min_points"   -- Minimum number of grid points to use before
+                     running any integration convergence checks.
+                     Normally, the code will integrate over all
+                     permutations before any checks are run. The
+                     default value is 1024.
+
+"mc_check_factor" -- This parameter defines how often the system is
+                     going to check for integral convergence.
+                     It is multiplied by the number of grid points
+                     integrated up to now to get the number of points
+                     after which the check is performed again. For
+                     example, if this parameter is set to 1.2, and the
+                     "mc_min_points" parameter is set to 1024 then
+                     the checks will be performed after 1024 points
+                     are sampled, 1228 points, 1473 points, etc.
+                     Default "mc_check_factor" value is 2.
+
+"mc_worst_perm_cutoff" -- This parameter controls, roughly, how many
+                     permutations are integrated over between convergence
+                     checks. The convergence check code estimates the
+                     integration error for each permutation and for
+                     each point in the Mt/JES space. Each permutation
+                     can be the largest error contributor for each
+                     Mt/JES point. Let say, permutation A is the largest
+                     error contributor for N Mt/JES points, and this N
+                     is the largest among all permutations. Then
+                     permutation A will be integrated over in the
+                     next check cycle. If permutation B is the largest
+                     error contributor for M points then permutation B
+                     will be integrated over if N/M < mc_worst_perm_cutoff.
+                     (N/M is calculated using floating point arithmetic).
+                     Note that, by definition, N/M >= 1, so setting the
+                     "mc_worst_perm_cutoff" parameter to something less
+                     than 1 will ensure that  the code integrates only
+                     the single permutation which contributes the largest
+                     error to the largest number of Mt/JES points. The
+                     default value of "mc_worst_perm_cutoff" parameter
+                     is 2.
+
+"mc_precision_fraction" -- These two parameters define the integration
+"mc_precision_target"    precision to aim at. The likelihood values of
+                         "mc_precision_fraction" fraction of points
+                     with the highest values in the mt and JES space
+                     should be determined with "mc_precision_target"
+                     or better relative precision for the integration
+                     to converge successfully. The default value of
+                     "mc_precision_fraction" is 0.9, and the default
+                     value of "mc_precision_target" is 0.02. Unfortunately,
+                     we do not know how to determine convergence reliably
+                     for the quasi-MC integration, and use the pseudo-MC
+                     estimate instead. The "mc_precision_target" of 0.02
+                     is definitely too low for practical purposes when Sobol
+                     sequence is used.
+
+"mc_max_event_seconds"  -- Maximum number of seconds allowed before
+                     the integration of an event times out. The default
+                     is INT_MAX which means that the integration will
+                     not time out and will be terminated due to some
+                     other reason. Note that the event is checked
+                     for timeout only with the periodicity defined
+                     by "mc_check_factor", so that an event can actually
+                     use more time than this parameter says.
+
+"mc_max_zeroprob_pts" -- This parameter allows for fast termination
+                     of event integration in case the likelihood
+                     curve looks empty. Only "mc_max_zeroprob_pts"
+                     will be sampled in this case. Default value of
+                     this parameter is four times mc_min_points value.
+
+"mc_mwsq_safety_margin" -- The difference between MW^2 on the leptonic
+                     side and the phase space boundary. Near the boundary
+                     solutions of various kinematic equations become
+                     numerically unstable. The points closer to the
+                     boundary than mc_mwsq_safety_margin will get 0 weight.
+                     The default value of this parameter is 0.01.
+
+"mc_fudge_to_treelevel" -- If set to 1, the code will attempt to
+                     reconstruct a tree-level event from ID94 event.
+                     The matrix element will then be evaluated on
+                     this tree-level event. The default is 0.
+
+"mc_nominal_q_mass" -- The light parton mass to use during reconstruction
+                     of the tree-level event when "mc_fudge_to_treelevel"
+                     parameter is set to 1. Default is 0.0.
+
+"mc_nominal_b_mass" -- The b parton mass to use during reconstruction
+                     of the tree-level event when "mc_fudge_to_treelevel"
+                     parameter is set to 1. Default is 4.8.
+
+"mc_had_mt_gen_type" -- These parameters define the types of the top mass
+"mc_lep_mt_gen_type"    grids on the hadronic and leptonic sides. They are
+                        not meaningful right now because only Breit-Wigner
+                        grids with fixed width are supported at this point.
+
+"mc_abs_param_min" -- These parameters define lower and upper limits
+"mc_abs_param_max"    for integration over log(pq/pqbar). "abs" or
+"mc_rel_param_min"    "rel" parameters are used, depending on whether
+"mc_rel_param_max"    the parameter grid is relative to the observed
+                      value of log(pq/pqbar) or absolute. Note that
+                      in the 3-jet integration mode the grid is
+                      necessarily absolute when one of the light jets
+                      is considered to be absent. Reasonable values for
+                      these parameters should be chosen by looking at
+                      the log(pq/pqbar) distributions. The defaults are
+                      -4.0, 4.0, -2.0, and 2.0, respectively.
+
+"mc_efficiency_mask" -- Bits of this mask define which efficiency functions
+                        will be applied (if the corresponding bit is set to 1)
+                        and which will not be (if the bit is set to 0).
+                        bit 0 -- corresponds to the opening angle efficiency
+                                 for W daughters.
+                        Other bits are reserved for future use.
+
+"nu_momentum_cutoff"    -- These parameters set various limits needed to
+"q_momentum_cutoff"        avoid phase space singularities. Do not modify
+"had_phase_space_cutoff"   the default values unless you really know what
+"detlepNu_cutoff"          you are doing.
+"detlepW_cutoff"
+
+One possible technique for increasing the overall integration speed
+consists of trying to figure out the values of ttbar Pt which lead
+to allowed kinematic configurations on the leptonic side, before
+calculating everything else. My preliminary experiments indicate that
+by doing this the overall code speed can be increased by factor of two
+or so. The following parameters specify the details of the method:
+
+"mc_lside_b_conesize"  -- The size of the eta-phi cone around the b jet
+                          direction within which the solutions are searched.
+                          Default value of this parameter is 0.7.
+
+"mc_lside_b_tailsize"  -- This parameter determines, roughly, how large
+                          leptonic b parton momentum can be compared to
+                          the jet momentum. If the parton momentum is very
+                          large then the probability for the jet momentum
+                          to fluctuate below the observed value becomes
+                          very small. This parameter tells us how small this
+                          probability can be so that it is still reasonable
+                          to consider that large parton momentum in the
+                          ttbar Pt scan. Default value of this parameter
+                          is 0.01.
+
+"mc_lside_mask_nPhi"   -- Number of the phi bins in the ttbar Pt scan.
+                          Default is 64.
+
+"mc_lside_mask_nPt"    -- Number of the Pt bins in the ttbar Pt scan.
+                          Default is 64.
+
+"mc_lside_rand_method" -- This parameter has the same meaning for the ttbar
+                          Pt scan and can take the same values as the
+                          "mc_rand_method" parameter for the overall
+                          intergration. Default value of this parameter
+                          is "sobol".
+
+"mc_lside_rnd_param"   -- This parameter has the same meaning for the ttbar
+                          Pt scan and can take the same values as the
+                          "mc_random_gen_param" parameter for the overall
+                          intergration. Default value of this parameter is 0.
+
+"mc_lside_max_points"  -- Maximum number of tries in the ttbar Pt scan.
+                          Default is 2^19 = 524288. Note that the scanning
+                          is done using a quasi-MC sequence, so this number
+                          has to be "good" for the sequence used. There
+                          should probably be at least 100 points for each
+                          bin in the scan (the total number of bins is
+                          mc_lside_mask_nPhi*mc_lside_mask_nPt).
+
+"mc_lside_max_seconds" -- Maximum number of wall-clock seconds allowed for
+                          the ttbar Pt scan for a specific leptonic b jet
+                          assumption (there will be N such assumptions for
+                          an event with N jets). Default value of 0 means
+                          that ttbar Pt scan is turned off. It is reasonable
+                          to allow 3 min or so for this scan if the overall
+                          event integration time limit is on the order of
+                          one hour.
+
+"mc_lside_nuz_min"     -- Minumum neutrino Pz value for the ttbar Pt
+                          kinematic scan. Default is -400.0.
+
+"mc_lside_nuz_max"     -- Maximum neutrino Pz value for the ttbar Pt
+                          kinematic scan. Default is 400.0.
+
+"mc_lside_pt_max"      -- Maximum ttbar Pt value for the ttbar Pt kinematic
+                          scan. Default is 500.0.
+
+In order to turn on the ttbar Pt kinematic scan, the following
+conditions must be satisfied: all of the "mc_lside_mask_nPhi",
+"mc_lside_mask_nPt", and "mc_lside_max_seconds" parameter values must
+be positive, and the integrator must not be in the "tau+jets" mode
+(that is, parameter "mc_grid_mask_tau" must be 0).
+
+The parameters relevant in the 3-jet integration mode are listed below.
+The 3-jet integration mode can be turned on by setting both the
+"mc_prob_to_acquire_jet" parameter and the "mc_prob_to_loose_parton"
+parameter to something other than "none".
+
+"mc_excluded_jet" -- Should be "q", "qbar", "blep", "bhad", or "none".
+                     This parameter is used for testing 3-jet integration
+                     code when permutations are turned off. The default
+                     value is "none" (corresponds to the 4-jet mode).
+                     Note that this default value is unacceptable when
+                     the 3-jet mode is used without permuting jets.
+                     When jet permutations are turned on, this parameter
+                     is ignored.
+
+"discard_excluded_jet"   -- Boolean parameter which can be set on or off.
+                     Used to test whether the top mass library code is
+                     sensitive to the excluded jet information (it should
+                     not be). Default value of this parameter is 0.
+
+"mc_prob_to_acquire_jet" -- Defines which function to use in order
+                     to calculate the probability to pick up an extra
+                     jet in the 3-jet integration mode. Currently
+                     supported values are "unit" and "none". "unit"
+                     means that this probability is set to 1 (useful
+                     for tests) and "none" should be used in the
+                     4-jet integration mode. The default is "none".
+
+"mc_prob_to_loose_parton" -- Defines which function to use in order
+                     to calculate the probability to loose a parton
+                     (not to see the jet it produces). Currently
+                     supported values are "unit", "tf_eff", and "none".
+                     "unit" means that this probability is set to 1
+                     (useful for tests). "tf_eff" means that this
+                     probability is calculated using the value of
+                     a cumulative transfer function above a cutoff.
+                     "none" should be used in the 4-jet integration mode.
+
+The following parameters set up the partucular behavior of the
+"prob_to_loose_parton" function. Their meaning is specific to each
+function used. For the "tf_eff" function they mean:
+
+"mc_pt_cut"         -- The nominal value of the jet Pt cut. The default
+                       value is 20.0.
+
+"mc_eta_cut"        -- The nominal value of the jet eta cut. The default
+                       value is 2.0.
+
+"mc_max_efficiency" -- The maximum efficiency to reconstruct a jet. Think
+                       of it as of the level of the plateau reached by the
+                       jet reconstruction efficiency as a function of
+                       parton Pt. The default value is 1.0.
+
+"mc_jes_sigma_factor" -- This factor converts JES deviation from 1 in
+                         units of sigma near the "mc_pt_cut" into absolute
+                         JES deviation. Default value is 0.03 (which is
+                         clearly not right).
+
+The mask parameters below can be used to turn on and off integration
+in various dimensions. By default, all dimensions are turned on except
+the tau momentum (which is meaningful for the tau+jets assumption only).
+
+"mc_grid_mask_param"    -- Turns on and off integration in log(pq/pqbar).
+                           If the integration is turned off, the code
+                           uses the value provided as the "hepg_param"
+                           argument to the "mc_top_jes_scan" function.
+
+"mc_grid_mask_whad"     -- Turns on and off integration in MW^2 for
+                           the hadronic side. If the integration is turned
+                           off, the code uses the value provided as the
+                           "hepg_mwhad" argument to the "mc_top_jes_scan"
+                           function.
+
+"mc_grid_mask_tau"      -- Set this to 1 for tau+jets assumption
+
+"mc_grid_mask_ttbarpt"  -- If 1, integrate over Pt ttbar. If 0 then
+                           ttbar Pt will be taken from HEPG.
+
+"mc_grid_mask_toplep"   -- Set this to 0 in order to turn off the
+                           integration over leptonic top mass.
+
+"mc_grid_mask_tophad"   -- Set this to 0 in order to turn off the
+                           integration over hadronic top mass. It
+                           probably makes sense to turn it off here
+                           because we will later convolute the
+                           results with Breit-Wigner anyway.
+
+"mc_grid_mask_mq"       -- These four turn on and off integrations over
+"mc_grid_mask_mqbar"       the parton masses. Note that changing between
+"mc_grid_mask_mbhad"       integrating and not integrating over the
+"mc_grid_mask_mblep"       parton masses requires a change in the calorimeter
+                           transfer functions and a recompilation because
+                           the transfer functions depend on the parton mass.
+
+"mc_grid_mask_angle_q"  -- These four turn on and off integrations over
+"mc_grid_mask_angle_qbar"  the corresponding parton angles.
+"mc_grid_mask_angle_bhad"
+"mc_grid_mask_angle_blep"
+
+The code can be used to integrate events with 5 jets. The 5-jet
+integration mode is currently experimental. In the MC scan file it can
+be turned on by setting the "add_random_jet" parameter to 1. In the
+data scan file it is turned on automatically when the number of tight
+jets is 5. The "mc_prob_to_acquire_jet" parameter must be set to something
+other than "none". Both "mc_excluded_jet" and "mc_prob_to_loose_parton"
+parameters must be set to "none". Note that the random jet is created
+"on the fly", so that correct initialization of the random number
+generator becomes critical.
+
+
+Other Configuration Options
+---------------------------
+
+Some transfer function codes allow direct manipulation of the transfer
+function parameters from tcl. The following commands are provided by
+the top mass library tcl API for this purpose: "set_tf_parameters" and
+"adjust_angular_tf_width". The tcl "set_tf_parameters" command is just
+an interface to the "set_tf_parameters" C functions declared in the
+"transfer_function.h" header. The tcl API combines all "set_tf_parameters"
+arguments into an array of doubles and passes this array (together
+with the number of elements) to the "set_tf_parameters" C function.
+The meaning of the parameters is up to the C code which implements the
+transfer function. The last set of parton-mass-dependent Pt/Pt transfer
+functions has five adjustable parameters, in the order listed below:
+
+tf_pt_cutoff   -- The jet Pt cut value used to define tight jets.
+                  The default value of this parameter is 20.0.
+
+min_pred_value -- Minimum value of the transfer function momentum predictor,
+                  currently Pt. If the parton Pt is below this value,
+                  the transfer function at the minimum value is used.
+                  Default value of this parameter is 12.0.
+
+max_pred_value -- Maximum value of the transfer function momentum predictor.
+                  If the parton Pt is above this value, the transfer
+                  function at the maximum value is used. Default value
+                  of this parameter is 200.0.
+
+max_jet_m94_q  -- Maximum value of the transfer function mass predictor
+                  for light jets. Default value is 60.0.
+
+max_jet_m94_b  -- Maximum value of the transfer function mass predictor
+                  for b jets. Default value is 80.0.
+
+The tcl "adjust_angular_tf_width" command can be used to change the
+standard deviation of the parton-mass-dependent angular transfer
+functions. The usage is like this:
+
+adjust_angular_tf_width which_angle isB factor
+
+where "which_angle" is either "eta" or "phi", "isB" is a boolean
+parameter which specifies whether we are adjusting the width for b or
+light jet, and "factor" is a factor by which the width should be adjusted.
+For example, the command to increase the width of the light jet eta
+transfer function by 5% looks like this:
+
+adjust_angular_tf_width eta 0 1.05
+
+Note that, since eta transfer functions are not symmetric about 0,
+the mean will be shifted as well.

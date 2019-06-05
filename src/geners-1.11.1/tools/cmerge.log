@@ -1,0 +1,8 @@
+
+Usage: cmerge -o output_file input_file0 input_file1 ...
+
+This program merges the contents of several object catalogs stored in "geners"
+binary metafiles. The output metafile can be used as a single "geners" archive
+which includes all items from the merged catalogs.
+
+PASS cmerge (exit status: 0)

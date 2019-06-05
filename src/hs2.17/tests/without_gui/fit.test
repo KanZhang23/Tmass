@@ -1,0 +1,276 @@
+
+test fit-1.1 {simple gaussian fit using eml method} {[hs::have_cernlib]} {
+    set id [hs::create_1d_hist 1 "Example histogram" "Tmp" "X" "Y" 20 -2 4]
+    hs::1d_hist_block_fill $id [hs::list_to_data {0 2 1 2 8 6 14 19 18 20 \
+	    22 26 21 10 13 8 6 3 0 1}]
+    set fit [hs::fit $id gauss -method eml]
+    $fit fit
+    set info [eval_at_precision 4 {format %s [$fit info]}]
+    # Remove the dataset info from the fit description because
+    # the histogram id is, most probably, different
+    set info [concat [lrange $info 0 13] [lrange $info 15 end]]
+    $fit delete
+    string equal $info "{} {} eml migrad 1 {1.0 0 1 1 0.0 0} ok 0 0\
+	    {-665.0 1.625e-07 1.0 3 3 3} {{area 60.23 variable 4.26 {}}\
+	    {mean 1.107 variable 0.07451 {}}\
+	    {sigma 1.031 variable 0.05682 {}}} {area mean sigma}\
+	    {{18.15 0.001335 0.006592} {0.001335 0.005552 8.955e-05}\
+	    {0.006592 8.955e-05 0.003229}} {}\
+	    {{gauss sequential 0 0 {{area 60.23} {mean 1.107} {sigma 1.031}}}}"
+} {1}
+
+test fit-1.2 {1d linear fit with errors} {[hs::have_cernlib]} {
+    set id [hs::create_1d_hist 2 "Straight line with errors"\
+	    "Tmp" "X" "Y" 10 1 11]
+    hs::1d_hist_block_fill $id [hs::list_to_data {16.4 25.9 22.8 32.3 38.1\
+	    45.6 46.1 48.2 51.9 53.3}] [hs::list_to_data {2.4 2.7 2.9 3.1\
+	    3.2 3.4 3.5 3.6 3.8 3.9}]
+    set fit [hs::fit $id linear_1d]
+    $fit fit
+    foreach {a_1 dumm sig_a_1} [$fit parameter a set] break
+    foreach {b_1 dumm sig_b_1} [$fit parameter b set] break
+    # Get the correlation coefficient
+    foreach row1 [mn::emat 2] break
+    set rho_1 [expr [lindex $row1 1] / ($sig_a_1 * $sig_b_1)]
+    # Get the fit confidence level
+    set cl_1 [$fit goodness chisq]
+    $fit delete
+    # Now get the same coefficients from the 1d_linear_fit proc
+    foreach {a_2 b_2 sig_a_2 sig_b_2 rho_2 chisq ndof} \
+	    [hs::1d_linear_fit $id 0 1] {}
+    set cl_2 [::hs::function chisq_tail eval [list x $chisq] [list n $ndof]]
+    # Compare the results
+    foreach name {a b sig_a sig_b rho cl} {
+	assert_same_double [set ${name}_1] [set ${name}_2] 1e-6
+    }
+} {}
+
+test fit-1.3 {2d linear fit without errors} {[hs::have_cernlib]} {
+    set id [hs::create_2d_hist 3 "2d linear sample without errors" \
+            "Tmp" X Y Z 4 5 0 4 0 5]
+    hs::2d_hist_block_fill $id [hs::list_to_data {13.1 13.4 16.1 22.7\
+            24.3 14.7 17.1 21.7 23.4 27.8 17.7 18.3 21.5 29.0 29.7\
+            18.9 23.6 28.7 28.3 30.1}]
+    set fit [hs::fit $id linear_2d -method "L2"]
+    $fit fit
+    foreach {a_1 dumm sig_a_1} [$fit parameter a set] break
+    foreach {b_1 dumm sig_b_1} [$fit parameter b set] break
+    foreach {c_1 dumm sig_c_1} [$fit parameter c set] break    
+    # Get the correlation coefficients. Can't use sigmas
+    # to normalize them because the sigmas were calculated
+    # with some funny definition of $UP. Just take everything
+    # from the error matrix.
+    foreach {row1 row2 row3} [mn::emat 3] {}
+    set rho_ab_1 [expr [lindex $row1 1]/sqrt([lindex $row1 0]*[lindex $row2 1])]
+    set rho_ac_1 [expr [lindex $row1 2]/sqrt([lindex $row1 0]*[lindex $row3 2])]
+    set rho_bc_1 [expr [lindex $row2 2]/sqrt([lindex $row2 1]*[lindex $row3 2])]
+    $fit delete
+    # Now, get the same stuff from the 2d_linear_fit proc
+    foreach {a_2 b_2 c_2 sig_a_2 sig_b_2 sig_c_2 rho_ab_2 rho_ac_2 rho_bc_2\
+	chisq_2 ndof_2} [hs::2d_linear_fit $id 0 0] {}
+    # Now, fit the same thing using multiple linear regression
+    set nt_id [hs::create_ntuple [next_uid] "MLR ntuple" "MLR ntuple" {x y z}]
+    hs::ntuple_histo_fill $nt_id $id
+    foreach {reg_coeff covar chisq_3 ndof_3 globcc adj_globcc} \
+            [hs::ntuple_c_linear_regress $nt_id 1 1 z [list x y]] break
+    foreach {a_3 b_3 c_3} $reg_coeff {}
+    set corr [hs::covar_to_corr $covar]
+    set rho_ab_3 [hs::M $corr _ {0 1}]
+    set rho_ac_3 [hs::M $corr _ {0 2}]
+    set rho_bc_3 [hs::M $corr _ {1 2}]
+    set sig_a_3 [expr sqrt([hs::M $covar _ {0 0}])]
+    set sig_b_3 [expr sqrt([hs::M $covar _ {1 1}])]
+    set sig_c_3 [expr sqrt([hs::M $covar _ {2 2}])]
+    # We don't want to compare rho_ab together with other
+    # coefficients because its correct value is exactly 0.
+    foreach name {a b c sig_a sig_b sig_c rho_ac rho_bc} {
+        assert_same_double [set ${name}_1] [set ${name}_2] 1e-6
+        assert_same_double [set ${name}_2] [set ${name}_3] 1e-6
+    }
+    assert_same_double $chisq_2 $chisq_3 1e-5
+    assert_same_double $ndof_2 $ndof_3 0
+    if {$rho_ab_1 > 1e-8} {
+	error "rho_ab correlation coefficient is too large"
+    }
+} {}
+
+test fit-1.4 {2d linear fit with errors} {[hs::have_cernlib]} {
+    set id [hs::create_2d_hist 4 "2d linear sample with errors" \
+            "Tmp" X Y Z 4 5 0 4 0 5]
+    hs::2d_hist_block_fill $id [hs::list_to_data {13.1 13.4 16.1 22.7\
+            24.3 14.7 17.1 21.7 23.4 27.8 17.7 18.3 21.5 29.0 29.7 18.9\
+	    23.6 28.7 28.3 30.1}] [hs::list_to_data {2.4 2.5 2.2 0.8 0.6\
+	    2.6 3.6 2.9 3.3 3.2 2.3 3.0 0.5 1.3 1.4 0.8 1.1 3.0 3.4 1.5}]
+    set fit [hs::fit $id linear_2d]
+    $fit fit
+    foreach {a_1 dumm sig_a_1} [$fit parameter a set] break
+    foreach {b_1 dumm sig_b_1} [$fit parameter b set] break
+    foreach {c_1 dumm sig_c_1} [$fit parameter c set] break    
+    # Get the correlation coefficients
+    foreach {row1 row2} [mn::emat 3] break
+    set rho_ab_1 [expr [lindex $row1 1]/($sig_a_1 * $sig_b_1)]
+    set rho_ac_1 [expr [lindex $row1 2]/($sig_a_1 * $sig_c_1)]
+    set rho_bc_1 [expr [lindex $row2 2]/($sig_b_1 * $sig_c_1)]
+    # Get the confidence level
+    set cl_1 [$fit goodness chisq]
+    $fit delete
+    # Now, get the same stuff from the 2d_linear_fit proc
+    foreach {a_2 b_2 c_2 sig_a_2 sig_b_2 sig_c_2 \
+	    rho_ab_2 rho_ac_2 rho_bc_2 chisq_2 ndof_2}\
+            [hs::2d_linear_fit $id 0 1] {}
+    set cl_2 [::hs::function chisq_tail eval [list x $chisq_2] [list n $ndof_2]]
+    # Try multiple regression
+    set nt_id [hs::create_ntuple [next_uid] "MLR ntuple" "MLR ntuple" {x y z e}]
+    hs::ntuple_histo_fill $nt_id $id
+    foreach {reg_coeff covar chisq_3 ndof_3 globcc adj_globcc} \
+            [hs::ntuple_c_linear_regress $nt_id 1 {1.f/e/e} z [list x y]] break
+    foreach {a_3 b_3 c_3} $reg_coeff {}
+    set corr [hs::covar_to_corr $covar]
+    set rho_ab_3 [hs::M $corr _ {0 1}]
+    set rho_ac_3 [hs::M $corr _ {0 2}]
+    set rho_bc_3 [hs::M $corr _ {1 2}]
+    set sig_a_3 [expr sqrt([hs::M $covar _ {0 0}])]
+    set sig_b_3 [expr sqrt([hs::M $covar _ {1 1}])]
+    set sig_c_3 [expr sqrt([hs::M $covar _ {2 2}])]
+    # Compare the results
+    foreach name {a b c sig_a sig_b sig_c rho_ac rho_ab rho_bc cl} {
+        assert_same_double [set ${name}_1] [set ${name}_2] 1e-5
+    }
+    # Weighted multiple regression is not completely working yet.
+    # It does not calculate error normalization correctly.
+    # foreach name {a b c rho_ac rho_ab rho_bc ndof} {
+    #    puts $name
+    #    assert_same_double [set ${name}_2] [set ${name}_3] 1e-5
+    # }
+} {}
+
+test fit-1.5 {3d linear fit without errors} {[hs::have_cernlib]} {
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" \
+        "Test" X Y Z V 5 3 4 0 2 -1 4 1 5]
+    hs::3d_hist_block_fill $id [hs::list_to_data {3.41 5.78 8.01 \
+        10.2 6.97 7.92 10.3 12.4 9.11 10.4 12.9 15.0 3.68 5.8 7.72 \
+        9.77 6.37 8.69 10.7 12.8 8.67 11.0 13.0 15.5 5.02 6.4 8.6 \
+        9.56 6.83 8.51 10.5 13.0 8.82 11.0 13.7 15.2 4.42 5.8 8.89 \
+        10.8 6.15 8.91 11.4 12.7 9.52 10.8 13.4 15.5 4.3 6.79 8.94 \
+        10.4 7.54 8.86 11.3 12.6 9.77 11.9 14.1 15.4}]
+    set fit [hs::fit $id linear_3d -method "L2"]
+    $fit fit
+    foreach {a_1 dumm sig_a_1} [$fit parameter a set] break
+    foreach {b_1 dumm sig_b_1} [$fit parameter b set] break
+    foreach {c_1 dumm sig_c_1} [$fit parameter c set] break
+    foreach {d_1 dumm sig_d_1} [$fit parameter d set] break
+    # Get the correlation coefficients. Can't use sigmas
+    # to normalize them because the sigmas were calculated
+    # with some funny definition of $UP. Just take everything
+    # from the error matrix.
+    set covar [mn::emat 4]
+    set corr [hs::covar_to_corr $covar]
+    $fit delete
+    # Now, fit the same thing using multiple linear regression
+    set nt_id [hs::create_ntuple [next_uid] "MLR ntuple" "MLR ntuple" {x y z v}]
+    hs::ntuple_histo_fill $nt_id $id    
+    foreach {reg_coeff covar chisq_3 ndof_3 globcc adj_globcc} \
+            [hs::ntuple_c_linear_regress $nt_id 1 1 v [list x y z]] break
+    foreach {a_3 b_3 c_3 d_3} $reg_coeff {}
+    set sig_a_3 [expr sqrt([hs::M $covar _ {0 0}])]
+    set sig_b_3 [expr sqrt([hs::M $covar _ {1 1}])]
+    set sig_c_3 [expr sqrt([hs::M $covar _ {2 2}])]
+    set sig_d_3 [expr sqrt([hs::M $covar _ {3 3}])]
+    set corr3 [hs::covar_to_corr $covar]
+    foreach name {a b c d sig_a sig_b sig_c sig_d} {
+        assert_same_double [set ${name}_1] [set ${name}_3] 2e-5
+    }
+    # Correlation coefficients between a, b, and c are zeros,
+    # so we can't really compare two different methods using
+    # relative precision. We will only compare coefficients which
+    # involve the constant term.
+    assert_same_list [lindex $corr 3] [lindex $corr3 3] 2e-6
+    foreach covar [list $corr $corr3] method {1 3} {
+        foreach index {{0 1} {0 2} {1 2}} {
+            if {[expr abs([hs::M $covar _ $index])] > 1e-7} {
+                error "$index correlation is too high in method $method"
+            }
+        }
+    }
+} {}
+
+test fit-1.6 {3d linear fit with errors} {[hs::have_cernlib]} {
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" \
+        "Test" X Y Z V 5 3 4 0 2 -1 4 1 5]
+    hs::3d_hist_block_fill $id [hs::list_to_data {1.54 2.75 8.37 \
+        9.85 7.72 10.8 11.3 10.3 11.0 12.5 12.3 19.5 3.99 4.23 7.35 12.1 \
+        7.12 9.4 12.4 18.0 5.75 12.4 11.8 15.0 4.38 5.14 6.17 10.1 5.88 \
+        9.5 10.5 15.8 8.12 11.4 14.2 17.4 5.97 1.76 22.77 11.3 4.43 8.01 \
+        10.8 13.7 5.7 12.4 12.4 17.0 6.02 7.39 8.28 10.2 6.94 10.3 9.51 \
+        14.9 9.69 10.7 20.2 12.1}]
+    hs::hist_set_gauss_errors $id
+    set fit [hs::fit $id linear_3d]
+    $fit fit
+    foreach {a_1 dumm sig_a_1} [$fit parameter a set] break
+    foreach {b_1 dumm sig_b_1} [$fit parameter b set] break
+    foreach {c_1 dumm sig_c_1} [$fit parameter c set] break
+    foreach {d_1 dumm sig_d_1} [$fit parameter d set] break
+    # Get the correlation coefficients. Can't use sigmas
+    # to normalize them because the sigmas were calculated
+    # with some funny definition of $UP. Just take everything
+    # from the error matrix.
+    set covar [mn::emat 4]
+    set corr [hs::covar_to_corr $covar]
+    set cl_1 [$fit goodness chisq]
+    $fit delete
+    #
+    # Fit the same thing using an ntuple for the data storage
+    #
+    set nt_id [hs::create_ntuple [next_uid] "Data ntuple" "Data ntuple" {x y z v e}]
+    hs::ntuple_histo_fill $nt_id $id
+    set fit [hs::fit [list $nt_id -x x -y y -z z -v v -e e] linear_3d]
+    $fit fit
+    foreach {a_2 dumm sig_a_2} [$fit parameter a set] break
+    foreach {b_2 dumm sig_b_2} [$fit parameter b set] break
+    foreach {c_2 dumm sig_c_2} [$fit parameter c set] break
+    foreach {d_2 dumm sig_d_2} [$fit parameter d set] break
+    set covar [mn::emat 4]
+    set corr2 [hs::covar_to_corr $covar]
+    set cl_2 [$fit goodness chisq]
+    $fit delete
+    #
+    # Check that both histogram and ntuple fits give identical results
+    #
+    foreach name {a b c d sig_a sig_b sig_c sig_d cl} {
+        assert_same_double [set ${name}_1] [set ${name}_2] 1e-5
+    }
+    assert_same_matrix $corr2 $corr 2e-5
+    #
+    # Now, fit the same thing using multiple linear regression
+    #
+    # foreach {reg_coeff covar chisq_3 ndof_3 globcc adj_globcc} \
+    #        [hs::ntuple_c_linear_regress $nt_id 1 {1.f/e/e} v [list x y z]] break
+    # foreach {a_3 b_3 c_3 d_3} $reg_coeff {}
+    # set sig_a_3 [expr sqrt([hs::M $covar _ {0 0}])]
+    # set sig_b_3 [expr sqrt([hs::M $covar _ {1 1}])]
+    # set sig_c_3 [expr sqrt([hs::M $covar _ {2 2}])]
+    # set sig_d_3 [expr sqrt([hs::M $covar _ {3 3}])]
+    # set corr3 [hs::covar_to_corr $covar]
+    # Weighted multiple regression is not completely working yet.
+    # It does not calculate error normalization correctly, so errors
+    # can not be compared.
+    # foreach name {a b c d} {
+    #    assert_same_double [set ${name}_1] [set ${name}_3] 1e-5
+    # }
+    # assert_same_matrix $corr3 $corr 2e-5
+} {}
+
+foreach name {cl_1 a_1 sig_a_1 b_1 sig_b_1 dumm rho_1 row1 row2 row3\
+        id fit info a_2 b_2 sig_a_2 sig_b_2 rho_2 chisq ndof cl_2 c_1\
+        sig_c_1 sig_c_2 rho_ab_1 rho_ac_1 rho_bc_1 rho_ab_2 rho_ac_2\
+        rho_bc_2 nt_id reg_coeff covar corr corr2 corr3 globcc adj_globcc\
+        a_3 b_3 c_3 rho_ab_3 rho_ac_3 rho_bc_3 sig_a_3 sig_b_3 sig_c_3\
+        chisq_2 ndof_2 chisq_3 ndof_3 d_1 d_2 d_3 sig_d_1 sig_d_2 sig_d_3\
+        index method} {
+    catch {unset $name}
+}
+unset name
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

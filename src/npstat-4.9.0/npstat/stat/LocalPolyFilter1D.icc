@@ -1,0 +1,157 @@
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    template <typename T>
+    double LocalPolyFilter1D::convolute(
+        const T* data, const PolyFilter1D* filter) const
+    {
+        const unsigned len = filter->size();
+        const PolyFilter1D::value_type *f = &(*filter)[0];
+        long double sum = 0.0L;
+        for (unsigned i=0; i<len; ++i)
+            sum += f[i]*data[i];
+        return sum;
+    }
+
+
+    template <typename Tin, typename Tout>
+    void LocalPolyFilter1D::convolve(
+        const Tin* in, const unsigned dataLen, Tout* out) const
+    {
+        if (dataLen != nbins_) throw std::invalid_argument(
+            "In npstat::LocalPolyFilter1D::convolve: incompatible data length");
+        assert(in);
+        assert(out);
+
+        clearSumBuffer();
+
+        const Tin zero = Tin();
+        for (unsigned i=0; i<dataLen; ++i)
+            if (!(in[i] == zero))
+                addWeightedFilter(in[i], i);
+
+        long double* sum = &sumBuffer_[0];
+        for (unsigned i=0; i<dataLen; ++i)
+            out[i] = static_cast<Tout>(sum[i]);
+    }
+
+
+    template <typename Tin, typename Tout>
+    void LocalPolyFilter1D::filter(
+        const Tin* in, const unsigned dataLen, Tout* out) const
+    {
+        if (dataLen != nbins_) throw std::invalid_argument(
+            "In npstat::LocalPolyFilter1D::filter: incompatible data length");
+        assert(in);
+        assert(out);
+
+        for (unsigned i=0; i<dataLen; ++i)
+        {
+            const PolyFilter1D* filter(bins_[i]);
+            const unsigned filterLen = filter->size();
+            assert(filterLen <= dataLen);
+            if (filterLen == dataLen)
+                out[i] = convolute(in, filter);
+            else
+            {
+                if (filterLen % 2)
+                {
+                    // Odd filter size. Are we in the center?
+                    const unsigned peak = filter->peakPosition();
+                    const unsigned center = filterLen/2;
+                    if (peak < center)
+                        // We are on the left side
+                        out[i] = convolute(in, filter);
+                    else if (peak == center)
+                    {
+                        // We are in the center
+                        assert(i >= center);
+                        out[i] = convolute(in + (i - center), filter);
+                    }
+                    else
+                        // We are on the right side
+                        out[i] = convolute(in + (dataLen - filterLen), filter);
+                }
+                else
+                {
+                    // Even size filter. This can't be in the center.
+                    if (filter->peakPosition() < filterLen/2)
+                        // We are on the left side
+                        out[i] = convolute(in, filter);
+                    else
+                        // We are on the right side
+                        out[i] = convolute(in + (dataLen - filterLen), filter);
+                }
+            }
+        }
+    }
+
+#ifdef SWIG
+    inline LocalPolyFilter1D* LocalPolyFilter1D::doublyStochasticFilter_2(
+        const double tolerance, const unsigned maxIterations) const
+    {
+        CPP11_auto_ptr<LocalPolyFilter1D> f = doublyStochasticFilter(
+            tolerance, maxIterations);
+        return f.release();
+    }
+
+    inline LocalPolyFilter1D* LocalPolyFilter1D::eigenGroomedFilter_2() const
+    {
+        CPP11_auto_ptr<LocalPolyFilter1D> f = eigenGroomedFilter();
+        return f.release();
+    }
+
+    inline void LocalPolyFilter1D::filter_2(const double* in, unsigned dataLen,
+                                            double* out, unsigned outLen) const
+    {
+        if (dataLen != outLen) throw std::invalid_argument(
+            "In npstat::LocalPolyFilter1D::filter_2: incompatible array sizes");
+        return this->filter(in, dataLen, out);
+    }
+
+    inline void LocalPolyFilter1D::convolve_2(const double* in, unsigned dataLen,
+                                              double* out, unsigned outLen) const
+    {
+        if (dataLen != outLen) throw std::invalid_argument(
+            "In npstat::LocalPolyFilter1D::convolve_2: incompatible array sizes");
+        return this->convolve(in, dataLen, out);
+    }
+
+    inline LocalPolyFilter1D* symbetaLOrPEFilter1D_2(
+        const int m, const double bandwidth, const double maxPolyDegree,
+        const unsigned numberOfGridPoints, const double xmin, const double xmax,
+        const BoundaryHandling& boundaryMethod,
+        const std::vector<int>* exclusionMask, const bool excludeCentralPoint)
+    {
+        CPP11_auto_ptr<LocalPolyFilter1D> f;
+        bool have_mask = false;
+        if (exclusionMask)
+            if (!exclusionMask->empty())
+                have_mask = true;
+        if (have_mask)
+        {
+            if (numberOfGridPoints != exclusionMask->size())
+                throw std::invalid_argument(
+                    "In npstat::symbetaLOrPEFilter1D_2: incompatible "
+                    "exclusion mask length");
+            std::vector<unsigned char> mask(numberOfGridPoints, 0);
+            for (unsigned i=0; i<numberOfGridPoints; ++i)
+                if ((*exclusionMask)[i])
+                    mask[i] = 1;
+            f = symbetaLOrPEFilter1D(
+                m, bandwidth, maxPolyDegree, numberOfGridPoints,
+                xmin, xmax, boundaryMethod,
+                &mask[0], excludeCentralPoint);
+        }
+        else
+        {
+            f = symbetaLOrPEFilter1D(
+                m, bandwidth, maxPolyDegree, numberOfGridPoints,
+                xmin, xmax, boundaryMethod,
+                (unsigned char*)0, excludeCentralPoint);
+        }
+        return f.release();
+    }
+#endif
+}

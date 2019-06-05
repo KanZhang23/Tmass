@@ -1,0 +1,2 @@
+Sum of column 2 contents is 1003.26, expected 1000 +- 18.2574
+PASS tuple_collections (exit status: 0)

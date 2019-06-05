@@ -1,0 +1,8 @@
+
+bighisto.hs.gz, bighisto.root -- these files contain the same 2d histogram
+in gzipped Histo-Scope format and in ROOT format. This histogram has 140x896
+bins. It is a typical calibration pulse height distribution from a CDF silicon
+ladder. Compare the performance of Histo-Scope and ROOT in displaying and
+manipulating this histogram (zooming, rotation, etc). In our experience,
+Histo-Scope is about two orders of magnitude faster.
+

@@ -1,0 +1,124 @@
+
+The new code is in the directory /home/igv/TopJes/Scripts/Priors_2015
+
+============================================================================
+
+The MC integration code is using the following priors:
+
+1) Jet momentum (p/E) transfer functions:
+
+     transfer_function.h
+     Configurables/transfer_function.c
+     randomize_jet_energy.h
+     randomize_jet_energy.c
+
+   The code to create these transfer functions is in the directory
+   /home/igv/TF_code on the laptop (also /home/ivolobou/TF_code
+   on antaeus). The main file is called "fit_ratio_nonparametric.tcl".
+   The ntuples are prepared with the "prepare_mc_efficiency_ntuple.tcl"
+   script which can be found in the directory /home/igv/Efficiency_calculator
+   on the laptop or in the directory /home/igv/Efficiency_calculator on pdsf.
+
+2) Angular transfer functions. There are two types: with and without
+   parton mass dependence. The transfer functions with parton mass
+   dependence are in files
+
+     angular_transfer_function.h
+     Configurables/angular_transfer_function.c
+
+   Old code to create these functions is on the laptop, files
+   create_angular_ntuple.tcl, fit_angle_tfs.tcl, plot_angular_tfs.tcl,
+   format_angular_parameters.tcl, etc., in the directory
+   /home/igv/TopJes/Scripts/Propagators_newmodel.
+
+   New code is in the directory /home/igv/TF_code, file
+   fit_angle_nonparametric.tcl. On antaeus, the script is in
+   the directory /home/ivolobou/TF_code.
+
+   The transfer functions without parton mass dependence are in
+
+     random_jet_angles.h
+     Configurables/random_jet_angles.c
+
+   Apparently, these functions were created by some old version of the
+   "fit_angle_tfs.tcl" script, perhaps 
+   /home/igv/TopJes/Scripts/Propagators_newmodel/fit_angle_tfs.tcl.v1
+   on the laptop.
+
+3) Parton mass distributions:
+
+     random_parton_mass.h
+     Configurables/random_parton_mass.c
+
+   Old version, in which mq and mqbar are assumed to be independent:
+   Created by "create_parton_mass_generator.tcl" script on PDSF:
+   /home/igv/TopJes/Scripts/create_parton_mass_generator.tcl. Note
+   that only the arrays of constants should be replaced in file
+   "random_parton_mass.c", the functions themselves are not standard
+   and can not be created automatically.
+
+   Last time the script was used like this:
+
+   create_parton_mass_generator.tcl 10000 /eliza11/cdf/igv/Pythia_hepg_ntuples/parton_mass_ntuple.hs /eliza11/cdf/igv/Pythia_hepg_ntuples/newparse_pythia_{14,15,16,17,18,19}*hs
+
+   New version:
+   Use the "fit_q_mass_tail.tcl" script on the ntuple file written by
+   the "create_parton_mass_generator.tcl" script. The "fit_q_mass_tail.tcl"
+   script must be run by hstclsh. It is on laptop, in the directory
+   /home/igv/TopJes/Scripts.
+
+4) The ttbar Pt distribution. This distribution currently depends
+   on the top mass. The relevant files are
+
+     generate_ttbar_pt.h
+     gen_ttbar_pt_massdep.h
+     generate_ttbar_pt.c
+     Configurables/gen_ttbar_pt_massdep.c
+
+   The top mass library should use only the functions provided by
+   "generate_ttbar_pt.h". These functions, in turn, may or may not
+   use functions from "gen_ttbar_pt_massdep.h".
+
+   The relevant scripts are "create_ttbar_pt_generator.tcl" and
+   "create_ttbar_pt_ntuple.tcl" in the directory
+   /home/igv/TopJes/Scripts on the laptop.
+
+   Last use:
+   create_ttbar_pt_generator.tcl ttbar_pt_ntuple_pythia.hs gen_ttbar_pt_massdep 1000 0.5
+
+5) The lepton momentum transfer function. Used only for smearing but
+   not in the integration code:
+
+     random_lepton_momentum.h
+     Configurables/random_lepton_momentum.c
+
+   It is assumed to be gaussian. The relevant scripts are on the laptop:
+   /home/igv/TopJes/Scripts/Propagators_newmodel/lepton_resolution_ntuples.tcl
+   /home/igv/TopJes/Scripts/Propagators_newmodel/lepton_resolution.tcl
+
+6) Top and W masses. Currently Breit-Wigners (in Mt and MW^2).
+
+7) Prior in log(pq/pqbar). Currently flat within some limits. Realized
+   internally inside "mc_topmass_integrator.c".
+
+8) Angular prior for an "extra", unobserved jet. Flat in cos(theta) and
+   phi. Realized internally inside "mc_topmass_integrator.c", function
+   "random_dir_jet".
+
+9) The prior for the tau daughter spectrum. The relevant functions are
+   "tau_daughter_spectrum" and "average_tau_polarization" in files
+
+     tau_pt_spectrum.h
+     Configurables/tau_pt_spectrum.c
+
+   The relevant scripts are "fit_polarization.tcl" and
+   "fit_polarization_pmu.tcl" in the directory /home/igv/Updated_herw
+   on the laptop.
+
+10) Probabilities to gain an extra (ISR) jet and to loose a jet produced in
+    a ttbar decay. One might need to use special transfer functions in
+    conjunction with these probabilities. The relevant files are:
+
+    single_jet_probs.h
+    single_jet_probs.c
+    Configurables/single_jet_probabilities.c

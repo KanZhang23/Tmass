@@ -1,0 +1,27 @@
+test tcl_command_template-1.1 {generation of C command templates} {} {
+    hs::tcl_command_template dummy ./dummy.c
+    hs::sharedlib_compile ./dummy.c ./dummy.so
+    file delete ./dummy.c
+    set dll [hs::sharedlib open ./dummy.so]
+    if {![catch {dummy} message]} {
+        error "No exception generated for unimplemented command"
+    }
+    if {[string compare $message "command \"dummy\" is not implemented yet"]} {
+        error "Wrong exception message for unimplemented command"
+    }
+    hs::sharedlib close $dll
+    # The command should be unloaded now
+    if {![catch {dummy} message]} {
+        error "No exception generated for unloaded command"
+    }
+    if {[string compare $message "invalid command name \"dummy\""]} {
+        error "Wrong exception message for unloaded command"
+    }    
+    file delete ./dummy.so
+} {}
+
+catch {unset message}
+catch {unset dll}
+
+::tcltest::cleanupTests
+return

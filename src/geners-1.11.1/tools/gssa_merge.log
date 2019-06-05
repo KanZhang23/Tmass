@@ -1,0 +1,6 @@
+
+Usage: gssa_merge -o output_file input_file0 input_file1 ...
+
+This program merges the contents of multiple string archives into one.
+
+PASS gssa_merge (exit status: 0)

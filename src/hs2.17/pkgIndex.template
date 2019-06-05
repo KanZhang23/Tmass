@@ -1,0 +1,4 @@
+package ifneeded hs HS_VERSION \
+    "[list load [file join $dir libshlibhandler.so]]; \
+     [list hs::sharedlib_handler open -export_globals [file join $dir libhsHS_VERSION.so]]; \
+     [list source [file join $dir hs_utils.tcl]]"

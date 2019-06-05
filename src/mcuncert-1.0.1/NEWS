@@ -1,0 +1,4 @@
+Version 1.0.1 - January 21 2018, by Ll. A. Jimenez Rugama
+
+* c++ package that includes the error bound theory for the quasi-Monte Carlo method
+(only digital nets) based on cubSobol_g from Matlab GAIL toolbox (http://gailgithub.github.io/GAIL_Dev/)

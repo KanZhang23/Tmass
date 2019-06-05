@@ -1,0 +1,110 @@
+#include <cmath>
+#include <stdexcept>
+
+#include "npstat/stat/arrayStats.hh"
+#include "npstat/stat/Distributions1D.hh"
+#include "npstat/stat/JohnsonCurves.hh"
+
+#include "Minuit2/MnUserParameters.h"
+#include "Minuit2/MnMigrad.h"
+#include "Minuit2/FunctionMinimum.h"
+
+#include "npstat/interfaces/MinuitDensityFitFcn1D.hh"
+
+
+namespace npsi {
+    struct JohnsonFromMinuitParams
+    {
+        inline npstat::JohnsonSystem operator()(const std::vector<double>& x) const
+        {
+            assert(x.size() == 4U);
+            return npstat::JohnsonSystem(x[0], exp(x[1]), x[2], x[3]);
+        }
+    };
+
+    template <class Numeric,class Axis>
+    JohnsonFit::JohnsonFit(const npstat::HistoND<Numeric,Axis>& h,
+                           double qmin, double qmax,
+                           const double minlog)
+        : minFitBin_(0), maxFitBin_(h.nBins()), converged_(false)
+    {
+        if (qmin < 0.0)
+            qmin = 0.0;
+        if (qmax > 1.0)
+            qmax = 1.0;
+        assert(qmin < qmax);
+
+        if (!h.isUniformlyBinned()) throw std::invalid_argument(
+            "In npsi::JohnsonFit constructor: histogram must be uniformly binned");
+
+        const unsigned nbins = h.nBins();
+        const double xmin = h.axis(0).min();
+        const double xmax = h.axis(0).max();
+
+        // Figure out which bins are used in the fit
+        if (qmin > 0.0 || qmax < 1.0)
+        {
+            npstat::BinnedDensity1D distro(
+                xmin, xmax-xmin, h.binContents().data(), nbins, 0);
+            const int imin = h.axis(0).binNumber(distro.quantile(qmin));
+            assert(imin >= 0);
+            minFitBin_ = imin;
+            maxFitBin_ = h.axis(0).binNumber(distro.quantile(qmax));
+            if (maxFitBin_ < nbins)
+                ++maxFitBin_;
+        }
+
+        std::vector<unsigned char> mask(nbins, 0);
+        unsigned char* c = &mask[0];
+        for (unsigned i=minFitBin_; i<maxFitBin_; ++i)
+            c[i] = 1;
+
+        // Build the Minuit interface
+        JohnsonFromMinuitParams jBuilder;
+        MinuitDensityFitFcn1D<Numeric, JohnsonFromMinuitParams, Axis>
+            minuFcn(h, &mask[0], mask.size(), jBuilder, minlog);
+
+        // Get the first estimate of parameters from the histo itself
+        arrayShape1D(h.binContents(), xmin, xmax,
+                     &mean_, &sigma_, &skew_, &kurt_);
+
+        // Define minuit parameters
+        ROOT::Minuit2::MnUserParameters upar;
+        upar.Add("mean", mean_,
+                 2.0*sigma_/sqrt(static_cast<double>(h.nFillsInRange())));
+        upar.Add("lnsigma",log(sigma_),0.02,log(sigma_/10.0),log(sigma_*10.0));
+        upar.Add("skew", skew_, 0.05);
+        upar.Add("kurt", kurt_, 0.05*kurt_);
+        ROOT::Minuit2::MnMigrad migrad(minuFcn, upar);
+        migrad.SetPrecision(1.0e-12);
+
+        // Minuit is not good at fitting functions with strongly
+        // correlated parameters. Because of this, we need to do
+        // a few fix/release cycles.
+        const unsigned ncycles = 3;
+        for (unsigned icycle=0; icycle<ncycles; ++icycle)
+        {
+            migrad.Fix(2U);
+            migrad.Fix(3U);
+            migrad();
+            migrad.Release(2U);
+            migrad.Release(3U);
+            migrad.Fix(0U);
+            migrad.Fix(1U);
+            migrad();
+            migrad.Release(0U);
+            migrad.Release(1U);
+        }
+
+        // Run the complete fit
+        ROOT::Minuit2::FunctionMinimum min(migrad());
+        if (min.IsValid())
+        {
+            converged_ = true;
+            mean_ = migrad.Value(0U);
+            sigma_ = exp(migrad.Value(1U));
+            skew_ = migrad.Value(2U);
+            kurt_ = migrad.Value(3U);
+        }
+    }
+}

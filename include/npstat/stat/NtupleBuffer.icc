@@ -1,0 +1,256 @@
+#include "geners/GenericIO.hh"
+#include "geners/IOException.hh"
+
+namespace npstat {
+    template <typename Numeric>
+    const char* NtupleBuffer<Numeric>::classname()
+    {
+        static const std::string myClass(gs::template_class_name<Numeric>(
+                                             "npstat::NtupleBuffer"));
+        return myClass.c_str();
+    }
+
+    // Write function for the POD contents
+    template <typename Numeric>
+    bool NtupleBuffer<Numeric>::writeTransposed(
+        std::ostream& os, gs::Int2Type<true>) const
+    {
+        const unsigned long sz = data_.size();
+        const unsigned long nrows = sz/ncols_;
+
+        std::vector<Numeric> transposed;
+        transposed.reserve(sz);
+
+        for (unsigned long col=0; col<ncols_; ++col)
+        {
+            const Numeric* dat = &data_[col];
+            for (unsigned long row=0; row<nrows; ++row)
+                transposed.push_back(dat[row*ncols_]);
+            columnOffsets_[col] = col*nrows*sizeof(Numeric);
+        }
+        gs::write_pod_array(os, &transposed[0], sz);
+        return !os.fail();
+    }
+
+    // Read function for the POD contents
+    template <typename Numeric>
+    void NtupleBuffer<Numeric>::readTransposed(
+        std::istream& os, const unsigned long sz, gs::Int2Type<true>)
+    {
+        std::vector<Numeric> transposed;
+        transposed.resize(sz);
+        gs::read_pod_array(os, &transposed[0], sz);
+        if (os.fail()) throw gs::IOReadFailure(
+            "In npstat::NtupleBuffer::readTransposed (POD): "
+            "input stream failure");
+        data_.resize(sz);
+        const unsigned long nrows = sz/ncols_;
+        const Numeric* from = &transposed[0];
+        for (unsigned long col=0; col<ncols_; ++col)
+        {
+            Numeric* dat = &data_[col];
+            for (unsigned long row=0; row<nrows; ++row)
+                dat[row*ncols_] = *from++;
+        }
+    }
+
+    // Write function for the non-POD contents
+    template <typename Numeric>
+    bool NtupleBuffer<Numeric>::writeTransposed(
+        std::ostream& os, gs::Int2Type<false>) const
+    {
+        bool status = gs::ClassId::makeId<Numeric>().write(os);
+        if (status)
+        {
+            const std::streampos base = os.tellp();
+            const unsigned long nrows = data_.size()/ncols_;
+            for (unsigned long col=0; col<ncols_ && status; ++col)
+            {
+                const Numeric* dat = &data_[col];
+                std::streamoff off = os.tellp() - base;
+                columnOffsets_[col] = off;
+                for (unsigned long row=0; row<nrows && status; ++row)
+                    status = gs::write_item(os, dat[row*ncols_], false);
+            }
+        }
+        return status;
+    }
+
+    // Read function for the non-POD contents
+    template <typename Numeric>
+    void NtupleBuffer<Numeric>::readTransposed(
+        std::istream& is, const unsigned long sz, gs::Int2Type<false>)
+    {
+        typedef std::vector<gs::ClassId> State;
+        gs::ClassId id(is, 1);
+        State state;
+        state.reserve(1);
+        state.push_back(id);
+        std::vector<Numeric> readback;
+        bool status = true;
+        for (unsigned long i=0; i<sz && status; ++i)
+            status = gs::GenericReader<std::istream, State, std::vector<Numeric>,
+            gs::InContainerCycle>::process(readback, is, &state, i);
+        if (is.fail()) throw gs::IOReadFailure(
+           "In npstat::NtupleBuffer::readTransposed (non-POD): "
+           "input stream failure");
+        if (!status) throw gs::IOInvalidData(
+           "In npstat::NtupleBuffer::readTransposed (non-POD): "
+           "faled to read the data");
+        data_.clear();
+        data_.reserve(sz);
+        const unsigned long nrows = sz/ncols_;
+        const Numeric* tr = &readback[0];
+        for (unsigned long row=0; row<nrows; ++row)
+            for (unsigned long col=0; col<ncols_; ++col)
+                data_.push_back(tr[col*nrows + row]);
+    }
+
+    template <typename T>
+    bool NtupleBuffer<T>::write(std::ostream& os) const
+    {
+        const unsigned long sz = data_.size();
+        assert(sz % ncols_ == 0UL);
+
+        gs::write_pod(os, firstRow_);
+        gs::write_pod(os, maxrows_);
+        gs::write_pod(os, ncols_);
+        gs::write_pod(os, writeColumnByColumn_);
+        if (os.fail())
+            return false;
+
+        if (writeColumnByColumn_)
+        {
+            gs::write_pod(os, sz);
+            if (os.fail())
+                return false;
+            if (sz)
+                return writeTransposed(os, gs::Int2Type<gs::IOTraits<T>::IsPOD>());
+            else
+                return true;
+        }
+        else
+            return !os.fail() && gs::write_item(os, data_, false);
+    }
+
+    template <typename Numeric>
+    void NtupleBuffer<Numeric>::restore(const gs::ClassId& id, std::istream& in,
+                                        NtupleBuffer* buf)
+    {
+        static const gs::ClassId current(
+            gs::ClassId::makeId<NtupleBuffer<Numeric> >());
+        current.ensureSameId(id);
+
+        unsigned long firstRow = 0;
+        gs::read_pod(in, &firstRow);
+        unsigned long maxrows = 0;
+        gs::read_pod(in, &maxrows);
+        unsigned long ncols = 0;
+        gs::read_pod(in, &ncols);
+        bool writeColumnByColumn = false;
+        gs::read_pod(in, &writeColumnByColumn);
+        if (in.fail()) throw gs::IOReadFailure(
+            "In npstat::NtupleBuffer::restore: "
+            "input stream failure (checkpoint 0)");
+
+        assert(buf);
+        buf->columnOffsets_.clear();
+        buf->firstRow_ = firstRow;
+        buf->maxrows_ = maxrows;
+        buf->ncols_ = ncols;
+        buf->writeColumnByColumn_ = writeColumnByColumn;
+
+        if (writeColumnByColumn)
+        {
+            unsigned long sz = 0;
+            gs::read_pod(in, &sz);
+            for (unsigned long i=0; i<ncols; ++i)
+                buf->columnOffsets_.push_back(0LL);
+            if (in.fail()) throw gs::IOReadFailure(
+                "In npstat::NtupleBuffer::restore: "
+                "input stream failure (checkpoint 1)");
+            if (sz)
+                buf->readTransposed(
+                    in, sz, gs::Int2Type<gs::IOTraits<Numeric>::IsPOD>());
+            else
+                buf->data_.clear();
+        }
+        else
+            gs::restore_item(in, &buf->data_, false);
+    }
+
+    template <typename Numeric>
+    bool NtupleBuffer<Numeric>::readColumnWOffset(
+            std::istream& in, const long long offset,
+            Numeric* buffer, const unsigned long nrows, gs::Int2Type<true>)
+    {
+        in.seekg(std::streamoff(offset), std::ios::cur);
+        gs::read_pod_array(in, buffer, nrows);
+        return !in.fail();
+    }
+
+    template <typename Numeric>
+    bool NtupleBuffer<Numeric>::readColumnWOffset(
+            std::istream& in, const long long offset,
+            Numeric* buffer, const unsigned long nrows, gs::Int2Type<false>)
+    {
+        typedef std::vector<gs::ClassId> State;
+        gs::ClassId id(in, 1);
+        State state;
+        state.reserve(1);
+        state.push_back(id);
+        in.seekg(std::streamoff(offset), std::ios::cur);
+        gs::ArrayAdaptor<Numeric> adap(buffer, nrows, false);
+        return gs::process_item<gs::GenericReader>(adap, in, &state, false);
+    }
+
+    template <typename Numeric>
+    void NtupleBuffer<Numeric>::readColumn(
+        const gs::ClassId& id, std::istream& in,
+        const unsigned long column, const long long offset,
+        Numeric* buffer, const unsigned long bufferLength)
+    {
+        static const gs::ClassId current(
+            gs::ClassId::makeId<NtupleBuffer<Numeric> >());
+        current.ensureSameId(id);
+
+        unsigned long firstRow = 0;
+        gs::read_pod(in, &firstRow);
+        unsigned long maxrows = 0;
+        gs::read_pod(in, &maxrows);
+        unsigned long ncols = 0;
+        gs::read_pod(in, &ncols);
+        bool writeColumnByColumn = false;
+        gs::read_pod(in, &writeColumnByColumn);
+        unsigned long sz = 0;
+        gs::read_pod(in, &sz);
+        if (in.fail())
+            throw gs::IOReadFailure("In npstat::NtupleBuffer::readColumn: "
+                                    "input stream failure");
+        if (!(column < ncols && writeColumnByColumn))
+            throw gs::IOInvalidData("In npstat::NtupleBuffer::readColumn: "
+                                    "invalid data was read back");
+        if (sz)
+        {
+            const unsigned long nrows = sz/ncols;
+            if (bufferLength < nrows)
+                throw std::invalid_argument(
+                    "In npstat::NtupleBuffer::readColumn:"
+                    " provided buffer is too small");
+            assert(buffer);
+            if (!readColumnWOffset(
+                in, offset, buffer, nrows,
+                gs::Int2Type<gs::IOTraits<Numeric>::IsPOD>()))
+            {
+                if (in.fail())
+                    throw gs::IOReadFailure(
+                        "In npstat::NtupleBuffer::readColumn: "
+                        "input stream failure");
+                else
+                    throw gs::IOInvalidData(
+                        "In npstat::NtupleBuffer::readColumn: "
+                        "failed to read column data from archive");
+            }
+        }
+    }
+}

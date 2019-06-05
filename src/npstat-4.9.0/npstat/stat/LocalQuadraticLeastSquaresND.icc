@@ -1,0 +1,247 @@
+#include <sstream>
+#include "npstat/nm/lapack.h"
+
+namespace npstat {
+    template<class Point, typename Numeric>
+    LocalQuadraticLeastSquaresND<Point,Numeric>::LocalQuadraticLeastSquaresND(
+            const unsigned polyDegree,
+            const AbsDistributionND& weight,
+            const double* bandwidthValues, const unsigned nBandwidthValues,
+            const Point* pointCoords, const unsigned nPoints,
+            const Numeric* values, const Numeric* errors)
+        : polyDegree_(polyDegree),
+          nPoints_(nPoints),
+          dim_(weight.dim()),
+          weight_(weight.clone()),
+          points_(pointCoords),
+          values_(values),
+          errors_(errors),
+          zero_(Numeric())
+    {
+        if (nBandwidthValues != dim_) throw std::invalid_argument(
+            "In npstat::LocalQuadraticLeastSquaresND constructor: number of "
+            "bandwidth values is incompatible with weight dimensionality");
+        if (!nPoints_) throw std::invalid_argument(
+            "In npstat::LocalQuadraticLeastSquaresND constructor: "
+            "no data points provided");
+        assert(bandwidthValues);
+        assert(points_);
+        assert(values_);
+        // Note that NULL is allowed for errors_
+
+        bwBuf_.resize(2*dim_);
+        for (unsigned i=0; i<dim_; ++i)
+        {
+            if (bandwidthValues[i] <= 0.0) throw std::invalid_argument(
+                "In npstat::LocalQuadraticLeastSquaresND constructor: "
+                "all bandwidth values must be positive");
+            bwBuf_[i] = bandwidthValues[i];
+        }
+        bw_ = &bwBuf_[0];
+        delta_ = &bwBuf_[0] + dim_;
+
+        switch (polyDegree_)
+        {
+        case 0:
+            nBasisFcns_ = 1;
+            break;
+        case 1:
+            nBasisFcns_ = dim_ + 1;
+            break;
+        case 2:
+            nBasisFcns_ = (dim_ + 1)*(dim_ + 2)/2;
+            break;
+        default:
+            throw std::invalid_argument(
+                "In npstat::LocalQuadraticLeastSquaresND constructor: "
+                "polynomial degree must be less than 3");
+        }
+
+        memBuf_.resize(nPoints_*nBasisFcns_ + nPoints_ + nBasisFcns_);
+        A_ = &memBuf_[0];
+        b_ = A_ + nPoints_*nBasisFcns_;
+        singularValues_ = b_ + nPoints_;
+    }
+
+    template<class Point, typename Numeric>
+    inline LocalQuadraticLeastSquaresND<Point,Numeric>::
+    ~LocalQuadraticLeastSquaresND()
+    {
+        delete weight_;
+    }
+
+    template<class Point, typename Numeric>
+    double LocalQuadraticLeastSquaresND<Point,Numeric>::basisPoly(
+        const unsigned num, const double* coords) const
+    {
+        if (num == 0)
+            return 1.0;
+        else if (num <= dim_)
+            return coords[num - 1U];
+        else
+        {
+            // Order of monomial terms is lower diagonal:
+            // x0^2, x1*x0, x1*x1, x2*x0, ..., x2*x2, ..., xn*x0, ..., xn*xn
+            const unsigned qnum = num - dim_ - 1U;
+            for (unsigned k=1; k<=dim_; ++k)
+                if (qnum < k*(k+1U)/2U)
+                {
+                    const unsigned i = k - 1U;
+                    return coords[i]*coords[qnum - k*i/2U];
+                }
+
+            // Should never get here
+            assert(0);
+            return 0.0;
+        }
+    }
+
+    template<class Point, typename Numeric>
+    template <typename Num2>
+    double LocalQuadraticLeastSquaresND<Point,Numeric>::fit(
+        const Num2* coord, const unsigned coordinateDim,
+        double* gradient, const unsigned nGradient,
+        double* hessian, const unsigned nHessian) const
+    {
+        if (coordinateDim != dim_) throw std::invalid_argument(
+            "In npstat::LocalQuadraticLeastSquaresND::fit: "
+            "incompatible point dimensionality");
+        unsigned iDesign = 0;
+        for (unsigned ipt=0; ipt<nPoints_; ++ipt)
+        {
+            for (unsigned idim=0; idim<dim_; ++idim)
+                delta_[idim] = (points_[ipt][idim] - coord[idim])/bw_[idim];
+            double w = weight_->density(delta_, dim_);
+            if (w > 0.0)
+            {
+                if (errors_)
+                {
+                    if (errors_[ipt] <= zero_) throw std::invalid_argument(
+                        "In npstat::LocalQuadraticLeastSquaresND::fit: "
+                        "all uncertainties must be positive");
+                    w /= errors_[ipt];
+                    w /= errors_[ipt];
+                }
+
+                for (unsigned ifcn=0; ifcn<nBasisFcns_; ++ifcn)
+                    // We need to build a column-wise array 
+                    // A_(iDesign, ifcn) for use with a Fortran subroutine
+                    A_[iDesign + ifcn*nPoints_] = basisPoly(ifcn, delta_)*w;
+
+                b_[iDesign++] = values_[ipt]*w;
+            }
+        }
+
+        // Make sure there are enough points to perform the fit
+        if (iDesign < nBasisFcns_)
+        {
+            std::ostringstream os;
+            os << "In npstat::LocalQuadraticLeastSquaresND::fit: "
+               << "not enough data points to fit in the vicinity of (";
+            for (unsigned i=0; i<dim_; ++i)
+            {
+                if (i) os << ", ";
+                os << coord[i];
+            }
+            os << "). You might want to increase the bandwidth "
+               << "of the weight function.";
+            throw std::runtime_error(os.str());
+        }
+
+        // Call the LAPACK linear least squares solver
+        {
+            int M = iDesign;
+            int N = nBasisFcns_;
+            int NRHS = 1;
+            int LDA = nPoints_;
+            int LDB = iDesign;
+            double RCOND = 1.0e-12;
+            int RANK = 0;
+            int INFO = 1;
+            double wtmp = 0.0;
+            int itmp;
+            const int MINMN = std::min(M, N);
+
+            // Figure out the workspace needed
+            int LWORK = -1;
+            dgelsd_(&M, &N, &NRHS, A_,
+                    &LDA, b_, &LDB, singularValues_,
+                    &RCOND, &RANK, &wtmp,
+                    &LWORK, &itmp, &INFO);
+            assert(INFO == 0);
+            const int NLVL = Private::lapack_nlvl_dgelsd(MINMN);
+            itmp =  3 * MINMN * NLVL + 11 * MINMN;
+
+            // Grab more memory if necessary
+            if (itmp > static_cast<int>(intBuf_.size()))
+                intBuf_.resize(itmp);
+            const unsigned needDoub = static_cast<unsigned>(wtmp);
+            if (needDoub > workBuf_.size())
+                workBuf_.resize(needDoub);
+
+            // Perform the real work now
+            LWORK = workBuf_.size();
+            dgelsd_(&M, &N, &NRHS, A_,
+                    &LDA, b_, &LDB, singularValues_,
+                    &RCOND, &RANK, &workBuf_[0],
+                    &LWORK, &intBuf_[0], &INFO);
+            if (INFO != 0)
+            {
+                std::ostringstream os;
+                os << "In npstat::LocalQuadraticLeastSquaresND::fit: "
+                   << "fit failed in the vicinity of (";
+                for (unsigned i=0; i<dim_; ++i)
+                {
+                    if (i) os << ", ";
+                    os << coord[i];
+                }
+                os << ") with code " << INFO
+                   << " (LAPACK subroutine DGELSD). You might want to "
+                   << "increase the bandwidth of the weight function.";
+                throw std::runtime_error(os.str());
+            }
+        }
+
+        if (gradient || nGradient)
+        {
+            if (nGradient != dim_) throw std::invalid_argument(
+                "In npstat::LocalQuadraticLeastSquaresND::fit: "
+                "incompatible dimensionality of the gradient");
+            assert(gradient);
+            if (polyDegree_ > 0)
+                for (unsigned idim=0; idim<dim_; ++idim)
+                    gradient[idim] = b_[idim + 1]/bw_[idim];
+            else
+                for (unsigned idim=0; idim<dim_; ++idim)
+                    gradient[idim] = 0.0;
+        }
+
+        if (hessian || nHessian)
+        {
+            if (nHessian != dim_*dim_) throw std::invalid_argument(
+                "In npstat::LocalQuadraticLeastSquaresND::fit: "
+                "incompatible dimensionality of the Hessian");
+            assert(hessian);
+            if (polyDegree_ > 1)
+            {
+                for (unsigned i=0; i<dim_; ++i)
+                {
+                    const double* h = b_ + (i*(i + 1)/2 + dim_ + 1);
+                    for (unsigned j=0; j<=i; ++j)
+                    {
+                        if (i == j)
+                            hessian[i*dim_ + j] = 2.0*h[j]/bw_[j]/bw_[j];
+                        else
+                            hessian[i*dim_ + j] = hessian[j*dim_ + i] = 
+                                h[j]/bw_[i]/bw_[j];
+                    }
+                }
+            }
+            else
+                for (unsigned i=0; i<nHessian; ++i)
+                    hessian[i] = 0.0;
+        }
+
+        return b_[0];
+    }
+}

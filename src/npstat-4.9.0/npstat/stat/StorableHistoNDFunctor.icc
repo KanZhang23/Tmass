@@ -1,0 +1,73 @@
+#include <stdexcept>
+
+#include "geners/binaryIO.hh"
+#include "geners/CPP11_auto_ptr.hh"
+#include "geners/IOException.hh"
+
+#include "npstat/stat/interpolateHistoND.hh"
+
+namespace npstat {
+    template <class Numeric, class Axis, class Converter>
+    double StorableHistoNDFunctor<Numeric,Axis,Converter>::operator()(
+        const double* point, const unsigned dim) const
+    {
+        return conv_(interpolateHistoND(table_, point, dim, deg_));
+    }
+
+    template <class Numeric, class Axis, class Converter>
+    const char* StorableHistoNDFunctor<Numeric,Axis,Converter>::classname()
+    {
+        static const std::string myClass(gs::template_class_name<Numeric,Axis>(
+                                            "npstat::StorableHistoNDFunctor"));
+        return myClass.c_str();
+    }
+
+    template <class Numeric, class Axis, class Converter>
+    bool StorableHistoNDFunctor<Numeric,Axis,Converter>::write(std::ostream& of) const
+    {
+        gs::write_pod(of, this->description());
+        gs::write_pod(of, deg_);
+        return table_.classId().write(of) && table_.write(of);
+    }
+
+    template <class Numeric, class Axis, class Converter>
+    StorableHistoNDFunctor<Numeric,Axis,Converter>* 
+    StorableHistoNDFunctor<Numeric,Axis,Converter>::read(
+        const gs::ClassId& id, std::istream& in)
+    {
+        static const gs::ClassId current(
+            gs::ClassId::makeId<StorableHistoNDFunctor<Numeric,Axis> >());
+        current.ensureSameId(id);
+
+        std::string descr;
+        gs::read_pod(in, &descr);
+        unsigned deg;
+        gs::read_pod(in, &deg);
+        gs::ClassId tabid(in, 1);
+        if (in.fail()) throw gs::IOReadFailure(
+            "In npstat::StorableHistoNDFunctor::read: "
+            "input stream failure");
+        CPP11_auto_ptr<Table> tab(Table::read(tabid, in));
+        return new StorableHistoNDFunctor(*tab, deg, descr);
+    }
+
+    template <class Numeric, class Axis, class Converter>
+    inline void StorableHistoNDFunctor<Numeric,Axis,Converter>::setInterpolationDegree(
+        const unsigned deg) 
+    {
+        validateInterDegree(deg, table_.isUniformlyBinned());
+        deg_ = deg;
+    }
+
+    template <class Numeric, class Axis, class Converter>
+    inline void StorableHistoNDFunctor<Numeric,Axis,Converter>::validateInterDegree(
+        const unsigned deg, const bool isUniform)
+    {
+        const bool ok = isUniform ? (deg == 0 || deg == 1 || deg == 3) :
+                                    (deg == 0 || deg == 1);
+        if (!ok)
+            throw std::invalid_argument(
+                "In npstat::StorableHistoNDFunctor::validateInterDegree: "
+                "unsupported interpolation degree");
+    }
+}

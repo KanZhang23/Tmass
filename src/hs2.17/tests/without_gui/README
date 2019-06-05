@@ -1,0 +1,14 @@
+
+Change directory to this one and run the tests as follows:
+
+tclsh all.tcl
+
+The functions will sometimes print out error messages to the standard error,
+for example
+
+hs_create_ntuple: Error. Specified title string is too long, truncating
+     ->blah blah blah (long title repeated).
+
+This is normal and expected. Don't pay attention to these messages, rather,
+make sure that the system passes all the tests.
+

@@ -1,0 +1,35 @@
+#include "npstat/stat/StatUtils.hh"
+
+namespace npstat {
+    namespace Private {
+        // In the functions below, "rfk" is the squared derivative integral
+        // of the (unknown) estimated density
+        double amiseBwGauss(unsigned filterDegree, double npoints,
+                            double rfk, double* expectedAmise);
+
+        double amiseSymbeta(unsigned power, unsigned filterDegree,
+                            double rfk, double npoints, double* expectedAmise);
+    }
+
+    template<typename Real>
+    inline double amiseOptimalBwGauss(unsigned filterDegree, double npoints,
+                               Real* fvalues, unsigned long arrLen, Real h,
+                               double* expAmise)
+    {
+        const double rfk = squaredDerivativeIntegral(
+            fvalues, arrLen, filterDegree+2, h);
+        return Private::amiseBwGauss(filterDegree, npoints, rfk, expAmise);
+    }
+
+    template<typename Real>
+    inline double amiseOptimalBwSymbeta(unsigned power, unsigned filterDegree,
+                                 double npoints,
+                                 Real* fvalues, unsigned long arrLen, Real h,
+                                 double* expectedAmise)
+    {
+        const double rfk = squaredDerivativeIntegral(
+            fvalues, arrLen, filterDegree+2, h);
+        return Private::amiseSymbeta(power, filterDegree, rfk,
+                                     npoints, expectedAmise);
+    }
+}

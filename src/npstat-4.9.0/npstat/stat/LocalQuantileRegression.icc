@@ -1,0 +1,450 @@
+#include <cmath>
+#include <cassert>
+#include <stdexcept>
+#include <limits>
+
+#include "npstat/nm/LinearMapper1d.hh"
+
+namespace npstat {
+    namespace Private {
+        //
+        // We assume that the uncertainty of quantile determination
+        // behaves approximately like
+        //
+        // coeff(quantile)*sigma/sqrt(quantile*(1.0-quantile)*N).
+        //
+        // The following function returns approximate value of
+        // "coeff(quantile)" for the Gaussian distribution.
+        //
+        inline double quantileUncertaintyCoefficient(const double quantile)
+        {
+            const double x0 = 0.5;
+            const double r = 0.5;
+            const double h = 0.2384883007540758;
+            const double p = 0.3277219788830142;
+            const double b = 0.3877361740909761;
+
+            const double dx = (quantile - x0)/r;
+            double tmp = 1.0 - dx*dx;
+            if (tmp < 0.0)
+                tmp = 0.0;
+            return h + b*pow(tmp, p);
+        }
+
+        inline double quantileDeterminationUncertainty(
+            const WeightedSampleAccumulator<double>& acc, const double q)
+        {
+            if (!(q > 0.0 && q < 1.0)) throw std::domain_error(
+                "In npstat::Private::quantileDeterminationUncertainty: "
+                "cdf argument outside of (0, 1) interval");
+            const double q16 = 0.158655253931457;
+            const double sigma = 0.5*(acc.quantile(1.0-q16)-acc.quantile(q16));
+            const double factor = sigma/sqrt(q*(1.0 - q)*acc.count());
+            return quantileUncertaintyCoefficient(q)*factor;
+        }
+
+        // The following class is used to perform the initial guess
+        // of the quantile for KDTree data
+        template<class Point, class Numeric>
+        class EmpiricalQuantileEstimateT : public AbsVisitor<Point, double>
+        {
+        public:
+            inline EmpiricalQuantileEstimateT(
+                const KDTree<Point,Numeric>& dataTree,
+                const QuadraticOrthoPolyND& poly,
+                const Functor1<double,Point>& regressedValue,
+                const double q, double* coords, const double* scale,
+                const double* location, const unsigned dim)
+                : dataTree_(dataTree), poly_(poly),
+                  regressedValue_(regressedValue),
+                  q_(q), coords_(coords), scale_(scale),
+                  location_(location), dim_(dim) {}
+            
+            inline void clear() {assert(0);}
+            inline double result() {return acc_.quantile(q_);}
+            void process(const Point& value);
+
+            inline double count() const {return acc_.count();}
+            inline double resultUncertainty() const
+                {return quantileDeterminationUncertainty(acc_, q_);}
+
+        private:
+            WeightedSampleAccumulator<double> acc_;
+            const KDTree<Point,Numeric>& dataTree_;
+            const QuadraticOrthoPolyND& poly_;
+            const Functor1<double,Point>& regressedValue_;
+            const double q_;
+            double* coords_;
+            const double* scale_;
+            const double* location_;
+            const unsigned dim_;
+        };
+
+        template<class Point, class Numeric>
+        void EmpiricalQuantileEstimateT<Point,Numeric>::process(
+            const Point& value)
+        {
+            for (unsigned i=0; i<dim_; ++i)
+            {
+                const double x = static_cast<double>(
+                    value[dataTree_.pointIndex(i)]);
+                coords_[i] = x*scale_[i] + location_[i];
+            }
+            const double w = poly_.weight()->density(coords_, dim_);
+            if (w > 0.0)
+                acc_.accumulate(regressedValue_(value), w);
+        }
+
+        // The following class is used to perform the initial guess
+        // of the quantile for histogrammed data
+        template <typename Numeric>
+        class EmpiricalQuantileEstimateI : 
+            public AbsArrayProjector<Numeric, double>
+        {
+        public:
+            inline EmpiricalQuantileEstimateI(const QuadraticOrthoPolyND& poly,
+                                              const HistoAxis& lastAxis,
+                                              const double q,
+                                              double* coords,
+                                              const double* scale,
+                                              const double* location,
+                                              const unsigned dim)
+                : poly_(poly), lastAxis_(lastAxis),
+                  q_(q), coords_(coords), scale_(scale),
+                  location_(location), dim_(dim), zero_() {}
+
+            inline void clear() {assert(0);}
+            inline double result() {return acc_.quantile(q_);}
+            void process(const unsigned *index, unsigned indexLen,
+                         unsigned long linearIndex, const Numeric& value);
+
+            inline double count() const {return acc_.count();}
+            inline double resultUncertainty() const
+                {return quantileDeterminationUncertainty(acc_, q_);}
+
+        private:
+            WeightedSampleAccumulator<double> acc_;
+            const QuadraticOrthoPolyND& poly_;
+            const HistoAxis& lastAxis_;
+            const double q_;
+            double* coords_;
+            const double* scale_;
+            const double* location_;
+            const unsigned dim_;
+            const Numeric zero_;
+        };
+
+        template <typename Numeric>
+        void EmpiricalQuantileEstimateI<Numeric>::process(
+            const unsigned *index, const unsigned indexLen,
+            unsigned long /* linearIndex */, const Numeric& value)
+        {
+            if (value > zero_)
+            {
+                if (dim_ + 1U != indexLen) throw std::invalid_argument(
+                    "In npstat::Private::EmpiricalQuantileEstimateI::process:"
+                    " incompatible index dimensionality");
+                for (unsigned i=0; i<dim_; ++i)
+                    coords_[i] = index[i]*scale_[i] + location_[i];
+                const double w = poly_.weight()->density(coords_, dim_);
+                if (w > 0.0)
+                {
+                    const double binCenter = lastAxis_.binCenter(index[dim_]);
+                    acc_.accumulate(binCenter, value*w);
+                }
+            }
+        }
+    }
+}
+
+namespace npstat {
+    template<class Numeric>
+    void QuantileRegressionBase<Numeric>::setRegressionBox(
+         const BoxND<Numeric>& regressionBox)
+    {
+        if (!(regressionBox.dim() == mydim_)) throw std::invalid_argument(
+            "In npstat::QuantileRegressionBase::setRegressionBox: "
+            "incompatible box dimensionality");
+        regressionBox_ = regressionBox;
+        mappingIsDone_ = false;
+        coeffs_.clear();
+    }
+
+    template<class Numeric>
+    void QuantileRegressionBase<Numeric>::setLinearMapping(
+         const double* location, const double* scale, const unsigned len)
+    {
+        if (len != mydim_) throw std::invalid_argument(
+            "In npstat::QuantileRegressionBase::setLinearMapping: "
+            "incompatible argument dimensionality");
+        location_.resize(mydim_);
+        scale_.resize(mydim_);
+        for (unsigned i=0; i<mydim_; ++i)
+        {
+            location_[i] = location[i];
+            scale_[i] = scale[i];
+        }
+        coeffs_.clear();
+        mappingIsDone_ = true;
+    }
+
+    template<class Numeric>
+    void QuantileRegressionBase<Numeric>::makeStandardMapping()
+    {
+        // We will map the points in such a manner that the
+        // regression box maps into the QuadraticOrthoPolyND box
+        location_.resize(mydim_);
+        scale_.resize(mydim_);
+        const BoxND<double>& pBox(poly_.boundingBox());
+        assert(regressionBox_.size() == mydim_);
+        for (unsigned i=0; i<mydim_; ++i)
+            regressionBox_[i].linearMap(pBox[i], &scale_[i], &location_[i]);
+    }
+
+    template<class Numeric>
+    QuantileRegressionBase<Numeric>::QuantileRegressionBase(
+        const QuadraticOrthoPolyND& poly,
+        const double quantile)
+        : poly_(poly),
+          loss_(0.0L),
+          quantile_(quantile),
+          onemq_(1.0 - quantile),
+          mydim_(poly.dim()),
+          mappingIsDone_(false)
+    {
+        if (!(quantile_ >= 0.0 && quantile_ <= 1.0))
+            throw std::domain_error(
+                "In npstat::QuantileRegressionBase constructor: "
+                "cdf argument outside of [0, 1] interval");
+        coords_.resize(mydim_);
+    }
+
+    template<class Numeric>
+    double QuantileRegressionBase<Numeric>::linearLoss(
+        const double* coeffs, const unsigned nCoeffs)
+    {
+        if (!nCoeffs) throw std::invalid_argument(
+            "In npstat::QuantileRegressionBase::linearLoss: "
+            "array of coefficients must have non-zero length");
+        assert(coeffs);
+
+        loss_ = 0.0L;
+
+        if (!mappingIsDone_)
+        {
+            if (regressionBox_.dim() != mydim_) throw std::invalid_argument(
+                "In npstat::QuantileRegressionBase::linearLoss: "
+                "incompatible regression box dimensionality");
+            makeStandardMapping();
+            mappingIsDone_ = true;
+        }
+
+        coeffs_.resize(nCoeffs);
+        for (unsigned i=0; i<nCoeffs; ++i)
+            coeffs_[i] = coeffs[i];
+
+        actualLossCalculation();
+        return static_cast<double>(loss_);
+    }
+
+    template<class Numeric>
+    void QuantileRegressionBase<Numeric>::resetAccumulators()
+    {
+        loss_ = 0.0L;
+        coeffs_.clear();
+    }
+
+    template<class Numeric>
+    void QuantileRegressionBase<Numeric>::empiricalC0(
+        double* c0, double* c0Uncertainty, double* pnpoints)
+    {
+        assert(c0);
+        assert(c0Uncertainty);
+        assert(pnpoints);
+
+        const BoxND<double>& polyBox(poly_.boundingBox());
+        double* coords = &this->coords_[0];
+        for (unsigned i=0; i<mydim_; ++i)
+            coords[i] = polyBox[i].midpoint();
+        const double p0 = poly_.value(0U, &coords[0], mydim_);
+        assert(p0 > 0.0);
+        if (!mappingIsDone_)
+        {
+            if (regressionBox_.dim() != mydim_) throw std::invalid_argument(
+                "In npstat::QuantileRegressionBase::empiricalC0: "
+                "incompatible regression box dimensionality");
+            makeStandardMapping();
+            mappingIsDone_ = true;
+        }
+        double err = 0.0;
+        double value = this->empiricalQuantile(&err, pnpoints);
+        *c0 = value/p0;
+        *c0Uncertainty = err/p0;
+    }
+
+    template<class Point, class Numeric>
+    QuantileRegressionOnKDTree<Point,Numeric>::QuantileRegressionOnKDTree(
+        const KDTree<Point,Numeric>& dataTree,
+        const Functor1<double,Point>& regressedValue,
+        const QuadraticOrthoPolyND& poly,
+        const double quantile)
+        : QuantileRegressionBase<Numeric>(poly, quantile),
+          AbsVisitor<Point, double>(),
+          dataTree_(dataTree),
+          regressedValue_(regressedValue)
+    {
+        if (dataTree.dim() != this->mydim_) throw std::invalid_argument(
+            "In npstat::QuantileRegressionOnKDTree constructor: "
+            "incompatible argument dimensionalities");
+    }
+
+    template<class Point, class Numeric>
+    double QuantileRegressionOnKDTree<Point,Numeric>::empiricalQuantile(
+        double* err, double* pnpoints)
+    {
+        Private::EmpiricalQuantileEstimateT<Point,Numeric> eq(
+            dataTree_, this->poly_, regressedValue_,
+            this->quantile_, &this->coords_[0],
+            &this->scale_[0], &this->location_[0], this->mydim_);
+        dataTree_.visitInBox(eq, this->regressionBox_);
+        *err = eq.resultUncertainty();
+        *pnpoints = eq.count();
+        return eq.result();
+    }
+
+    template<class Point, class Numeric>
+    void QuantileRegressionOnKDTree<Point,Numeric>::process(const Point& value)
+    {
+        const unsigned nCoeffs = this->coeffs_.size();
+        double* coords = &this->coords_[0];
+
+        for (unsigned i=0; i<this->mydim_; ++i)
+        {
+            const double x = static_cast<double>(
+                value[dataTree_.pointIndex(i)]);
+            coords[i] = x*this->scale_[i] + this->location_[i];
+        }
+
+        const double w = this->poly_.weight()->density(coords, this->mydim_);
+        if (w > 0.0)
+        {
+            const double pval = this->poly_.series(
+                coords, this->mydim_, &this->coeffs_[0], nCoeffs);
+            const double y = regressedValue_(value);
+            if (y >= pval)
+                this->loss_ += (y - pval)*this->quantile_*w;
+            else
+                this->loss_ += (pval - y)*this->onemq_*w;
+        }
+    }
+
+    template <typename Numeric>
+    QuantileRegressionOnHisto<Numeric>::QuantileRegressionOnHisto(
+        const HistoND<Numeric>& histo,
+        const QuadraticOrthoPolyND& poly,
+        const double quantile)
+        : QuantileRegressionBase<double>(poly, quantile),
+          lastAxis_(histo.axis(this->mydim_)),
+          halfbin_(lastAxis_.binWidth()/2.0),
+          zero_(Numeric()),
+          histo_(histo),
+          binBox_(mydim_ + 1U)
+    {
+        // Check that the input makes sense
+        if (histo_.dim() != this->mydim_ + 1U) throw std::invalid_argument(
+            "In npstat::QuantileRegressionOnHisto constructor: "
+            "incompatible argument dimensionalities");
+        if (!histo_.binContents().isDensity()) throw std::invalid_argument(
+            "In npstat::QuantileRegressionOnHisto constructor: "
+            "input histogram is not a density");
+        binBox_[mydim_].setBounds(0, lastAxis_.nBins());
+    }
+
+    template <typename Numeric>
+    double QuantileRegressionOnHisto<Numeric>::empiricalQuantile(
+        double* err, double* pnpoints)
+    {
+        Private::EmpiricalQuantileEstimateI<Numeric> eq(
+            this->poly_, lastAxis_, this->quantile_,
+            &this->coords_[0], &this->scale_[0],
+            &this->location_[0], this->mydim_);
+        histo_.binContents().processSubrange(eq, binBox_);
+        *err = eq.resultUncertainty();
+        *pnpoints = eq.count();
+        return eq.result();
+    }
+
+    template <typename Numeric>
+    void QuantileRegressionOnHisto<Numeric>::process(
+        const unsigned *index, const unsigned indexLen,
+        const unsigned long /* linearIndex */, const Numeric& value)
+    {
+        if (value > zero_)
+        {
+            const unsigned thisdim = this->mydim_;
+            if (indexLen != thisdim + 1U) throw std::invalid_argument(
+                "In npstat::QuantileRegressionOnHisto::process: "
+                "incompatible index dimensionality");
+            const unsigned nCoeffs = this->coeffs_.size();
+            double* coords = &this->coords_[0];
+
+            for (unsigned i=0; i<thisdim; ++i)
+                coords[i] = index[i]*this->scale_[i] + this->location_[i];
+
+            const double w = this->poly_.weight()->density(
+                coords, thisdim);
+            if (w <= 0.0)
+                return;
+
+            const double pval = this->poly_.series(
+                coords, thisdim, &this->coeffs_[0], nCoeffs);
+            const double binCenter = lastAxis_.binCenter(index[thisdim]);
+
+            if (binCenter - halfbin_ >= pval)
+                this->loss_ += value*(binCenter - pval)*quantile_*w;
+            else if (binCenter + halfbin_ <= pval)
+                this->loss_ += value*(pval - binCenter)*onemq_*w;
+            else
+            {
+                const double leftBinEdge = binCenter - halfbin_;
+                const double fracBelow = (pval - leftBinEdge)/2.0/halfbin_;
+                const double centerBelow = (pval + leftBinEdge)/2.0;
+                const double fracAbove = 1.0 - fracBelow;
+                const double centerAbove = (pval + binCenter + halfbin_)/2.0;
+                const double sum = fracAbove*(centerAbove - pval)*quantile_ +
+                                   fracBelow*(pval - centerBelow)*onemq_;
+                this->loss_ += sum*value*w;
+            }
+        }
+    }
+
+    template <typename Numeric>
+    void QuantileRegressionOnHisto<Numeric>::makeStandardMapping()
+    {
+        // We need to create the mapping that maps bin numbers
+        // into the bin centers, and subsequently maps those
+        // bin centers into the QuadraticOrthoPolyND box
+        location_.resize(mydim_);
+        scale_.resize(mydim_);
+        const BoxND<double>& polyBox(poly_.boundingBox());
+        for (unsigned i=0; i<mydim_; ++i)
+        {
+            const HistoAxis& axis = histo_.axis(i);
+            const double bw = axis.binWidth();
+            const LinearMapper1d binMap(bw, axis.min() + bw/2.0);
+            const double polymin = polyBox[i].min();
+            const double polymax = polyBox[i].max();
+            const LinearMapper1d boxMap(regressionBox_[i].min(), polymin,
+                                        regressionBox_[i].max(), polymax);
+            const LinearMapper1d& m = boxMap * binMap;
+            scale_[i] = m.a();
+            location_[i] = m.b();
+
+            // We also need to figure out which histogram bins to cycle over
+            const LinearMapper1d& minv = m.inverse();
+            const int minbin = static_cast<int>(floor(minv(polymin)));
+            const int maxbin = static_cast<int>(ceil(minv(polymax))) + 1;
+            binBox_[i].setBounds(minbin, maxbin);
+        }
+    }
+}

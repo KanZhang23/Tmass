@@ -1,0 +1,10 @@
+prefix=/cdf/home/kanzhang/Topmass_SL6
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: histoscope
+Description: Histo-Scope Widget Set and Browser GUI
+Version: 4.0.29
+Libs: -L${libdir} -lCHisto
+Cflags: -I${includedir}

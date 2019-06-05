@@ -1,0 +1,81 @@
+#include <cassert>
+#include <algorithm>
+#include <stdexcept>
+
+namespace npstat {
+    template <class Point, typename Real>
+    double weightedCopulaHisto(
+        const std::vector<std::pair<const Point*, double> >& data,
+        const unsigned* dimsToUse, const unsigned nDimsToUse,
+        HistoND<Real>* result, const bool useFillC)
+    {
+        typedef std::pair<typename Point::value_type, unsigned long> OrdPair;
+
+        if (nDimsToUse < 2) throw std::invalid_argument(
+            "In npstat::weightedCopulaHisto: copula "
+            "dimensionality must be at least 2");
+        assert(dimsToUse);
+        assert(result);
+        if (result->dim() != nDimsToUse) throw std::invalid_argument(
+            "In npstat::weightedCopulaHisto: dimensionality specification "
+            "is inconsistent with the histogram dimensionality");
+        result->clear();
+
+        long double wsum = 0.0L, wsumsq = 0.0L;
+        const unsigned long npoints = data.size();
+        if (npoints)
+        {
+            std::vector<double> pointRanksVec(npoints*nDimsToUse);
+            double* pointRanks = &pointRanksVec[0];
+            std::vector<OrdPair> order;
+            order.reserve(npoints);
+
+            for (unsigned dimnum=0; dimnum<nDimsToUse; ++dimnum)
+            {
+                const unsigned idim = dimsToUse[dimnum];
+                order.clear();
+                const std::pair<const Point*, double>* ppt = &data[0];
+                for (unsigned long ipt=0; ipt<npoints; ++ipt, ++ppt)
+                    order.push_back(OrdPair((*ppt->first)[idim], ipt));
+                std::sort(order.begin(), order.end());
+
+                // Due to round-off errors, the sum depends on the
+                // order of summation. So, recalculate it every time.
+                long double wtot = 0.0L;
+                const OrdPair* ord = &order[0];
+                for (unsigned long ipt=0; ipt<npoints; ++ipt, ++ord)
+                    wtot += data[ord->second].second;
+                if (wtot <= 0.0L)
+                    return 0.0;
+
+                wsum = 0.0L;
+                ord = &order[0];
+                for (unsigned long ipt=0; ipt<npoints; ++ipt, ++ord)
+                {
+                    const double w = data[ord->second].second;
+                    pointRanks[ord->second*nDimsToUse + dimnum] =
+                        (wsum + w/2.0)/wtot;
+                    wsum += w;
+                }
+            }
+
+            wsum = 0.0L;
+            for (unsigned long ipt=0; ipt<npoints;
+                 ++ipt, pointRanks += nDimsToUse)
+            {
+                const double w = data[ipt].second;
+                wsum += w;
+                wsumsq += w*w;
+                if (useFillC)
+                    result->fillC(pointRanks, nDimsToUse, w);
+                else
+                    result->fill(pointRanks, nDimsToUse, w);
+            }
+        }
+
+        if (wsum > 0.0L)
+            return wsum*wsum/wsumsq;
+        else
+            return 0.0;
+    }
+}

@@ -1,0 +1,8 @@
+
+Usage: print_items [-n] [-c] archive_name item_name item_category
+
+Optional switches "-n" and "-c" turn on regular expression search for item
+name and category, respectively. For each matching item, the program prints
+its class and its text representation, as defined by "operator <<".
+
+PASS print_items (exit status: 0)

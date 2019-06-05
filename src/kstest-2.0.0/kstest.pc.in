@@ -1,0 +1,10 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: kstest
+Description: Kolmogorov-Smirnov cumulative distribution function and exceedance
+Version: @VERSION@
+Libs: -L${libdir} -lkstest
+Cflags: -I${includedir}

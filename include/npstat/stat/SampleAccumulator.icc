@@ -1,0 +1,309 @@
+#include <cmath>
+#include <cassert>
+#include <stdexcept>
+#include <algorithm>
+
+#include "geners/GenericIO.hh"
+#include "npstat/stat/StatUtils.hh"
+
+namespace npstat {
+    template <typename Numeric, typename Precise>
+    inline void SampleAccumulator<Numeric,Precise>::accumulate(
+        const SampleAccumulator& acc)
+    {
+        const unsigned long accsiz = acc.data_.size();
+        if (accsiz)
+        {
+            data_.reserve(data_.size() + accsiz);
+            std::copy(acc.data_.begin(), acc.data_.end(),
+                      std::back_inserter(data_));
+            sorted_ = false;
+            neverSorted_ = neverSorted_ && acc.neverSorted_;
+        }
+    }
+
+    template <typename Numeric, typename Precise>
+    inline void SampleAccumulator<Numeric,Precise>::accumulate(
+        const Numeric* values, const unsigned long n)
+    {
+        if (n)
+        {
+            assert(values);
+            data_.reserve(data_.size() + n);
+            std::copy(values, values + n, std::back_inserter(data_));
+            sorted_ = false;
+        }
+    }
+
+    template <typename Numeric, typename Precise>
+    bool SampleAccumulator<Numeric,Precise>::operator==(
+        const SampleAccumulator& r) const
+    {
+        return sorted_ == r.sorted_ && 
+               neverSorted_ == r.neverSorted_ && 
+               data_ == r.data_;
+    }
+
+    template <typename Numeric, typename Precise>
+    inline bool SampleAccumulator<Numeric,Precise>::operator!=(
+        const SampleAccumulator& r) const
+    {
+        return !(*this == r);
+    }
+
+    template <typename Numeric, typename Precise>
+    inline void SampleAccumulator<Numeric,Precise>::sort() const
+    {
+        if (!sorted_)
+        {
+            SampleAccumulator* p = const_cast<SampleAccumulator*>(this);
+            std::sort(p->data_.begin(), p->data_.end());
+            p->sorted_ = true;
+            p->neverSorted_ = false;
+        }
+    }
+
+    template <typename Numeric, typename Precise>
+    inline Numeric SampleAccumulator<Numeric,Precise>::min() const
+    {
+        if (!data_.empty())
+        {
+            typename std::vector<Numeric>::const_iterator pos = 
+                std::min_element(data_.begin(), data_.end());
+            return *pos;
+        }
+        else
+            return Numeric();
+    }
+
+    template <typename Numeric, typename Precise>
+    template <typename Num2>
+    inline SampleAccumulator<Numeric,Precise>&
+    SampleAccumulator<Numeric,Precise>::operator*=(const Num2& r)
+    {
+        const unsigned long sz = data_.size();
+        if (sz)
+        {
+            Numeric* d = &data_[0];
+            for (unsigned long i=0; i<sz; ++i)
+                d[i] *= r;
+            if (r < Num2())
+                sorted_ = false;
+        }
+        return *this;
+    }
+
+    template <typename Numeric, typename Precise>
+    template <typename Num2>
+    inline SampleAccumulator<Numeric,Precise>&
+    SampleAccumulator<Numeric,Precise>::operator/=(const Num2& r)
+    {
+        const unsigned long sz = data_.size();
+        if (sz)
+        {
+            Numeric* d = &data_[0];
+            for (unsigned long i=0; i<sz; ++i)
+                d[i] /= r;
+            if (r < Num2())
+                sorted_ = false;
+        }
+        return *this;
+    }
+
+    template <typename Numeric, typename Precise>
+    inline Numeric SampleAccumulator<Numeric,Precise>::max() const
+    {
+        if (!data_.empty())
+        {
+            typename std::vector<Numeric>::const_iterator pos = 
+                std::max_element(data_.begin(), data_.end());
+            return *pos;
+        }
+        else
+            return Numeric();
+    }
+
+    template <typename Numeric, typename Precise>
+    Precise SampleAccumulator<Numeric,Precise>::mean() const
+    {
+        const unsigned long n = data_.size();
+        if (!n) throw std::runtime_error(
+            "In npstat::SampleAccumulator::mean: "
+            "no data accumulated");
+        Precise sum = Precise();
+        const Numeric* d = &data_[0];
+        for (unsigned long i=0; i<n; ++i)
+            sum += d[i];
+        return sum/n;
+    }
+
+    template <typename Numeric, typename Precise>
+    Precise SampleAccumulator<Numeric,Precise>::stdev() const
+    {
+        const unsigned long n = data_.size();
+        if (!n) throw std::runtime_error(
+            "In npstat::SampleAccumulator::stdev: "
+            "no data accumulated");
+        if (n > 1UL)
+        {
+            const Precise m(mean());
+            Precise sumsq = Precise();
+            const Numeric* d = &data_[0];
+            for (unsigned long i=0; i<n; ++i)
+            {
+                const Precise delta = d[i] - m;
+                sumsq += delta*delta;
+            }
+            return std::sqrt(sumsq/(n - 1UL));
+        }
+        else
+            return Precise();
+    }
+
+    template <typename Numeric, typename Precise>
+    Precise SampleAccumulator<Numeric,Precise>::meanUncertainty() const
+    {
+        const Precise n = data_.size();
+        return stdev()/std::sqrt(n);
+    }
+
+    template <typename Numeric, typename Precise>
+    Precise SampleAccumulator<Numeric,Precise>::noThrowMean(
+        const Precise& valueIfNoData) const
+    {
+        if (data_.empty())
+            return valueIfNoData;
+        else
+            return mean();
+    }
+
+    template <typename Numeric, typename Precise>
+    Precise SampleAccumulator<Numeric,Precise>::noThrowStdev(
+        const Precise& valueIfNoData) const
+    {
+        if (data_.empty())
+            return valueIfNoData;
+        else
+            return stdev();
+    }
+
+    template <typename Numeric, typename Precise>
+    Precise SampleAccumulator<Numeric,Precise>::noThrowMeanUncertainty(
+        const Precise& valueIfNoData) const
+    {
+        if (data_.empty())
+            return valueIfNoData;
+        else
+            return meanUncertainty();
+    }
+
+    template <typename Numeric, typename Precise>
+    template <typename Numeric2, typename Precise2>
+    Precise SampleAccumulator<Numeric,Precise>::cov(
+        const SampleAccumulator<Numeric2,Precise2>& other) const
+    {
+        // Covariance calculation makes sence only if
+        // both samples have never been sorted
+        if (!(neverSorted_ && other.neverSorted_))
+            throw std::runtime_error(
+                "In npstat::SampleAccumulator::stdev: "
+                "samples have been sorted, sequential ordering is lost");
+
+        const unsigned long n = data_.size();
+        if (!n) throw std::runtime_error(
+            "In npstat::SampleAccumulator::cov: "
+            "no data accumulated");
+        if (n != other.count()) throw std::invalid_argument(
+            "In npstat::SampleAccumulator::cov: "
+            "sample sizes are not compatible");
+        if (n > 1UL)
+        {
+            Precise sumsq = Precise();
+            const Precise m(mean());
+            const Precise2 otherm(other.mean());
+            const Numeric* d = &data_[0];
+            const Numeric2* otherd = other.data();
+            for (unsigned long i=0; i<n; ++i)
+            {
+                const Precise delta = d[i] - m;
+                const Precise2 otherdelta = otherd[i] - otherm;
+                sumsq += delta*otherdelta;
+            }
+            return sumsq/(n - 1UL);
+        }
+        else
+            return Precise();        
+    }
+
+    template <typename Numeric, typename Precise>
+    Numeric SampleAccumulator<Numeric,Precise>::median() const
+    {
+        const unsigned long n = data_.size();
+        if (!n) throw std::runtime_error(
+            "In npstat::SampleAccumulator::median: no data accumulated");
+        sort();
+        const Numeric* d = &data_[0];
+        if (n % 2UL)
+            return d[n / 2UL];
+        else
+            return (d[n / 2UL - 1UL] + d[n / 2UL]) * 0.5;
+    }
+
+    template <typename Numeric, typename Precise>
+    inline double SampleAccumulator<Numeric,Precise>::cdf(
+        const Numeric value) const
+    {
+        sort();
+        return empiricalCdf(data_, value);
+    }
+
+    template <typename Numeric, typename Precise>
+    inline unsigned long SampleAccumulator<Numeric,Precise>::nBelow(
+        const Numeric x) const
+    {
+        if (data_.empty())
+            return 0;
+        sort();
+        return lower_bound(data_.begin(), data_.end(), x) - data_.begin();
+    }
+
+    template <typename Numeric, typename Precise>
+    inline Numeric SampleAccumulator<Numeric,Precise>::quantile(
+        const double x) const
+    {
+        sort();
+        return empiricalQuantile(data_, x);
+    }
+
+    template <typename Numeric, typename Precise>
+    bool SampleAccumulator<Numeric,Precise>::write(std::ostream& of) const
+    {
+        gs::write_pod(of, sorted_);
+        gs::write_pod(of, neverSorted_);
+        return gs::write_item(of, data_, true);
+    }
+
+    template <typename Numeric, typename Precise>
+    void SampleAccumulator<Numeric,Precise>::restore(
+        const gs::ClassId& id, std::istream& in, SampleAccumulator* acc)
+    {
+        typedef SampleAccumulator<Numeric,Precise> MyType;
+
+        static const gs::ClassId current(gs::ClassId::makeId<MyType>());
+        current.ensureSameId(id);
+
+        assert(acc);
+        gs::read_pod(in, &acc->sorted_);
+        gs::read_pod(in, &acc->neverSorted_);
+        gs::restore_item(in, &acc->data_, true);
+    }
+
+    template <typename Numeric, typename Precise>
+    const char* SampleAccumulator<Numeric,Precise>::classname()
+    {
+        static const std::string myClass(
+            gs::template_class_name<Numeric,Precise>(
+                "npstat::SampleAccumulator"));
+        return myClass.c_str();
+    }
+}

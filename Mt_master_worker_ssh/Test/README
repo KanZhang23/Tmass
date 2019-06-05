@@ -1,0 +1,50 @@
+Running the test project:
+
+1) Generate the data to be processed by running the "test_project_gen.tcl"
+   script.
+
+2) Modify the "datadir" variable at the beginning of the
+   "test_project_config.tcl" file so that it points at the directory
+   where the files generated in the previous step are.
+
+   The command which the system will be running per work chunk (ntuple row)
+   is "sum_columns 2" (see file test_project_config.tcl). The second parameter
+   here is just a delay in seconds per chunk. With value of 0, the system
+   will work very quickly, and you simply will not be able to start multiple
+   workers as the first worker will immediately process everything. Value
+   of 0 can be more useful in case you are using this test project to debug
+   system access permissions in "../allowed_hosts.tcl". There will be 30
+   and 60 work chunks in the test input files, so finishing the project
+   should take the system about 1.5 minutes with the default 2 second delay
+   and two active workers (assuming that you don't interrupt a worker as
+   described in step 7).
+
+3) Make sure the unique integer server is running.
+
+4) Start the director:
+
+   nohup ../director.tcl "test" test_project_config.tcl test_project_config.log 50000 >& director.log &
+
+5) Start the master:
+
+   nohup ../master.tcl localhost 50000 >& master.log &
+
+6) Start couple workers:
+
+   nohup ../worker.tcl localhost 50000 >& worker0.log &
+   nohup ../worker.tcl localhost 50000 >& worker1.log &
+
+7) See what happens when a worker gets an interrupt signal.
+   Nothing terrible should happen actually, the system should
+   be able to handle this situation gracefully.
+
+   kill -INT `ps auxww | grep worker.tcl | grep tclsh | awk '{print $2}' | tail -1`
+
+   You can also try "kill -9" instead of "kill -INT". This
+   will increase the test time significantly as the system
+   will have to wait until worker timeout expires (this timeout
+   is set by the "chunk_timeout_sec" variable in ../mw_utils.tcl).
+
+8) Wait until the director script exits.
+
+9) Examine various log files, in particular test_project_config.log.

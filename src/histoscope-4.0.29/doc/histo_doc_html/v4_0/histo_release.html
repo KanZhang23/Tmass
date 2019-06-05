@@ -1,0 +1,82 @@
+
+<title>Release Notes</title>
+<h2>
+Release Notes
+</h2>
+
+<b>
+<a name="1">Requirements</b>
+- Histo-Scope requires an X-based workstation (DEC-ULTRIX, DEC-OSF/1,
+SGI UNIX, Sun (Solaris) UNIX, or IBM/Risc UNIX) or an X Terminal or X-based
+workstation that can connect to one of these hosts. 
+</a>
+<p>
+<b>
+<a name="3">HBOOK Circular Ntuple Support -</b> 
+Histo-Scope now supports, in a limited way, the display of data in the new 
+HBOOK Circular Ntuple data structure.  Because HBOOK does not, at the current 
+time, provide a way for Histo-Scope to inquire the current "insertion point" 
+of the circular buffer, and because the user can at any time change the fills 
+from circular to linear and back again, Histo-Scope uses the following algorithm for determining that an HBOOK Ntuple is circular
+and entries should be re-sent from the data generating process to the scope
+starting from the first entry (row):
+</a>
+<p>
+* The number of entries in the Ntuple is nonzero<p>
+<p>
+* The total number of entries is identical to the number recorded at the
+previous call to hs_update<p>
+<p>
+* Any element (column) of the first row in the currently displayed Ntuple plot
+is different from the corresponding element of the first row now in the HBOOK
+Ntuple<p>
+<p>
+Note that this strategy will fail if the HBOOK Ntuple is filled circularly with
+data that is exactly the same in the first row as what was there before.  It
+will also fail if the "insertion point" changed without changing the data in
+the first Ntuple row.  In these cases, the Ntuple viewed by the Histo-Scope
+user will still be the old data, rather than the new.<p>
+
+<b>
+<a name="4">UNIX restriction on putting Histo-Scope process in background - </b>
+If you are running Histo-Scope on a UNIX system, do not put the Histo-Scope 
+process in the background if you plan to connect to a process.  This is because
+the system may put the Histo-Scope process into a wait state that it will not 
+get out of until the process is put into the foreground.  After the connection 
+is successful, the Histo-Scope process may be put into the background, if 
+necessary, until you need to connect to another process. 
+</a>
+<p>
+<b>
+<a name="5">Some X-Servers do not destroy child dialog windows -</b> 
+Some, possibly older, X-Terminals and servers do not properly destroy dialogs 
+when the parent window is destroyed.  On these servers doing anything with 
+these orphan windows can cause Histo-Scope to terminate with an error such as 
+Segmentation Violation.  To avoid this on X servers with this problem, be sure 
+to close slider, statistics, and axis settings windows before closing their 
+corresponding plot window. 
+</a>
+<p>
+<b>
+<a name="6">Printer Options window delay - </b>
+Occasionally while printing a plot using flpr you may experience a delay for 
+up to a minute.  This is usually because the host you have specified is wrong 
+or the queue does not exist.  After the delay, Histo-Scope will display the 
+error that occurred.
+</a>
+<p>
+<b>
+<a name="8">Setting up Histo-Scope on UNIX without Fermilab's ups/upd -</b> 
+For off-site UNIX users of Histo-Scope without ups/upd, the add the following 
+commands to your .cshrc file:
+</a>
+<p>
+setenv HISTO_DIR <i>path-to-Histo-Scope</i><p>
+<i></i>set path = ($PATH, $HISTO_DIR/bin)<p>
+<p>
+These variables must be defined before invoking Histo-Scope.  They must also be
+added to your .cshrc file on any node you intend to call the Histo-Scope
+library routine hs_histoscope.  If you will be building programs with
+Histo-Scope library routines, also define:<p>
+<p>
+setenv HISTO_INC $HISTO_DIR/include<i></i><p>

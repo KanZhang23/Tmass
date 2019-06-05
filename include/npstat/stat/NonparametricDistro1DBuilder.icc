@@ -1,0 +1,96 @@
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/stat/Distributions1D.hh"
+
+namespace npstat {
+    template <class Point>
+    NonparametricDistro1DBuilder<Point>::NonparametricDistro1DBuilder(
+        AbsMarginalSmootherBase* smoother1D,
+        AbsResponseIntervalBuilder<Point>* intervalBuilder,
+        const bool takePointerOwnership,
+        const unsigned interpolationDegree)
+        : smoother1D_(smoother1D),
+          intervalBuilder_(intervalBuilder),
+          lastBandwidth_(0.0),
+          iDegMarginals_(interpolationDegree),
+          takePointerOwnership_(takePointerOwnership)
+    {
+        assert(smoother1D_);
+        assert(intervalBuilder_);
+    }
+
+    template <class Point>
+    NonparametricDistro1DBuilder<Point>::~NonparametricDistro1DBuilder()
+    {
+        if (takePointerOwnership_)
+        {
+            delete smoother1D_;
+            delete intervalBuilder_;
+        }
+    }
+
+    template <class Point>
+    AbsDistribution1D* NonparametricDistro1DBuilder<Point>::buildDistro(
+        const unsigned long uniqueId,
+        const Interval<double>& respRange,
+        const std::vector<typename Point::value_type>& data) const
+    {
+        const HistoND<double>& h = smoother1D_->smooth(
+            uniqueId, 0U, data,
+            respRange.min(), respRange.max(), &lastBandwidth_);
+        assert(h.dim() == 1U);
+        const HistoAxis& axis = h.axis(0);
+        return new BinnedDensity1D(axis.min(), axis.length(),
+                                   h.binContents().data(),
+                                   axis.nBins(), iDegMarginals_);
+    }
+
+    template <class Point>
+    AbsDistribution1D* NonparametricDistro1DBuilder<Point>::buildDistroW(
+        const unsigned long uniqueId, const unsigned dimUsed,
+        const Interval<double>& respRange,
+        const WeightedValueVec& data) const
+    {
+        const HistoND<double>& h = smoother1D_->weightedSmooth(
+            uniqueId, dimUsed, data,
+            respRange.min(), respRange.max(), &lastBandwidth_);
+        assert(h.dim() == 1U);
+        const HistoAxis& axis = h.axis(0);
+        return new BinnedDensity1D(axis.min(), axis.length(),
+                                   h.binContents().data(),
+                                   axis.nBins(), iDegMarginals_);
+    }
+
+    template <class Point>
+    inline Interval<double>
+    NonparametricDistro1DBuilder<Point>::makeResponseInterval(
+        const unsigned long uniqueId,
+        const double* predictorCoords, const unsigned nPredictors,
+        const BoxND<double>& predictorBox,
+        std::vector<typename Point::value_type>& data) const
+    {
+        return intervalBuilder_->makeResponseInterval(
+            uniqueId, predictorCoords, nPredictors, predictorBox, data);
+    }
+
+    template <class Point>
+    inline Interval<double>
+    NonparametricDistro1DBuilder<Point>::makeResponseIntervalW(
+        const unsigned long uniqueId,
+        const double* predictorCoords, const unsigned nPredictors,
+        const BoxND<double>& predictorBox, const WeightedPtrVec& data,
+        const unsigned responseDimToUse) const
+    {
+        return intervalBuilder_->makeResponseIntervalW(
+            uniqueId, predictorCoords, nPredictors,
+            predictorBox, data, responseDimToUse);
+    }
+
+    template <class Point>
+    inline void NonparametricDistro1DBuilder<Point>::setArchive(
+        gs::AbsArchive* ar, const char* category)
+    {
+        smoother1D_->setArchive(ar, category);
+    }
+}

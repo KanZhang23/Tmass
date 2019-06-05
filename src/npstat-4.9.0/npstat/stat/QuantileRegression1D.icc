@@ -1,0 +1,80 @@
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/nm/MathUtils.hh"
+
+namespace npstat {
+    template <typename Pair, typename Wnum>
+    QuantileRegression1D<Pair, Wnum>::QuantileRegression1D(
+        const Pair* points,
+        const Wnum* weights, const unsigned long nPoints,
+        const double location, const double scale,
+        const double quantile, const unsigned polyDegree,
+        const bool useGegenbauerPolynomials,
+        const double gegenbauerLambda)
+        : points_(points),
+          weights_(weights),
+          nPoints_(nPoints),
+          location_(location),
+          scale_(scale),
+          quantile_(quantile),
+          onemq_(1.0L - quantile_),
+          lambda_(gegenbauerLambda),
+          degree_(polyDegree),
+          useGegen_(useGegenbauerPolynomials)
+    {
+        // Check that the inputs make sense
+        if (!nPoints_) throw std::invalid_argument(
+            "In npstat::QuantileRegression1D constructor: "
+            "no input points provided");
+        assert(points_);
+        if (scale_ <= 0.0L) throw std::invalid_argument(
+            "In npstat::QuantileRegression1D constructor: "
+            "scale argument must be positive");
+        if (!(quantile_ >= 0.0L && quantile_ <= 1.0L))
+            throw std::invalid_argument(
+                "In npstat::QuantileRegression1D constructor: "
+                "quantile argument in not in the [0, 1] range");
+        if (useGegen_)
+            if (!(lambda_ > -0.5L)) throw std::invalid_argument(
+                "In npstat::QuantileRegression1D constructor: "
+                "invalid lambda for Gegenbauer polynomials");
+        if (weights_)
+        {
+            const Wnum zero = Wnum();
+            for (unsigned long ipt=0; ipt<nPoints_; ++ipt)
+                if (weights_[ipt] < zero) throw std::invalid_argument(
+                    "In npstat::QuantileRegression1D constructor: "
+                    "all weights must be positive");
+        }
+    }
+
+    template <typename Pair, typename Wnum>
+    template <typename Numeric2>
+    double QuantileRegression1D<Pair, Wnum>::operator()(
+        const Numeric2 *coeffs, const unsigned lenCoeffs) const
+    {
+        if (lenCoeffs != degree_ + 1U) throw std::invalid_argument(
+            "In npstat::QuantileRegression1D::operator(): "
+            "incompatible number of polynomial coefficients");
+        assert(coeffs);
+
+        long double sum = 0.0L;
+        long double w = 1.0L;
+        for (unsigned long ipt=0; ipt<nPoints_; ++ipt)
+        {
+            const long double x = (points_[ipt].first - location_)/scale_;
+            const long double y = points_[ipt].second;
+            const long double pval = useGegen_ ?
+                gegenbauerSeriesSum(coeffs, degree_, lambda_, x) :
+                legendreSeriesSum(coeffs, degree_, x);
+            if (weights_)
+                w = weights_[ipt];
+            if (y >= pval)
+                sum += (y - pval)*quantile_*w;
+            else
+                sum += (pval - y)*onemq_*w;
+        }
+        return sum;
+    }
+}

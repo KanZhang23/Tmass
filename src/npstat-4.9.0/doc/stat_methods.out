@@ -1,0 +1,38 @@
+\BOOKMARK [1][-]{section.1}{Preliminaries}{}% 1
+\BOOKMARK [1][-]{section.2}{Data Representation}{}% 2
+\BOOKMARK [1][-]{section.3}{Descriptive Statistics}{}% 3
+\BOOKMARK [2][-]{subsection.3.1}{Functions and Classes for Use with Point Clouds}{section.3}% 4
+\BOOKMARK [2][-]{subsection.3.2}{Functions for Use with Binned Data}{section.3}% 5
+\BOOKMARK [2][-]{subsection.3.3}{ArrayND Projections}{section.3}% 6
+\BOOKMARK [1][-]{section.4}{Statistical Distributions}{}% 7
+\BOOKMARK [2][-]{subsection.4.1}{Univariate Continuous Distributions}{section.4}% 8
+\BOOKMARK [2][-]{subsection.4.2}{Johnson Curves}{section.4}% 9
+\BOOKMARK [2][-]{subsection.4.3}{Composite Distributions}{section.4}% 10
+\BOOKMARK [2][-]{subsection.4.4}{Univariate Discrete Distributions}{section.4}% 11
+\BOOKMARK [2][-]{subsection.4.5}{Multivariate Continuous Distributions}{section.4}% 12
+\BOOKMARK [2][-]{subsection.4.6}{Copulas}{section.4}% 13
+\BOOKMARK [1][-]{section.5}{Nonparametric Interpolation of Densities}{}% 14
+\BOOKMARK [2][-]{subsection.5.1}{Interpolation of Univariate Densities using Quantile Functions}{section.5}% 15
+\BOOKMARK [2][-]{subsection.5.2}{Interpolation of Multivariate Densities}{section.5}% 16
+\BOOKMARK [1][-]{section.6}{Nonparametric Density Estimation}{}% 17
+\BOOKMARK [2][-]{subsection.6.1}{Kernel Density Estimation \(KDE\)}{section.6}% 18
+\BOOKMARK [2][-]{subsection.6.2}{Local Orthogonal Polynomial Expansion \(LOrPE\)}{section.6}% 19
+\BOOKMARK [2][-]{subsection.6.3}{Density Estimation with Bernstein Polynomials}{section.6}% 20
+\BOOKMARK [2][-]{subsection.6.4}{Using Cross-Validation for Choosing the Bandwidth}{section.6}% 21
+\BOOKMARK [2][-]{subsection.6.5}{The Nearest Neighbor Method}{section.6}% 22
+\BOOKMARK [1][-]{section.7}{Nonparametric Regression}{}% 23
+\BOOKMARK [2][-]{subsection.7.1}{Local Least Squares}{section.7}% 24
+\BOOKMARK [2][-]{subsection.7.2}{Local Logistic Regression}{section.7}% 25
+\BOOKMARK [2][-]{subsection.7.3}{Local Quantile Regression}{section.7}% 26
+\BOOKMARK [2][-]{subsection.7.4}{Iterative Local Least Trimmed Squares}{section.7}% 27
+\BOOKMARK [2][-]{subsection.7.5}{Organizing Regression Results}{section.7}% 28
+\BOOKMARK [1][-]{section.8}{Unfolding with Smoothing}{}% 29
+\BOOKMARK [2][-]{subsection.8.1}{Unfolding Problem}{section.8}% 30
+\BOOKMARK [2][-]{subsection.8.2}{EMS Unfolding}{section.8}% 31
+\BOOKMARK [2][-]{subsection.8.3}{Choosing the Smoothing Parameters}{section.8}% 32
+\BOOKMARK [2][-]{subsection.8.4}{Large Problems with Sparse Matrices}{section.8}% 33
+\BOOKMARK [1][-]{section.9}{Pseudo- and Quasi-Random Numbers}{}% 34
+\BOOKMARK [1][-]{section.10}{Algorithms Related to Combinatorics}{}% 35
+\BOOKMARK [1][-]{section.11}{Numerical Analysis Utilities}{}% 36
+\BOOKMARK [1][-]{section*.6}{References}{}% 37
+\BOOKMARK [1][-]{section*.8}{Functions and Classes}{}% 38

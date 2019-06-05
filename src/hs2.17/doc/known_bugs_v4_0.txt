@@ -1,0 +1,126 @@
+
+Known bugs in the original Fermilab Histo-Scope v4.0
+----------------------------------------------------
+
+1. hs_title simply overwrites the previous title string instead of 
+   doing free/strdup. As a result the program memory becomes corrupted
+   if the new title string is longer than the old one.
+
+2. Histo-Scope plots are not updated by hs_set_1d_errors and hs_set_2d_errors.
+
+3. Positive and negative errors are swapped in 1-d histogram plots.
+
+4. Positive and negative horizontal errors are swapped in "XY plots
+   with errors" produced by the ntuple panel.
+
+5. There is a strange hs_load_config_string and hs_load_config_file bug:
+   calling these commands more than 3 times causes core dump in the
+   connected Histo-Scopes. This bug strongly limits your ability to build
+   your own dynamic interface for displaying histogram windows.
+
+6. "tohbook" program does not convert ntuples correctly
+
+7. hs_read_file creates a bad category name (which ends with slash) for
+   uncategorized items when the category prefix is not an empty string.
+   Such category name can not be correctly parsed by Histo-Scope.
+
+8. hs_read_file creates a bad category name (which starts with slash) for
+   items in any category when the category prefix argument is an empty string.
+   Such category name can not be correctly parsed by Histo-Scope.
+
+9. Multiple requests to load configuration strings which display overlayed
+   plots cause Histo-Scope core dump because of an attempt to free some 
+   memory more than once.
+
+10. There is a bug in the histogram updating code which causes the program
+    to disconnect from a client when the size of the update request message
+    from the client is large enough so that this message can not be received
+    in a single read from a socket. This bug prevents you from displaying
+    a large number of histograms simultaneously.
+
+11. There is a bug in the code which updates Histo-Scope "Windows" menu.
+    Depending on the state Histo-Scope is in, this bug may cause core
+    dumps during window postings/removals. It may actually be the same
+    bug as the one described in item 5.
+
+12. There is a bug (feature?) in the Histo-Scope code which receives
+    configuration strings. Histo-Scope writes the string into a temporary
+    file first and then loads it as a configuration file. However, the
+    temporary file is not deleted aftewards. This may result in creation
+    of a huge number of /tmp/histo* files.
+
+13. An attempt to create an adaptive 1d histogram from an empty ntuple
+    crashes Histo-Scope.
+
+14. Histo-Scope plots are not updated by the hs_hist_set_gauss_errors
+    function. 
+
+15. hs_update produces rather annoying messages "Ignoring request for
+    nonexistant item from HistoScope" when currently displayed items
+    are deleted.
+
+16. Repetitive clicks on the "delete window" button in the plot windows
+    (usually displayed by the window manager as a small cross in the upper
+    right corner) crash the Histo-Scope GUI.
+
+17. The following sequence causes the Histo-Scope GUI to emit a wrong
+    error message that a histogram has no errors:
+      -- Start the GUI.
+      -- Create a histogram. Fill it.
+      -- Set the errors with something like hs_set_1d_errors.
+      -- Load a config file or string which requests the histogram
+         to be displayed with errors.
+    The problem here is that the info about a histogram is sent to the
+    GUI only when the histogram is created (without errors), and it is
+    not updated when the errors are first set. 
+
+18. A bug in the scatter plot widget prevents it from displaying color
+    scatter plots.
+
+19. A bug in the vertical scale layout code often causes axis ticks to be
+    misplaced.
+
+20. The plotting widgets redraw their images for every "expose" event
+    from the X server rather than for the last event in a sequence of
+    similar events. With some window managers, this results in lots of
+    unnecessary redrawing operations whenever the windows are moved or
+    resized.
+
+21. The code which renders text in PostScript fails if a string contains
+    backslashes or unbalanced parentheses.
+
+22. A histogram created from the ntuple interface has a wrong value in its
+    last bin.
+
+23. An attempt to remove an overlayed plot whose item has been deleted
+    crashes the Histo-Scope GUI.
+
+24. Some pixmaps are not properly deallocated on the X server by the line,
+    mark, and fill style selection dialogs.
+
+25. Histo-Scope GUI disconnects from a client spuriously when it displays
+    an ntuple plot while the ntuple is being reset by the client. This
+    happens under following circumstances:
+      -- Histo-Scope requests the rest of the data for a partially
+         transferred ntuple.
+      -- The client resets the ntuple (a message is sent to Histo-Scope).
+      -- The client refills the ntuple.
+      -- The client answers the Histo-Scope request, treating the ntuple
+         as if it was already partially transferred.
+    As a result, Histo-Scope misses the first part of the ntuple data.
+    It generates an error message and disconnects.
+
+26. "View", "View Overlaid", and "View Multiple" Histo-Scope GUI buttons
+    do not work on big-endian platforms.
+
+27. Function "redisplaySubcategories" in file mainPanel.c has an unchecked
+    array bound which results in a buffer overrun if the number of
+    categories to show in the GUI window is larger than 41.
+
+28. Numerous bugs in calls to functions with variable number of arguments.
+    Very often, 0 is used in the original code instead of NULL as a closing
+    argument. This causes weird behavior and crashes on 64-bit machines.
+
+29. Numerous bugs in using XmNuserData Motif widget resource which shows up
+    on 64-bit systems and causes crashes in various places.
+

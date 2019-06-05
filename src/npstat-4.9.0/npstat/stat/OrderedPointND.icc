@@ -1,0 +1,122 @@
+#include <algorithm>
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    template <class Point>
+    inline void OrderedPointND<Point>::clearNumber()
+    {
+        for (unsigned i=0U; i<dim_size; ++i)
+            number_[i] = 0UL;
+    }
+
+    template <class Point>
+    inline OrderedPointND<Point>::OrderedPointND()
+    {
+        clearNumber();
+    }
+
+    template <class Point>
+    inline OrderedPointND<Point>::OrderedPointND(const Point& point)
+        : point_(point)
+    {
+        clearNumber();
+    }
+
+    template <class Point>
+    template <typename Num2>
+    inline OrderedPointND<Point>::OrderedPointND(
+        const Num2* data, const unsigned dataLen)
+    {
+        const unsigned dim = dim_size;
+        const unsigned len = dataLen < dim ? dataLen : dim;
+        std::copy(data, data + len, &point_[0]);
+        for (unsigned i=dataLen; i<dim; ++i)
+            point_[i] = typename Point::value_type();
+        clearNumber();
+    }
+
+    template <class Point>
+    inline OrderedPointND<Point>::OrderedPointND(
+        const Point& point,
+        const unsigned long *number, const unsigned lenNumber)
+        : point_(point)
+    {
+        clearNumber();
+        if (lenNumber)
+        {
+            if (lenNumber > dim_size) throw std::invalid_argument(
+                "In npstat::OrderedPointND constructor: too many indices");
+            assert(number);
+            for (unsigned i=0U; i<lenNumber; ++i)
+                number_[i] = number[i];
+        }
+    }
+
+    template <class Point>
+    inline void OrderedPointND<Point>::setNumber(
+        const unsigned i, const unsigned long value)
+    {
+        if (i >= dim_size) throw std::out_of_range(
+            "In npstat::OrderedPointND::setNumber: index out of range");
+        number_[i] = value;
+    }
+
+    template <class Point>
+    inline unsigned long OrderedPointND<Point>::getNumber(
+        const unsigned i) const
+    {
+        if (i >= dim_size) throw std::out_of_range(
+            "In npstat::OrderedPointND::getNumber: index out of range");
+        return number_[i];
+    }
+
+    template <class Point>
+    inline bool operator==(const OrderedPointND<Point>& l,
+                           const OrderedPointND<Point>& r)
+    {
+        if (!(l.point_ == r.point_))
+            return false;
+        const unsigned dim = l.size();
+        for (unsigned i=0U; i<dim; ++i)
+            if (l.number_[i] != r.number_[i])
+                return false;
+        return true;
+    }
+
+    template <class Point>
+    inline bool operator!=(const OrderedPointND<Point>& l,
+                           const OrderedPointND<Point>& r)
+    {
+        return !(l == r);
+    }
+
+    template <class Point1, class Point2>
+    void fillOrderedPoints(const std::vector<Point1>& data,
+                           const unsigned* dimsToUse,
+                           const unsigned nDimsToUse,
+                           std::vector<OrderedPointND<Point2> >* out)
+    {
+        const unsigned point2_size = OrderedPointND<Point2>::dim_size;
+
+        if (!(nDimsToUse && nDimsToUse == point2_size))
+            throw std::invalid_argument("In npstat::fillOrderedPoints: "
+                                        "invalid choice of indices to use");
+        assert(dimsToUse);
+        assert(out);
+
+        const unsigned long ndata = data.size();
+        if (ndata)
+        {
+            out->reserve(out->size() + ndata);
+            typename OrderedPointND<Point2>::value_type buf[point2_size];
+            const Point1* pdat = &data[0];
+            for (unsigned long i=0; i<ndata; ++i)
+            {
+                for (unsigned idim=0; idim<point2_size; ++idim)
+                    buf[idim] = pdat[i][dimsToUse[idim]];
+                out->push_back(OrderedPointND<Point2>(buf, point2_size));
+            }
+        }
+    }
+}

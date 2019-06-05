@@ -1,0 +1,94 @@
+test create_ntuple-1.1 {basic ntuple creation} {} {
+    set id [hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c}]
+    expr {$id > 0}
+} {1}
+
+test create_ntuple-1.2 {ntuple creation with an empty title} {} {
+    set id [hs::create_ntuple [next_uid] "" "tests" {a b c}]
+    expr {$id > 0}
+} {1}
+
+test create_ntuple-1.3 {ntuple creation without a category} {} {
+    set id [hs::create_ntuple [next_uid] "Test ntuple" "" {a b c}]
+    expr {$id > 0}
+} {1}
+
+test create_ntuple-1.4 {ntuple creation with identical variable names} {} {
+    catch {hs::create_ntuple [next_uid] "Test ntuple" "tests" {a a}} result
+    set result
+} {duplicate variable name "a"}
+
+test create_ntuple-1.5 {ntuple creation with an empty variable list} {} {
+    catch {hs::create_ntuple [next_uid] "Test ntuple" "tests" {}} result
+    set result
+} {the list of column names is empty}
+
+test create_ntuple-1.6 {ntuple creation with an empty variable name} {} {
+    catch {hs::create_ntuple [next_uid] "Test ntuple" "tests" {{} a b}} result
+    set result
+} {ntuple variable name can not be an empty string}
+
+test create_ntuple-1.7 {ntuple creation with missing arguments} {} {
+    catch {hs::create_ntuple [next_uid] "Test ntuple" "tests"} result
+    set result
+} {hs::create_ntuple : wrong # of arguments}
+
+test create_ntuple-1.8 {ntuple creation with too many arguments} {} {
+    catch {hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c} {}} result
+    set result
+} {hs::create_ntuple : wrong # of arguments}
+
+set tmp "If the Tcl interpreter encounters a command name\
+	for which there is not a defined command, then Tcl\
+	checks for the existence of a command named unknown.\
+	If there is no such command, then the interpreter returns\
+	an error. If the unknown command exists, then it is invoked\
+	with arguments consisting of the fully-substituted name and\
+	arguments for the original non-existent command. The unknown\
+	command typically does things like searching through library\
+	directories for a command procedure with the name cmdName,\
+	or expanding abbreviated command names to full-length, or\
+	automatically executing unknown commands as sub-processes.\
+	In some cases (such as expanding abbreviations) unknown will\
+	change the original command slightly and then (re-)execute it.\
+	The result of the unknown command is used as the result for\
+	the original non-existent command."
+
+# The following test should pass, but Histo-Scope prints
+# a dummy message that the title is truncated
+test create_ntuple-1.9 {ntuple creation with a very long title} {} {
+    set id [hs::create_ntuple [next_uid] $tmp "tests" {a b c}]
+    set title [hs::title $id]
+    string equal -length 80 $tmp $title
+} {1}
+
+test create_ntuple-1.10 {ntuple creation with a fairly long category} {} {
+    set id [hs::create_ntuple [next_uid] "Test ntuple" \
+	[string range $tmp 0 253] {a b c}]
+    set category [hs::category $id]
+    string equal -length 254 $tmp $category
+} {1}
+
+test create_ntuple-1.11 {ntuple creation with a very long category} {} {
+    catch {hs::create_ntuple [next_uid] "Test ntuple" \
+	[string range $tmp 0 254] {a b c}} result
+    string equal -length 23 "failed to create ntuple" $result
+} {1}
+
+test create_ntuple-1.12 {ntuple creation with a duplicate uid/category} {} {
+    set uid [next_uid]
+    hs::create_ntuple $uid "Test ntuple" "tests" {a b c}
+    catch {hs::create_ntuple $uid "Test ntuple" "tests" {a b}} result
+    string equal -length 23 "failed to create ntuple" $result
+} {1}
+
+catch {unset id}
+catch {unset uid}
+catch {unset title}
+catch {unset category}
+catch {unset tmp}
+catch {unset result}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

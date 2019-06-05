@@ -1,0 +1,303 @@
+
+Tcl API for Minuit
+------------------
+
+The commands described below provide tcl interface to low-level Minuit
+calls. See CERNLIB long writeup D506 for more details about Minuit
+(available at http://wwwinfo.cern.ch/asdoc/minuit/minuit.ps.gz). Note
+that hs extension users do not normally have to call these commands,
+the functionality provided by the higher level hs::fit command and fit
+handles should be sufficient. If you do nevertheless want to use these
+commands, it is highly recommended that you read the writeup since most
+of the Minuit functionality can be accessed only through its own command
+interpreter (mn::excm and mn::comd commands provide the tcl interface to
+this interpreter).
+
+mn::mintio $iread $iwrite $isave
+
+     Arguments : integers or strings iread, iwrite, and isave
+     Returns   : nothing
+
+     Sets up fortran-like I/O units for reading, writing, and saving
+     Minuit command sets. Each argument must be either an integer obtained
+     from the mn::fortranfile call or one of the standard names "stdin",
+     "stdout", and "stderr". If the Minuit default values are acceptable
+     (standard input is used for reading, standard output for writing,
+     and, if needed, logical unit 7 for saving) then it is not necessary
+     to call this command.
+
+mn::fortranfile $operation $arg ...
+
+     Arguments : string operation (must be "open" or "close"), other
+                 arguments depend on the operation
+     Returns   : integer or nothing
+
+     This command manages fortran-like I/O logical units which may be used
+     by Minuit. To open a file, use the following syntax:
+
+     set unit [mn::fortranfile open $filename $mode]
+
+     where $filename is the name of the file to open, and $mode must be
+     either "r" (file will be open for reading) or "w" (open for writing,
+     truncate if exists). In this form the command returns fortran logical
+     unit number which can be later used with such commands as mn::init,
+     mn::inpu, and mn::mintio. To close a file, use
+
+     mn::fortranfile close $unit
+
+     where $unit is an integer previously obtained from the "open"
+     operation. In this form the command returns nothing.
+
+mn::minuit
+
+     Arguments : none
+     Returns   : nothing
+
+     Enters the "data-driven" mode of Minuit operation (please see the
+     Minuit writeup if you plan to use this mode). Before this command
+     can be issued, the fit has to be set up using the hs::fit command.
+     You should not call mn::init before this command since Minuit takes
+     care of all initialization, but mn::mintio may be called if it is
+     necessary to change the I/O logical unit numbers.
+
+mn::init $iread $iwrite $isave
+
+     Arguments : integers or strings iread, iwrite, and isave
+     Returns   : nothing
+
+     Initializes Minuit for work in command-driven mode. $iread, $iwrite,
+     and $isave specify fortran logical units for Minuit input, output,
+     and save commands. Each argument must be either an integer obtained
+     from the mn::fortranfile call or one of the standard names "stdin",
+     "stdout", and "stderr". This command is called automatically with
+     arguments "stdin stdout stdout" when the hs extension is loaded.
+
+mn::seti $title
+
+     Arguments : string title
+     Returns   : nothing
+
+     Specifies a title string, up to 50 characters, which appears in Minuit
+     printouts. Long strings are truncated to first 50 characters.
+
+mn::prti $title
+
+     Arguments : none
+     Returns   : nothing
+
+     Prints the current Minuit job title to the relevant logical unit
+     (this command just executes Minuit command "SHOW TITLE").
+
+mn::parm $num $name $starting_value $step lower_bound? upper_bound?
+
+     Arguments : integer num, string name, doubles starting_value, step,
+                 lower_bound, and upper_bound.
+     Returns   : nothing
+
+     Defines a new Minuit parameter or redefines an old one. $num is
+     the parameter number as referenced by the user function, $name is
+     the parameter name (up to 10 characters), $starting_value is
+     the parameter starting value, and $step is the starting step size
+     (or approximate parameter error). If $step is 0 then the parameter
+     is not varied by Minuit (fixed). lower_bound and upper_bound
+     are optional arguments which specify bounds on the parameter value.
+     It is recommended that parameters should not be bounded unless
+     limits are needed to make things behave well.
+
+mn::pars $arg1 ...
+
+     Arguments : strings $arg1 ...
+     Returns   : nothing
+
+     Defines a new Minuit parameter or redefines an old one specifying
+     values for its number, name, starting value, step size, and limits
+     if any. The argument strings are concatenated using spaces, and
+     the resulting string is passed to Minuit which parses it the same
+     way as in data-driven mode. This command may be used instead of
+     mn::parm if the character string format appears to be more convenient.
+
+     Example
+     -------
+
+     mn::pars "1 'Parameter1' 0.0 1.0"
+
+mn::pout $num
+
+     Arguments : integer num
+     Returns   : tcl list
+
+     Retrieves parameter info from Minuit (presumably after a fit).
+     $num is the parameter number as referenced by the user function.
+     The result is returned as a list {name value error lower_bound
+     upper_bound varcode}.
+
+     name         A character string of up to 10 characters containing
+                  the name which the user assigned to the given parameter.
+
+     value        Current parameter value (fitted value if the fit has
+                  converged).
+
+     error        Current estimate of parameter uncertainty (or zero if
+                  constant).
+
+     lower_bound  Lower limit on parameter value, if any (otherwise zero).
+
+     upper_bound  Upper limit on parameter value, if any (otherwise zero).
+
+     varcode      Internal Minuit parameter number if parameter is variable,
+                  or zero if parameter is constant, or negative if parameter
+                  is undefined.
+
+mn::comd $arg1 ...
+
+     Arguments : strings $arg1 ...
+     Returns   : nothing
+     
+     Concatenates its arguments using spaces and uses the resulting string
+     as a Minuit command. Please see the Minuit writeup for the description
+     of the Minuit command set.
+
+     Example
+     -------
+     Typical Minuit fitting sequence (after fit setup):
+
+     mn::comd call 1
+     mn::comd migrad
+     mn::comd minos
+     mn::comd call 3
+
+     Note that the Minuit command processor has a bug in parsing
+     high-precision doubles. For example, mn::comd will fail badly in
+     the following example:
+
+     mn::comd set errdef 0.31415926535897931e-5
+
+     The "e-5" part will be truncated (Minuit will print a warning),
+     and the error definition will be set to 0.31415926535897931. In such
+     cases it is safer to use mn::excm. The equivalent command
+
+     mn::excm "set errdef" 0.31415926535897931e-5 
+
+     will produce the desired effect.
+
+mn::inpu $unit
+
+     Arguments : integer unit
+     Returns   : nothing
+
+     Sets logical unit number of input unit from which Minuit will
+     read the next command. The unit number must be obtained from
+     the mn::fortranfile call.
+
+mn::intr
+
+     Arguments : none
+     Returns   : nothing
+
+     This call will cause Minuit to read commands from the input unit
+     originally specified by the user in the mn::init call. Minuit will
+     read and execute commands until it encounters a command END, EXIT,
+     RETurn, or STOP, or an end of file.
+
+mn::excm $cmd arg1? arg2? ...
+
+     Arguments : string cmd, doubles arg1, arg2, ...
+     Returns   : nothing
+
+     Executes a Minuit command. Please see the Minuit writeup for
+     the description of the Minuit command set. $cmd is the Minuit
+     command, and arg1, arg2, etc. are its arguments specified as
+     doubles.
+
+mn::stat
+
+     Arguments : none
+     Returns   : mixed list
+
+     Returns the current status of minimization in the form of a list
+     {fmin fedm errdef npari nparx istat}. fmin, fedm, and errdef are
+     doubles, while npari, nparx, and istat are integers.
+
+     fmin     The best function value found so far.
+
+     fedm     The estimated vertical distance remaining to minimum.
+
+     errdef   The value of UP defining parameter uncertainties.
+
+     npari    The number of currently variable parameters.
+
+     nparx    The highest (external) parameter number defined by user.
+
+     istat    A status integer indicating how good is the covariance matrix:
+               0 -- Not calculated at all
+               1 -- Diagonal approximation only, not accurate
+               2 -- Full matrix, but forced positive-definite
+               3 -- Full accurate covariance matrix (After MIGRAD, this is
+                    the indication of normal convergence). It may also be
+                    useful to check the output of mn::dcovar command.
+
+mn::errs $num
+
+     Arguments : integer num
+     Returns   : list of doubles
+
+     Returns current errors for the parameter number $num as referenced
+     by the user function. The data is returned in a list of doubles
+     {eplus eminus eparab globcc}.
+
+     eplus    The positive MINOS error of parameter $num.
+
+     eminus   The negative MINOS error (a negative number).
+
+     eparab   The "parabolic" parameter error, from the error matrix.
+
+     globcc   The global correlation coefficient for parameter $num. This
+              is a number between zero and one which gives the correlation
+              between parameter $num and that linear combination of all
+              other parameters which is most strongly correlated with $num.
+
+     Note that this command does not cause the errors to be calculated,
+     it merely returns the current existing values.
+
+mn::cont $num1 $num2 $npoints $id close_contour?
+
+     Arguments : integers num1, num2, npoints, id, boolean close_contour
+     Returns   : nothing
+
+     Finds a function contour with the Minuit's MNContour method. $num1
+     and $num2 are parameter numbers with respect to which the contour
+     is to be determined. $npoints is the number of points to use for
+     drawing (must be larger than 4). $id is a Histo-Scope id of an ntuple
+     with 2 variables which will be used to display the contour. close_contour
+     is an optional boolean argument which tells whether the contour should
+     be closed; the default value of this argument is 1.
+
+mn::emat $ndim
+
+     Arguments : integer ndim
+     Returns   : list of lists of doubles
+
+     Returns the current value of the parameter covariance matrix. $ndim
+     defines the output matrix dimensionality and should be at least as
+     large as the number of parameters variable at the time of the call,
+     otherwise the user will get only part of the full matrix. The matrix is
+     returned as a list of rows (or columns since the matrix is symmetric),
+     each row is itself a list of numbers.
+
+mn::nfcn
+
+     Arguments : none
+     Returns   : integer
+
+     Returns the number of FCN calls made during the last run of the minimizer 
+     (MINI, MIGRAD, SIMPLEX, etc).
+
+mn::dcovar
+
+     Arguments : none
+     Returns   : double
+
+     Returns the fractional difference between the last two estimations
+     of the covariance matrix. This number can be used as an indicator of
+     the error matrix precision.
+

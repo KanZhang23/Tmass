@@ -1,0 +1,115 @@
+#include <stdexcept>
+
+#include "geners/CPP11_array.hh"
+
+#include "npstat/nm/PreciseType.hh"
+#include "npstat/nm/CompareByIndex.hh"
+
+#include "npstat/stat/arrayStats.hh"
+#include "npstat/stat/OrderedPointND.hh"
+
+namespace npstat {
+    template <class Inpoint>
+    double sampleSpearmansRho(const std::vector<Inpoint>& data,
+                              const unsigned fd, const unsigned sd)
+    {
+        typedef typename Inpoint::value_type Real;
+        typedef CPP11_array<Real,2> Point;
+
+        const unsigned long npoints = data.size();
+        double rho = 0.0;
+
+        if (npoints > 1UL)
+        {
+            // Calculate point ranks
+            std::vector<OrderedPointND<Point> > sorted;
+            unsigned dimsToUse[2];
+            dimsToUse[0] = fd;
+            dimsToUse[1] = sd;
+            fillOrderedPoints(data, dimsToUse, 2, &sorted);
+            std::sort(sorted.begin(), sorted.end(),
+                      LessByIndex<OrderedPointND<Point> >(0));
+            OrderedPointND<Point>* ptr = &sorted[0];
+            for (unsigned long ipt=0; ipt<npoints; ++ipt)
+                ptr[ipt].setNumber(0, ipt);
+            std::sort(sorted.begin(), sorted.end(),
+                      LessByIndex<OrderedPointND<Point> >(1));
+
+            // Calculate the rho coefficient
+            const long double mean = (npoints - 1UL)/2.0L;
+            long double rhosum = 0.0L;
+            long double sumsq = 0.0L;
+            for (unsigned long ipt=0; ipt<npoints; ++ipt)
+            {
+                const long double d0 = ptr[ipt].getNumber(0) - mean;
+                const long double d1 = ipt - mean;
+                rhosum += d0*d1;
+                sumsq += d1*d1;
+            }
+            rho = rhosum/sumsq;
+        }
+        else throw std::invalid_argument(
+            "In npstat::sampleSpearmansRho: not enough points in the sample");
+        if (rho > 1.0)
+            rho = 1.0;
+        else if (rho < -1.0)
+            rho = -1.0;
+        return rho;
+    }
+
+    template <class Array>
+    double spearmansRhoFromCopula(const Array& copula)
+    {
+        typedef typename Array::value_type Real;
+        typedef typename PreciseType<Real>::type Precise;
+        const Precise two = static_cast<Precise>(2);
+        const Precise four = static_cast<Precise>(4);
+
+        if (copula.rank() != 2U) throw std::invalid_argument(
+            "In npstat::spearmansRhoFromCopula: "
+            "incompatible array dimensionality");
+        const unsigned nx = copula.span(0);
+        const unsigned ny = copula.span(1);
+        if (nx < 2U || ny < 2U) throw std::invalid_argument(
+            "In npstat::spearmansRhoFromCopula: "
+            "insufficient minimum array span");
+        Precise rhosum = Precise();
+        for (unsigned i=0; i<nx; ++i)
+        {
+            const bool iedge = i == 0 || i == nx - 1U;
+            for (unsigned j=0; j<ny; ++j)
+            {
+                const bool jedge = j == 0 || j == ny - 1U;
+                if (iedge && jedge)
+                    rhosum += copula(i,j);
+                else if (iedge || jedge)
+                    rhosum += two*copula(i,j);
+                else
+                    rhosum += four*copula(i,j);
+            }
+        }
+        double rho = (static_cast<double>(rhosum)/(nx-1U)/(ny-1U) - 1.0)*3.0;
+        if (rho < -1.0)
+            rho = -1.0;
+        else if (rho > 1.0)
+            rho = 1.0;
+        return rho;
+    }
+
+    template <class Array>
+    double spearmansRhoFromCopulaDensity(const Array& copulaDensity)
+    {
+        if (copulaDensity.rank() != 2U) throw std::invalid_argument(
+            "In npstat::spearmansRhoFromCopulaDensity: "
+            "incompatible array dimensionality");
+        if (copulaDensity.minimumSpan() < 2U) throw std::invalid_argument(
+            "In npstat::spearmansRhoFromCopulaDensity: "
+            "insufficient minimum array span");
+
+        Matrix<double> covmat(2, 2);
+        arrayCoordCovariance(copulaDensity, BoxND<double>::unitBox(2),
+                             &covmat);
+        const Matrix<double>& corr = covmat.covarToCorr();
+        return corr(0, 1);
+    }
+}

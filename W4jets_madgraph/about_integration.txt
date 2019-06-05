@@ -1,0 +1,67 @@
+Dear Colleagues:
+
+Here are some thoughts about calculating W + 4 jets event probability
+using the matrix element (ME) technique. It would be nice to get your
+comments before writing the code.
+
+-- I am assuming that we plan to use W + 4 jets ME calculation for
+   the untagged sample only. For samples with b tags, a separate
+   calculation using W + bb + qq matrix element would be needed.
+
+-- Integration over parton angular variables for the W + 4 jets process
+   seems like a waste of time as the only sharp term in the matrix element
+   is the W propagator. If we integrate over the W mass, the neutrino Pz
+   can always be adjusted to get the mass needed.
+
+-- Assuming perfect lepton momentum measurement, a good set of phase space
+   variables to integrate over are just magnitudes of the parton momenta,
+   W mass squared, and the overall transverse momentum of the W + 4 jets
+   system -- 7 variables total. In case W decays into tau nu with the
+   subsequent decay tau -> l nu nu, there is one more variable to integrate
+   over: the fraction of tau momentum carried by l (assuming l and tau
+   directions are the same). The jacobian for this set of variables is
+   relatively simple (much simpler than the top mass jacobian), but it
+   does turn to 0 at the phase space boundary. This means that one can not
+   integrate over W mass squared using MC (or quasi-MC). A somewhat more
+   careful approach is needed, similar to what was done for top (details
+   are in the Appendix C of CDF note 9245 -- but for W + 4 jets things are
+   significantly simpler).
+
+-- Transfer functions (TFs) used in the top mass measurement are rather
+   complicated. Not only they depend on the jet mass (to be precise, this
+   is not observed jet mass, this is the mass of MC ID=94 proto-jets),
+   they are also not factorizable into the product of Pt and angular TFs.
+   In the TF construction procedure, Pt TFs are conditioned on delta
+   eta between the jet and the parton. If we do not want to integrate
+   over jet angular variables for W + 4 jets, we have no choice but to
+   use different TFs for ttbar and W + 4 jets.
+
+-- Use of the transfer functions which depend on the the jet mass appears
+   to be problematic for another reason. When the phase space integration
+   is performed using massive proto-jets, one still has to get back to
+   the tree level for the ME calculation. The procedure for doing this in
+   the top mass case is described in the Appendix D of CDF note 9245. It
+   relies substantially on the presence of intermediate resonances with
+   known masses (these masses are actually integrated over, but for
+   kinematic calculations they are considered fixed), so this procedure
+   can not be applied to the W + 4 jets process. Because of this (and
+   the previous item), it appears to be the easiest to construct the new
+   TFs and the corresponding efficiencies w.r.t. the massless tree-level
+   partons rather than the ID=94 proto-jets.
+
+-- The TF for the l/tau momentum ratio can be different between ttbar
+   and W + 4 jets. This is because, in principle, the fraction of tau
+   momentum carried away by l depends on the tau polarization which,
+   in turn, depends on the W polarization. I presume, the VECBOS ME sums
+   over polarizations of the outgoing lepton anyway, so the best we could
+   do is to determine the average l/tau momentum ratio distribution
+   from whatever W + jets MC we are going to use.
+
+-- Do we expect the dependence of the W + 4 jets transverse momentum
+   prior on some kinematic characteristics of the events (like the HT
+   or the invariant mass of the system)? I do not have good intuition
+   here. In case of ttbar, this prior does exhibit a mild dependence
+   on the top mass.
+
+Regards,
+Igor

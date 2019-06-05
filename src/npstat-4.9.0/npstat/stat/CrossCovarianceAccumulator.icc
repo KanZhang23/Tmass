@@ -1,0 +1,42 @@
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    template<typename T1, typename T2>
+    void CrossCovarianceAccumulator::accumulate(
+        const T1* data1, const unsigned len1,
+        const T2* data2, const unsigned len2)
+    {
+        if (len1 != dim1_) throw std::invalid_argument(
+            "In npstat::CrossCovarianceAccumulator::accumulate: "
+            "incompatible size of the first array");
+        if (len2 != dim2_) throw std::invalid_argument(
+            "In npstat::CrossCovarianceAccumulator::accumulate: "
+            "incompatible size of the second array");
+        assert(data1);
+        assert(data2);
+
+        long double* p = &sum1_[0];
+        long double* psq = &sumsq1_[0];
+        for (unsigned i=0; i<len1; ++i)
+        {
+            *p++ += data1[i];
+            *psq++ += data1[i]*data1[i];
+        }
+
+        p = &sum2_[0];
+        psq = &sumsq2_[0];
+        for (unsigned i=0; i<len2; ++i)
+        {
+            *p++ += data2[i];
+            *psq++ += data2[i]*data2[i];
+        }
+
+        p = &sumsq_[0];
+        for (unsigned i=0; i<len1; ++i)
+            for (unsigned j=0; j<len2; ++j)
+                *p++ += data1[i]*data2[j];
+
+        ++count_;
+    }
+}

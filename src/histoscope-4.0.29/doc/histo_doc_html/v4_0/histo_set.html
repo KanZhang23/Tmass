@@ -1,0 +1,438 @@
+<title>Adjusting Plot Settings</title>
+<h2>
+Adjusting Plot Settings
+<a name="bk12"></h2>
+<p>
+Each plot window described in the previous sections allows you to pop up a menu
+to change the default settings used to display the plot.  In addition, the plot
+settings menu allows printing, writing a PostScript file of the plot, and
+closing the plot.  To bring up the plot settings menu, make sure the plot is
+selected (using the first or select mouse button) and then press the right-most
+mouse button.  The plot settings menu is used  just like the other pull-down
+menus throughout Histo-Scope, except that you are using the right-most button
+instead of the left mouse button for selecting items in the menu.<p>
+
+<h2>
+<a name="1">Getting Help
+</a></h2>
+<p>
+The plot settings menu for each plot includes on-line help that describes each
+plot setting.<p>
+
+<h2>
+<a name="2">Getting Statistics on the Data
+</a></h2>
+<p>
+You can get statistics on the data used in each plot type.  Each statistics
+window includes the name of the data item, the number of fills (for histograms)
+or entries (for Ntuples), the Sum of all the Fills (for histograms only), the
+mean, standard deviation, minimum, and maximum for each variable, and overflow
+sums (for histograms only). <p>
+<p>
+<IMG SRC="hspict4.GIF"><p>
+<pre>                                                 <p>
+      Figure 38a.                  Figure 38b.  <p>
+Example Statistics Window      2D Histogram Overflows<p>
+</pre><p>
+One-dimensional histograms have only two overflows: -X and +X.<p>
+
+If the statistics window for a plot is displayed at the same time the user
+requests a plot to be printed, the statistics are printed to the side of the 
+plot (except for Multiple Plot Windows).
+
+<h2>
+<a name="3">Setting Styles for Markers and Lines and Histograms
+</a></h2>
+<p>
+Time Series, XY, and Histogram plots allow you to place markers on the plots to
+indicate the actual data points on the lines drawn in the plots.  In addition,
+they allow you to set line styles for each variable in the plot.<p>
+<p>
+When you select Set Mark and Line Style... from the plot setting menu, one of
+the following windows pop up:<p>
+<p>
+<IMG SRC="Fig391.GIF"><p>
+<p>
+Figure 39a.  Histograms Styles Window<p>
+   <p>
+<IMG SRC="Fig392.GIF"><p>
+<p>
+Figure 39b.  Mark &amp; Line Styles Window<p>
+ 
+<p>
+The Histograms style window contains four pull-down menus; the Mark & Line 
+Styles window contains five.  The first two menu boxes are for lines, style 
+and color.  When you click on the first menu box, all possible line styles 
+are displayed.  Click and drag the mouse to select the line style you desire.  
+As you select a new style, the line to the right of the option menu boxes 
+changes accordingly so you can see what your line will look like.  In the
+Histograms window, at the bottom of the lines styles options, there will be
+markers displayed.  If selected the histogram will be plotted with markers 
+with or without error bars depending on whether errors were previously
+selected.  The second menu box allows you to select a color for the line.<p>
+
+In the Histograms Styles window, the next two menu boxes are for histogram fill
+style and color.  They work the same way as the line syle and color menu boxes 
+Click and drag the mouse to select the histogram fill style and color you 
+desire.  <p>
+
+In the Mark & Line Styles Window, the second group of menu boxes allow you to 
+select the marker characteristics: type, size and color.  These menu boxes work
+in the usual way as well.  The variable names are listed at the top right of 
+the window in both Histograms and Mark & Line Styles Windows.<p>
+
+The six push buttons in the middle of the Mark & Lines Styles Window allow 
+you to clear the marker type and line style or set the styles to a default.  
+In order for these changes to take effect, press the Apply or OK button.  The 
+Mark Size button pops up a window which allows you to set all markers to the 
+same size.  The LineColors button pops up a window which allows you to change 
+the marker colors. <p> 
+
+To see how the plot will look with the assignments you've made, click on the 
+Apply button.  The OK button will make the assignments and dismiss the window.
+The Dismiss button will cancel your selection and dismiss the window.  <p>
+
+
+<h2>
+<a name="5">Showing/Hiding the Variables Legend
+</a></h2>
+<p>
+By default, the variables legend in Time Series and XY plots is displayed.
+To make the legend disappear, select <i>Show Variables Legend</i> from the Plot
+Settings menu.  To make it reappear, select <i>Show Variables Legend</i> once
+again.<p>
+
+<h2>
+<a name="6">Sliders: Observing the Effect of Other Ntuple Variables on the Plot
+</a><a name="bk13"></h2>
+<p>
+Slider variables can be defined for many kinds of plots from Ntuple data.
+Slider variables are used to study correlations among variables in the Ntuple.
+They allow the user to make simple cuts in the Ntuple sample.  From the Ntuple
+Window, assign these variables to the positions S1, S2, S3...  Then select
+<i>Show Sliders</i> from the Plot Settings menu.  A window similar to Figure 40
+will pop up.<p>
+<p>
+By default, each slider is set up so that all points are included and the radio
+button shows that all values less than (&lt;) the value displayed are included
+in the plot.  As you move the slider to the left, entries will be eliminated
+that are associated in the Ntuple with values greater than the displayed value
+of the slider variable.  As you move the sliders, scatter plots lose/add points
+and histograms lose/add height. <p>
+<p>
+<IMG SRC="HSfig38.gif"><p>
+<p>
+Figure 40.  Animation Sliders Window<p>
+<i>(shown larger than actual size)</i><p>
+<i></i><p>
+When the radio button for greater than (&gt;) is selected, the opposite is
+true:  all values greater than the value displayed are included in the plot and
+values less than are excluded.  Thus it is possible by selecting the same
+Ntuple variable twice to achieve a range of values for the cut.  For example in
+Figure 40, all points are displayed where the variable Y is between 4779.5 and
+5245.1.  <p>
+<p>
+In addition to dragging the slider with the mouse, you can click on the space
+to the left or right of the slider to move it in pre-defined increments.  For
+smaller increment adjustments you can use the left and right arrow keys.
+Typing a tab will allow you to select which slider is affected when using the
+arrow keys. </a><p>
+
+<h2>
+<a name="7">Rebinning Ntuple Data Displayed as a Histogram
+</a></h2>
+<p>
+To re-bin histograms displayed from Ntuple data, or to find out the number of
+bins Histo-Scope used to display the Ntuple, select <i>Show Rebin Sliders</i>
+from the Plot Settings menu.  A window similar to Figure 41 will pop up.<p>
+<p>
+To adjust the slider to the exact number of bins you desire, use the left and
+right arrow keys.  For two-dimensional histograms with two sliders, you may
+need to tab to the slider you want to change.  You can also drag the slider
+with the mouse or click on the space to the left or right of the slider for
+larger adjustments.<p>
+<IMG SRC="HSfig39.gif"><p>
+<p>
+Figure 41.  Rebin Histogram Window<p>
+<i>(shown larger than actual size)</i><p>
+<i></i><p>
+<p>
+To set the bin splitting threshold for adaptive histograms displayed from
+Ntuple data, or to find out its current value, select <i>Show Bin Limit
+Sliders</i> from the Plot Settings menu.  A window similar to the following
+will pop up: <p>
+<p>
+<IMG SRC="HSfig40.gif"><p>
+<p>
+Figure 42.  Bin Limits Window<p>
+<i>(shown larger than actual size)</i><p>
+<i></i><p>
+To adjust the slider to a new threshold value, use the left and right arrow
+keys.  (Use the tab key to select the slider you want to change for
+two-dimensional histograms if the slider you want to change isn't selected.)
+You can also drag the slider with the mouse or click on the space to the left
+or right of the slider.<p>
+<p>
+
+<h2>
+<a name="8">Labelling of Histogram Bin Edges
+</a></h2>
+<p>
+Histogram axes can optionally be numbered using the exact values of the bin
+edges rather than the ordinary plot scale.  To change the labeling style,
+select <i>Label at Bin Edges </i>from the Plot Settings menu.  When the bins
+are very narrow, the plot reverts to the ordinary axis labeling scheme
+regardless of the setting of this option. <p>
+
+<h2>
+<a name="9">Altering Cell Size for Data Displayed as a Cell Plot
+</a></h2>
+<p>
+To alter the cell size and density of data displayed from a Cell Plot, select
+<i>Show Normalization Slider</i> from the Plot Settings menu.  A window similar
+to Figure 43 will pop up.  The size of a rectangle in a cell plot is
+proportional to the contents of the bin it represents.  The maximum cell size
+(filled in black) represents a value greater than or equal to the right
+(maximum value on the Normalization Slider window.  An empty cell represents a
+bin value less than or equal to the left (minimum) value on the Normalization
+Slider window.<p>
+<p>
+<IMG SRC="hspict43.gif"><p>
+<p>
+Figure 43.  Normalization Slider<p>
+<p>
+Initially, the normalization slider shows the entire range of the bin values
+and therefore displays the entire range of the data.  The number displayed in
+the right side of the slider instructs Histo-Scope to display everything from
+that value up to the maximum value to be displayed at the maximum cell size.
+(Similarly, the number displayed in the left side of the slider instructs
+Histo-Scope to eliminate displaying everything from that value to the minimum
+value on the plot.)  The data between the two sliders is displayed with cell
+size proportional (linear scaling) to the bin contents within the range of the 
+normalization minimum and maximum. If the toggle-button is set to Log. Scaling
+, the cell is logarithmically proportional to the bin contents within the
+range.<p>
+<p>
+To adjust the slider drag the arrow slide you want to change with the mouse in
+the direction you desire.<p>
+<p>
+
+<h2>
+<a name="10">Other Views
+</a></h2>
+<p>
+The <i>Other Views</i>  plot setting is available from two-dimensional
+histogram plots and cell plots requested as another view of two-dimensional
+plots.  When selecting <i>Other Views</i> from a two-dimensional histogram, a
+2D Cell Plot is popped up (and vice versa).  <p>
+<p>
+<h2>
+Show Titles 
+</h2>
+By default, each plot title in a Multiple Plot window is displayed.  In order
+to use the entire area for the plots, the user can elect to make these titles
+disappear.  To do so, select <i>Show Titles</i> from the Plot Settings menu.  To make
+the titles reappear, select <i>Show Titles</i> again.
+<p>
+<h2>
+<a name="11">Scaling and Panning the Plots
+</a></h2>
+<p>
+There are three different ways to scale a plot after it is displayed:<p>
+<p>
+*	Use the mouse directly on the plot to grab the axis ticks and pull (or
+stretch) the axis.  Point the mouse just to the outside of the axis using a
+point near the upper half of the axis to change the maximum axis value and a
+point near the lower half of the axis to change the minimum axis value.<p>
+<p>
+*	Use:<p>
+<pre>
+	Zoom In		     (Ctrl Z)<p>
+	Zoom Out             (Shift Ctrl Z)<p>
+	Reset View	     (Ctrl R)<p>
+</pre>
+from the Plot Settings menu.  <i>Zoom In</i> and <i>Zoom Out</i> will
+immediately change the plot.  <i>Reset View</i> will restore the plot to its
+initial orientation and scale with all its data displayed.<p>
+<p>
+*Use the Axis Settings window by selecting <i>Axis Settings...</i> from the
+Plot Settings menu.  This menu allows you to enter values for the minimum and
+maximum value of each axis.  In addition, you can change the scaling of an axis
+from linear to logarithmic (and back) using the diamond-shaped radio buttons.
+<p>
+<p>
+<IMG SRC="HSfig42.gif"><i></i>
+<h2>
+</h2>
+Figure 44.  Axis Settings Window<p>
+<p>
+All plots can be panned by grabbing a point inside the plot and dragging with
+the mouse.  On 2D Histograms, you must grab a point near the axes and drag
+along the axis.  
+<h2>
+</h2>
+
+<h2>
+<a name="12">Showing/Hiding Backplanes for 2D Histograms
+</a></h2>
+<p>
+By default, the backplanes of 2D Histograms are displayed.  To make the
+backplanes disappear, select <i>Show Backplanes</i> from the Plot Settings
+menu.  To make them reappear, select <i>Show Backplanes</i> once again. <p>
+<p>
+
+<h2>
+<a name="13">Showing/Hiding Errors for Histograms
+</a></h2>
+<p>
+By default, error data in a histogram is not displayed.  If error data is
+available for the plot, selecting <i>Error Data</i> from the Plot Settings menu
+will show error bars using the error data from the file or process.  Selecting
+<i>Error Data</i> once again, (or selecting <i>Gaussian Errors</i>) from the
+Plot Settings menu will de-select Error Data.<p>
+<p>
+Selecting <i>Gaussian Errors</i>  from the Plot Settings menu will create error
+bars for the histogram showing the square root of the bin contents.  These
+errors are computed by Histo-Scope and thus do not incur communications
+overhead when connected to a process.<p>
+<p>
+<IMG SRC="HSfig43.gif"><p>
+<p>
+Figure 45.  Histogram with Gaussian Errors<p>
+<p>
+
+<h2>
+<a name="14">Thickening/Lightening Scatter Plot Points
+</a></h2>
+<p>
+By default, the points in a scatter plot are drawn as thick points.  To make
+the plot lighter, select <i>Thicken Points</i> from the Plot Settings menu to
+lighten the points.  To make the points thick again, select <i>Thicken
+Points</i> once again.<p>
+<p>
+
+<h2>
+<a name="15">Update Options for all Plots
+</a></h2>
+<p>
+<i>Automatic Update</i> and <i>Update</i> from the Plot Settings menu are
+useful only when connected to a running process.  These two update settings
+affect when data is re-displayed.  (The Main Window's Preferences menu is used
+to set the <i>Update Frequency, </i>which affects how often data is requested
+from the running process.)<p>
+<p>
+Initially <i>Automatic Update</i> mode is on (indicated by the square toggle
+button to the left in the menu).  When Histo-Scope is connected to a running
+process, each displayed plot with <i>Automatic Update</i> mode set on will be
+updated according to the frequency set in the Preferences menu in the Main
+Window (initially every 3 seconds).<p>
+<p>
+With <i>Automatic Update</i> off, a plot can still be individually updated with
+data Histo-Scope has already received from the client by selecting
+<i>Update</i> from the Plot Settings menu.<p>
+<p>
+
+<h2>
+<a name="16">Printing a Plot
+</a></h2>
+<p>
+Select <i>Print...</i> from the Plot Settings menu to print the plot.
+Histo-Scope will pop up a Printer Options window for specifying the printer
+queue name:  <p>
+<p>
+<IMG SRC="HSfig44.gif"><p>
+<p>
+Figure 46.  Printer Options Window<p>
+<p>
+The default queue names initially displayed are the environment variables
+defined, if any, for lpr and flpr.  If no such defaults are available, 
+the menu displays the system default queue.<p>
+<p>
+The last field in this dialog is the Unix command that will be used to
+queue the plot for printing.  Since this command is generated from the other
+options in the dialog, there is normally no reason to change it, but you can
+use the field to add options and change the command in ways not otherwise
+supported by the print dialog.<p>
+<p>
+Enter the queue name if the default queue is not the printer you would like to
+use.  Press <i>Print</i> to print the file.<p>
+<p>
+Pressing <i>Cancel</i> will make the Printer Options window disappear without
+printing anything.<p>
+<p>
+If the statistics window for a plot is displayed while printing a plot, the
+statistics will also be printed to the side of the plot.<p>
+<p>
+If the plot window to be printed is a Multiple Plot window, all mini-plots 
+in the window will appear on a single page similar in appearance to how they 
+appear on the screen.  If titles are displayed in the Multi-Plot window, they
+will also be printed.  For Multi-Plot windows, statistics are not printed.
+If you find that the multiple plot window is larger than the size of the paper
+you are using to print the window, try reducing the size of the Multiple Plot
+window and reprinting or use a POSTSCRIPT printer that can accomodate larger 
+paper.<p>
+<p>
+Please note that 2D Histogram plots can take some time to print because of
+PostScript processing time in the printer.  As the number of bins goes up,
+print processing time increases so that histograms of 100x100 bins can take
+over nine minutes for the printer to process and print the file (depending on
+the speed of the printer).<p>
+<p>
+
+<h2>
+<a name="17">Generating a PostScript File of a Plot
+</a></h2>
+<p>
+Select <i>Generate PostScript...</i> if you would like to save a PostScript
+representation of your plot to a file.  </a>Histo-Scope will pop-up a file
+selection dialog for you to enter a filename for the PostScript output.  In
+Histo-Scope Version 3.0, we have encapsulated PostScript output so that this
+file can be pasted into other documents.<p>
+
+<h2>
+<a name="18">Showing/Hiding the Range for Indicators and Controls
+</a></h2>
+<p>
+By default, a slider showing the minimum and maximum values defined for an
+indicator or control are displayed.  To omit these from the window, select
+<i>Show Range</i> from the plot settings menu.  The filled square to the left
+of the <i>Show Range</i> will disappear, indicating that showing the range is
+disabled.  To enable <i>Show Range</i>, just select it once again.<p>
+<p>
+<h2>
+<a name="19">Deleting a MiniPlot
+</a></h2>
+<p>
+Select Delete <i>MiniPlot</i> from the Plot Settings menu to delete the mini-plot
+from the Multiple Plot window.  The remainder of the Multi-Plot window is
+unaffected.  After a mini-plot is deleted, it is possile to drag another
+plot into that empty "cell" so that it is displayed in the Multi-Plot
+window.<p>
+<p>
+<h2>
+<a name="20"> Changing the Window Title
+</a></h2>
+<p>
+Select <i>Change Window Title</i> from the Plot Settings menu if you
+would like to change the title of the plot window  A new window will pop up
+which will allow you to enter a new window title.  After you have entered a
+desired new title, click on the OK button.  If you wish to cancel this
+selection, there is a Cancel button to click on.
+<h2>
+<a name="21">Removing an Overlayed Plot
+</a></h2>
+<p>
+Select <i>Remove Overlayed Plot </i>from the Plot Settings menu to
+remove a plot which you have overlayed on another plot in the current plot
+window  After you select Remove Overlayed Plot..., there will be a list of
+plots that are currently overlayed in that window.  You may then drag the mouse
+to select the plot you wish to remove.  <p>
+
+<h2>
+<a name="22">Closing a Plot
+</a></h2>
+<i></i><p>
+<i></i>Select <i>Close</i> from the Plot Settings menu to close the plot window
+and make it disappear.  It is a good idea to close plots that are no longer
+needed when connected to a process to avoid the CPU overhead of transferring
+and displaying data. </a>

@@ -1,0 +1,163 @@
+Randomization of jet masses:
+random_q_mass_fromrand
+random_b_mass_fromrand
+
+Compensatory 
+
+Randomization of jet directions:
+"randomize_jet_dir" which calls "randomize_sampling_fromrand"
+
+Need functions:
+
+transfer_function
+single_parton_eff
+
+
+Main order of function calls:
+
+mc_top_jes_scan - top level
+    mc_permutation_scan
+        random_q_mass_fromrand
+        randomize_jet_dir (for q, qbar)
+            randomize_sampling_fromrand
+        angular_density   (for q, qbar)
+            angular_transfer_function
+        random_b_mass_fromrand
+        mc_one_top_mass_scan
+            randomize_jet_dir (bhad, blep)
+                randomize_sampling_fromrand
+            angular_density   (bhad only)
+            ttbar_pt_weight   (weight on top of Pt randomization)
+            mc_integrate_w_mass
+                hadronic_side_tf_product
+                    transfer_function (q, qbar, bhad)
+                    single_parton_eff (q, qbar, bhad)
+                w_reco_efficiency (dependence on delta R and m/Pt for q, qbar)
+                mc_add_mwsq_point
+                fill_lepton_solution_info
+                    angular_transfer_function (blep only)
+                    transfer_function (blep only)
+                    single_parton_eff (blep only)
+
+
+Basically, to introduce new TFs, we need to adjust
+
++ randomize_sampling_fromrand
++ angular_transfer_function  (set to 1)
++ transfer_function
++ transfer_function_efficiency_2
++ single_parton_eff
+w_reco_efficiency (perhaps)
+
+"ttbar_pt_weight" should return 1 if the ttbar Pt distribution does not
+depend on top mass
+
+
+
+
+
+"norm_add_nocorr" is called on line 1186.
+Weights are set to zeros on entry to "mc_permutation_scan".
+
+Weights from leptonic side mask?
+
+Hadronic W mass importance sampler:
+L1295: double q_randomization_weight = 1.0/cauchy_density(mwsq, w_peak, w_hwhm);
+
+Flat integration in "param":
+L1420: double weight_so_far = paramrange*q_randomization_weight;
+
+L1703: event_weight[ijes] = 0.0;
+
+L1723: weight /= cauchy_density(mthadsq, mt*mt, mt*t_width);
+
+(* Check hadronic side angle density importance sampling factor *)
+L1817: weight *= (angular_density(bhad_in, bhad, hsols[0].bP,
+                                  1, rand_mbhad)/density);
+
+L1845: weight /= density; (angular density of leptonic b)
+
+L1856: weight *= ttbar_pt_weight(mt, r[random_dim_map[MC_DIM_TTBAR_PT_MAG]]);
+
+L1877: weight /= cauchy_density(mtlepsq, mt*mt, mt*t_width);
+
+L1899: if (!passes) solweight = 0.0; (leptonic side mask)
+
+L1937: solweight *= taufactor;
+
+L2843: params.toplevel_weight = toplevel_weight * w_reco_eff;
+
+L3213: cdf_weight = (previous_mwsq_binwidth + cdf_binwidth)/2.0
+
+
+W mass squared integration
+L2741: const double w = info->jaco_mw*weight/cauchy_density(info->lsol.mwsq, peak, hwhm)
+L2746: jes_results[ijes] += jes_weights[ijes]*w;
+
+
+
+Inside fill_lepton_solution_info:
+
+L2183: double point_weight = params->toplevel_weight;
+
+L2194: *** Missing estimate of leptonic b angular TF! ***
+       Is angular density included in the new TF? Yes!
+
+L2261: point_weight *= (matrel*structfun + matrel_gg*structfun_gg)
+
+L2297: info->jes_weights[ijes] = point_weight*lep_tf*params->had_tfprod[ijes]
+
+
+
+Overall treatment of weights
+----------------------------
+
+The top-level event weights are the permutation results summed up with
+permutation weights. This summation is performed inside "mc_top_jes_scan".
+
+The permutation results are calculated inside "mc_permutation_scan".
+There, the result pointer is simply passed (with an appropriate offset)
+to "mc_one_top_mass_scan" which calculates the result for one particular
+top mass value.
+
+For every "ijes", the results in "mc_one_top_mass_scan" are those obtained
+by "mc_integrate_w_mass".
+
+Inside "mc_integrate_w_mass", the results are filled by calling functions
+"mc_add_mwsq_point" and "mc_nuz_interval_integ".
+
+Inside "mc_add_mwsq_point" the event weight is calculated, for each ijes,
+as a product of Lepton_solution_info member jes_weights times the common
+factor. That factor is jaco_mw*weight/density. "weight" is the coverage
+of a particular w mass integration bin (cdf_weight). "density" is the
+Cauchy density for the W mass. "jaco_mw" is a complicated factor, inversely
+proportional to the Jacobian, calculated inside "ttbar_phase_space".
+
+The integration in "mc_nuz_interval_integ" appears to be commensurate.
+
+Need to permute up/down quark assignments inside "kleiss_stirling_weights"?
+No, we have 24 top-level permutations, not 12. These assignments are already
+permuted.
+
+
+
+Weights needed
+--------------
+
+Matrix element                    -- inside "matrel_kleiss_stirling"
+Phase space (including Jacobian)  -- inside "ttbar_phase_space"
+Parton density functions          -- inside "pdfterm_qqbar"
+Transfer functions
+Flux factor                       -- inside "pdfterm_qqbar"
+Samplers/sample weights
+alpha_s dependence                -- inside "pdfterm_qqbar"
+
+mc_permutation_scan accounts for samplers in
+   had_mw^2, param, angular density for q and qbar
+
+mc_one_top_mass_scan accounts for samplers in
+   had_mt^2, angular density for blep and bhad,
+   lep_mt^2, ttbar_pt
+
+mc_integrate_w_mass accounts for samplers in
+   lep_mw^2

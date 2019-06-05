@@ -1,0 +1,265 @@
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/stat/AbsPolyFilter1D.hh"
+
+namespace npstat {
+    // CV for unweighted samples
+    template<typename Numeric, typename Num2, typename Num3, typename Num4>
+    double BandwidthCVLeastSquares1D<Numeric,Num2,Num3,Num4>::operator()(
+        const HistoND<Numeric>& histo,
+        const Num2* densData, const unsigned lenEstimate,
+        const AbsPolyFilter1D& filterUsed) const
+    {
+        // Check consistency of the arguments
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+            "input histogram must be one-dimensional");
+        const unsigned nbins = histo.nBins();
+        if (nbins != lenEstimate) throw std::invalid_argument(
+            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+            "histogram and density estimate are not compatible");
+        assert(densData);
+        if (nbins != filterUsed.dataLen()) throw std::invalid_argument(
+            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+            "histogram and filter are not compatible");
+        const unsigned long N = histo.nFillsInRange();
+        if (N <= 1UL) throw std::invalid_argument(
+            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+            "not enough data for cross validation");
+
+        // Check that the density estimate normalization is "reasonable".
+        // However, do not require that every density value is non-negative.
+        // Estimates like LOrPE can produce negative density values (if not
+        // truncated).
+        long double densitySum = 0.0L;
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+            densitySum += densData[ibin];
+        const double binWidth = histo.binVolume();
+        const double densityInteg = densitySum*binWidth;
+        if (fabs(densityInteg - 1.0) >= 0.01) throw std::invalid_argument(
+            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+            "input density is not properly normalized");
+
+        // Start accumulating the MISE approximation
+        long double mise = 0.0L;
+        const Numeric* bins = histo.binContents().data();
+        const Numeric zero = static_cast<Numeric>(0);
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+        {
+            double binContrib = densData[ibin]*densData[ibin]*binWidth;
+            if (bins[ibin] > zero)
+            {
+                // Figure out the contribution of one event falling
+                // into this histogram bin into the density estimate
+                // at this bin. The logic is as follows.
+                //
+                // "selfContribution" is simply the value of the
+                // filter used for the bin "ibin" at that bin.
+                // Note that the filters are normalized by the
+                // condition that the _sum_ of their values is 1.
+                // The real kernels are instead normalized by the
+                // condition that the _integral_ of their values is 1.
+                // Therefore, in order to convert filter self-contribution
+                // into kernel self-contribution, we need to divide
+                // filter self-contribution by the bin width.
+                // To subsequently convert that into the density
+                // estimate contribution, we need to divide by
+                // the number of points, N (as in KDE). This would
+                // be the contribution of one point into the density
+                // normalized by 1 (estimated at that point). To get
+                // the contribution into the density normalized by
+                // "densityInteg", we also need to multiply by
+                // "densityInteg".
+                //
+                const double fVal = filterUsed.selfContribution(ibin);
+                const double weight = densityInteg*fVal/N/binWidth;
+
+                // Construct the density at this bin without
+                // one event. Here, it is already divided by N.
+                const double densityOneOutON = (densData[ibin]-weight)/(N-1UL);
+                binContrib -= bins[ibin]*2.0*densityOneOutON;
+            }
+            mise += binContrib;
+        }
+        return -static_cast<double>(mise);
+    }
+
+    // CV for weighted samples
+    template<typename Numeric, typename Num2, typename Num3, typename Num4>
+    double BandwidthCVLeastSquares1D<Numeric,Num2,Num3,Num4>::operator()(
+        const HistoND<Numeric>& histo,
+        const double effectiveSampleSize,
+        const Num2* densData, const unsigned lenEstimate,
+        const AbsPolyFilter1D& filterUsed) const
+    {
+        // Check consistency of the arguments
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+            "input histogram must be one-dimensional");
+        const unsigned nbins = histo.nBins();
+        if (nbins != lenEstimate) throw std::invalid_argument(
+            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+            "histogram and density estimate are not compatible");
+        assert(densData);
+        if (nbins != filterUsed.dataLen()) throw std::invalid_argument(
+            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+            "histogram and filter are not compatible");
+        if (effectiveSampleSize <= 1.0) throw std::invalid_argument(
+            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+            "not enough data for cross validation");
+        const double wsum = histo.binContents().template sum<long double>();
+
+        // Average weight of one effective event
+        const double w1eff = wsum/effectiveSampleSize;
+
+        // Check that the density estimate normalization is "reasonable".
+        // However, do not require that every density value is non-negative.
+        // Estimates like LOrPE can produce negative density values (if not
+        // truncated).
+        long double densitySum = 0.0L;
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+            densitySum += densData[ibin];
+        const double binWidth = histo.binVolume();
+        const double densityInteg = densitySum*binWidth;
+        if (fabs(densityInteg - 1.0) >= 0.01) throw std::invalid_argument(
+            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+            "input density is not properly normalized");
+
+        // Start accumulating the MISE approximation
+        long double mise = 0.0L;
+        const Numeric* bins = histo.binContents().data();
+        const Numeric zero = static_cast<Numeric>(0);
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+        {
+            double binContrib = densData[ibin]*densData[ibin]*binWidth;
+            if (bins[ibin] > zero)
+            {
+                // How much weight to remove for cross-validation?
+                const double binValue = bins[ibin];
+                const double wminus = binValue > w1eff ? w1eff : binValue;
+                const double weightLeft = wsum - wminus;
+                if (weightLeft <= 0.0) throw std::invalid_argument(
+                    "In npstat::BandwidthCVLeastSquares1D::operator(): "
+                    "not enough filled bins for cross validation");
+
+                // Figure out the contribution of unit weight falling
+                // into this histogram bin into the density estimate
+                // at this bin
+                const double fVal = filterUsed.selfContribution(ibin);
+                const double weightOf1 = densityInteg*fVal/wsum/binWidth;
+
+                // Construct the density at this bin without the contribution
+                // from the bin itself. Here, it is already divided by wsum.
+                const double densityBinOutOW =
+                    (densData[ibin] - weightOf1*wminus)/weightLeft;
+                binContrib -= binValue*2.0*densityBinOutOW;
+            }
+            mise += binContrib;
+        }
+        return -static_cast<double>(mise);
+    }
+
+    // CV for weighted samples in case the sample is available
+    template<typename Numeric, typename Num2, typename Num3, typename Num4>
+    double BandwidthCVLeastSquares1D<Numeric,Num2,Num3,Num4>::operator()(
+            const HistoND<Numeric>& histo,
+            const std::pair<Num3, Num4>* sample, const unsigned long lenSample,
+            const Num2* densData, const unsigned lenEstimate,
+            const AbsPolyFilter1D& filterUsed) const
+    {
+        // Check consistency of the arguments
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+            "input histogram must be one-dimensional");
+        const unsigned nbins = histo.nBins();
+        if (nbins != lenEstimate) throw std::invalid_argument(
+            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+            "histogram and density estimate are not compatible");
+        assert(sample);
+        assert(densData);
+        if (nbins != filterUsed.dataLen()) throw std::invalid_argument(
+            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+            "histogram and filter are not compatible");
+        const typename HistoND<Numeric>::axis_type& axis = histo.axis(0);
+        const Numeric* bins = histo.binContents().data();
+        const int intbins = nbins;
+        unsigned long posLen = 0;
+        long double samplesum = 0.0L;
+        for (unsigned long i=0; i<lenSample; ++i)
+        {
+            const double w = sample[i].second;
+            if (w < 0.0) throw std::invalid_argument(
+                "In npstat::BandwidthCVLeastSquares1D::operator(): "
+                "sample points can not have negative weights");
+            if (w > 0.0)
+            {
+                const int binnum = axis.binNumber(sample[i].first);
+                if (binnum >= 0 && binnum < intbins)
+                {
+                    ++posLen;
+                    samplesum += w;
+                    if (static_cast<double>(bins[binnum]) <= 0.99*w)
+                        throw std::invalid_argument(
+                            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+                            "histogram is not compatible with the input sample");
+                }
+            }
+        }
+        if (posLen <= 1UL) throw std::invalid_argument(
+            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+            "not enough data for cross validation");
+        const double wsum = histo.binContents().template sum<long double>();
+        if (fabs(wsum/samplesum - 1.0L) >= 0.01) throw std::invalid_argument(
+            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+            "histogram bin sum is not compatible with the input sample");
+
+        // Check that the density estimate normalization is "reasonable".
+        // However, do not require that every density value is non-negative.
+        // Estimates like LOrPE can produce negative density values (if not
+        // truncated).
+        long double densitySum = 0.0L, misepos = 0.0L;
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+        {
+            densitySum += densData[ibin];
+            misepos += densData[ibin]*densData[ibin];
+        }
+        const double binWidth = histo.binVolume();
+        const double densityInteg = densitySum*binWidth;
+        if (fabs(densityInteg - 1.0) >= 0.01) throw std::invalid_argument(
+            "In npstat::BandwidthCVLeastSquares1D::operator(): "
+            "input density is not properly normalized");
+        misepos *= binWidth;
+
+        // Accumulate the second term in the MISE approximation.
+        // This is the average value of "density minus one point".
+        long double miseneg = 0.0L;
+        for (unsigned long i=0; i<lenSample; ++i)
+        {
+            const double wminus = sample[i].second;
+            if (wminus == 0.0) continue;
+
+            const int binnum = axis.binNumber(sample[i].first);
+            if (binnum < 0 || binnum >= intbins) continue;
+
+            const double weightLeft = samplesum - wminus;
+            if (weightLeft <= 0.0) throw std::invalid_argument(
+                "In npstat::BandwidthCVLeastSquares1D::operator(): "
+                "not enough filled bins for cross validation");
+
+            // Figure out the contribution of unit weight with
+            // this coordinate into the density estimate at this bin
+            const double fVal = filterUsed.selfContribution(binnum);
+            const double weightOf1 = densityInteg*fVal/samplesum/binWidth;
+
+            // Construct the density at this bin without the
+            // contribution from the current sample point
+            const double densityBinOutOW =
+                (densData[binnum] - weightOf1*wminus)/weightLeft;
+            miseneg += wminus*densityBinOutOW;
+        }
+
+        const long double mise = misepos - 2.0L*miseneg;
+        return -static_cast<double>(mise);
+    }
+}

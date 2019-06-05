@@ -1,0 +1,199 @@
+#include <cfloat>
+#include <numeric>
+#include <stdexcept>
+
+#include "npstat/nm/GaussLegendreQuadrature.hh"
+
+namespace npstat {
+    template<typename Numeric>
+    ContOrthoPoly1D::ContOrthoPoly1D(const unsigned maxDegree,
+                                     const std::vector<Numeric>& inCoords,
+                                     const OrthoPolyMethod m)
+        : wsum_(inCoords.size()),
+          wsumsq_(inCoords.size()),
+          minX_(DBL_MAX),
+          maxX_(-DBL_MAX),
+          maxdeg_(maxDegree),
+          allWeightsEqual_(true)
+    {
+        if (inCoords.empty()) throw std::invalid_argument(
+            "In npstat::ContOrthoPoly1D constructor: empty list of coordinates");
+
+        const unsigned long sz = inCoords.size();
+        if (sz <= maxDegree) throw std::invalid_argument(
+            "In npstat::ContOrthoPoly1D constructor: insufficient number of points");
+        long double xsum = std::accumulate(inCoords.begin(), inCoords.end(), 0.0L);
+        meanX_ = xsum/sz;
+
+        // Improve the numerical precision of the mean x subtraction
+        xsum = 0.0L;
+        for (unsigned long i = 0; i < sz; ++i)
+        {
+            const double x = inCoords[i];
+            if (x < minX_)
+                minX_ = x;
+            if (x > maxX_)
+                maxX_ = x;
+            xsum += (x - meanX_);
+        }
+        const double dx = xsum/sz;
+
+        // Fill the measure
+        measure_.reserve(sz);
+        for (unsigned long i = 0; i < sz; ++i)
+        {
+            const double x = inCoords[i];
+            measure_.push_back(MeasurePoint(x - meanX_ - dx, 1.0));
+        }
+
+        meanX_ += dx;
+        calcRecurrenceCoeffs(m);
+    }
+
+    template <class Functor>
+    void ContOrthoPoly1D::calculateCoeffs(const Functor& fcn,
+                                          double *coeffs,
+                                          const unsigned maxdeg) const
+    {
+        if (maxdeg > maxdeg_) throw std::invalid_argument(
+            "In npstat::ContOrthoPoly1D::calculateCoeffs: "
+            "maximum degree out of range");
+        assert(coeffs);
+
+        std::vector<long double> scalarProducts(maxdeg+1U, 0.0L);
+
+        const unsigned long mSize = measure_.size();
+        for (unsigned long i = 0; i < mSize; ++i)
+        {
+            const double x = measure_[i].first;
+            const double w = measure_[i].second;
+            const long double f = fcn(x + meanX_);
+
+            long double polyk = 1.0L, polykm1 = 0.0L;
+            for (unsigned k=0; k<maxdeg; ++k)
+            {
+                scalarProducts[k] += polyk*f*w;
+                const long double poly = ((x - rCoeffs_[k].alpha)*polyk -
+                                          rCoeffs_[k].sqrbeta*polykm1)/rCoeffs_[k+1].sqrbeta;
+                polykm1 = polyk;
+                polyk = poly;
+            }
+            scalarProducts[maxdeg] += polyk*f*w;
+        }
+
+        for (unsigned deg=0; deg<=maxdeg; ++deg)
+            coeffs[deg] = scalarProducts[deg]/wsum_;
+    }
+
+    template <class Functor>
+    double ContOrthoPoly1D::weightedSquaredError(const Functor& fcn,
+                                                 const double *coeffs,
+                                                 const unsigned maxdeg) const
+    {
+        if (maxdeg > maxdeg_) throw std::invalid_argument(
+            "In npstat::ContOrthoPoly1D::weightedSquaredError: "
+            "maximum degree out of range");
+        assert(coeffs);
+
+        long double sum = 0.0L;
+        const unsigned long mSize = measure_.size();
+        for (unsigned long i = 0; i < mSize; ++i)
+        {
+            const double x = measure_[i].first;
+            const long double delta = normseries(coeffs, maxdeg, x) - fcn(x + meanX_);
+            sum += delta*delta*measure_[i].second;
+        }
+        return sum/wsum_;
+    }
+
+    template <class Functor>
+    double ContOrthoPoly1D::integratedSquaredError(
+        const Functor& infcn,
+        const double *coeffs, const unsigned maxdeg,
+        const double xmin, const double xmax,
+        unsigned integrationRulePoints) const
+    {
+        if (maxdeg > maxdeg_) throw std::invalid_argument(
+            "In npstat::ContOrthoPoly1D::integratedSquaredError: "
+            "maximum degree out of range");
+        assert(coeffs);
+
+        if (!integrationRulePoints)
+        {
+            integrationRulePoints = GaussLegendreQuadrature::minimalExactRule(2*maxdeg);
+            if (!integrationRulePoints) throw std::invalid_argument(
+                "In npstat::ContOrthoPoly1D::integratedSquaredError: "
+                "order of requested integration rule is too high");
+        }
+        DeltaSquaredSerFcn<ContOrthoPoly1D,Functor> fcn(*this, infcn, coeffs, maxdeg);
+        GaussLegendreQuadrature glq(integrationRulePoints);
+        return glq.integrate(fcn, xmin, xmax);
+    }
+
+    template <class Functor>
+    double ContOrthoPoly1D::integrateEWPolyProduct(
+        const Functor& weight,
+        const unsigned deg1, const unsigned deg2,
+        const double xmin, const double xmax,
+        const unsigned integrationRulePoints) const
+    {
+        if (deg1 > maxdeg_ || deg2 > maxdeg_) throw std::invalid_argument(
+            "In npstat::ContOrthoPoly1D::integrateEWPolyProduct: "
+            "degree argument out of range");
+        GaussLegendreQuadrature glq(integrationRulePoints);
+        EWPolyProductFcn<Functor> fcn(*this, weight, deg1, deg2);
+
+        // The shift of the poly argument will be performed inside "fcn"
+        return glq.integrate(fcn, xmin, xmax);
+    }
+
+    template <typename Numeric>
+    void ContOrthoPoly1D::getAllPolys(const double x, const unsigned maxdeg,
+                                      Numeric *polyValues) const
+    {
+        if (maxdeg > maxdeg_) throw std::invalid_argument(
+            "In npstat::ContOrthoPoly1D::getAllPolys: "
+            "maximum degree out of range");
+        assert(polyValues);
+
+        long double polyk = 1.0L, polykm1 = 0.0L;
+        polyValues[0] = polyk;
+        for (unsigned k=0; k<maxdeg; ++k)
+        {
+            const long double p = ((x - rCoeffs_[k].alpha)*polyk -
+                                   rCoeffs_[k].sqrbeta*polykm1)/rCoeffs_[k+1].sqrbeta;
+            polyValues[k+1] = p;
+            polykm1 = polyk;
+            polyk = p;
+        }
+    }
+
+    template <class Functor>
+    double ContOrthoPoly1D::constrainedCoeffs(
+        const Functor& fcn,
+        double *coeffs, const unsigned maxdeg,
+        const double xmin, const double xmax,
+        const double integralValue) const
+    {
+        const unsigned nPolys = maxdeg + 1U;
+
+        // Calculate the unconstrained coefficients
+        std::vector<double> coeffs0(nPolys);
+        calculateCoeffs(fcn, &coeffs0[0], maxdeg);
+        
+        // Construct the normalization constraint matrix
+        npstat::Matrix<double> constrMat(1, nPolys);
+        double* constrData = constrMat[0];
+        for (unsigned i=0; i<nPolys; ++i)
+            *constrData++ = integratePoly(i, 1U, xmin, xmax);
+
+        // Solve the constrained problem
+        double chisq = -1.0;
+        npstat::Matrix<double> U(nPolys, nPolys, 1);
+        const bool status = U.constrainedLeastSquares(
+            &coeffs0[0], nPolys, constrMat, &integralValue, 1,
+            coeffs, nPolys, &chisq);
+        assert(status);
+        return chisq;
+    }
+}

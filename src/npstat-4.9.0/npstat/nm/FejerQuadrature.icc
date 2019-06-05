@@ -1,0 +1,51 @@
+#include <cmath>
+#include <algorithm>
+
+namespace npstat {
+    template <typename FcnResult, typename FcnArg>
+    inline long double FejerQuadrature::integrate(
+        const Functor1<FcnResult,FcnArg>& function,
+        const long double left, const long double right) const
+    {
+        if (buf_.size() != npoints_)
+            buf_.resize(npoints_);
+        std::pair<long double, long double>* results = &buf_[0];
+        const long double midpoint = (left + right)/2.0L;
+        const long double unit = (right - left)/2.0L;
+        FcnArg a;
+        long double v;
+        for (unsigned i=0; i<npoints_; ++i)
+        {
+            a = static_cast<FcnArg>(midpoint + unit*a_[i]);
+            v = w_[i]*static_cast<long double>(function(a));
+            results[i].first = std::abs(v);
+            results[i].second = v;
+        }
+        std::sort(buf_.begin(), buf_.end());
+        v = 0.0L;
+        for (unsigned i=0; i<npoints_; ++i)
+            v += results[i].second;
+        return v*unit;
+    }
+
+    template <class Functor>
+    inline std::vector<std::pair<double,double> >
+    FejerQuadrature::weightedIntegrationPoints(
+        const Functor& weight,
+        const long double left, const long double right) const
+    {
+        typedef std::pair<double,double> DDPair;
+
+        std::vector<DDPair> result;
+        result.reserve(npoints_);
+        const long double midpoint = (left + right)/2.0L;
+        const long double unit = (right - left)/2.0L;
+        for (unsigned i=0; i<npoints_; ++i)
+        {
+            const long double x = midpoint + unit*a_[i];
+            const double w = unit*w_[i]*weight(x);
+            result.push_back(DDPair(x, w));
+        }
+        return result;
+    }
+}

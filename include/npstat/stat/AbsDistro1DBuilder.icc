@@ -1,0 +1,61 @@
+#include <sstream>
+#include <stdexcept>
+
+#include "geners/CPP11_auto_ptr.hh"
+
+namespace npstat {
+    template <class Point>
+    AbsDistribution1D* AbsDistro1DBuilder<Point>::build(
+        const unsigned long uniqueId,
+        const double* predictorCoords, const unsigned nPredictors,
+        const BoxND<double>& predictorBox,
+        std::vector<typename Point::value_type>& dataIn) const
+    {
+        unsigned long datasize = dataIn.size();
+        if (!datasize) throw std::invalid_argument(
+            "In npstat::AbsDistro1DBuilder::build: empty data set");
+
+        const Interval<double>& responseBox = this->makeResponseInterval(
+            uniqueId, predictorCoords, nPredictors, predictorBox, dataIn);
+        AbsDistribution1D* d = this->buildDistro(uniqueId, responseBox, dataIn);
+        if (!d)
+        {
+            std::ostringstream os;
+            os << "In npstat::AbsDistro1DBuilder::build: failed to "
+               << "construct distribution with id " << uniqueId;
+            throw std::runtime_error(os.str());
+        }
+        return d;
+    }
+
+    template <class Point>
+    AbsDistribution1D* AbsDistro1DBuilder<Point>::buildWeighted(
+        const unsigned long uniqueId,
+        const double* predictorCoords, const unsigned nPredictors,
+        const BoxND<double>& predictorBox, const WeightedPtrVec& dataIn,
+        const unsigned responseDim) const
+    {
+        unsigned long datasize = dataIn.size();
+        if (!datasize) throw std::invalid_argument(
+            "In npstat::AbsDistro1DBuilder::buildWeighted: empty data set");
+
+        const Interval<double> responseBox = this->makeResponseIntervalW(
+            uniqueId, predictorCoords, nPredictors,
+            predictorBox, dataIn, responseDim);
+        WeightedValueVec edf;
+        edf.reserve(datasize);
+        const WeightedPointPtr* pt = &dataIn[0];
+        for (unsigned long i=0; i<datasize; ++i, ++pt)
+            edf.push_back(WeightedValue((*pt->first)[responseDim],pt->second));
+        AbsDistribution1D* d = this->buildDistroW(
+            uniqueId, responseDim, responseBox, edf);
+        if (!d)
+        {
+            std::ostringstream os;
+            os << "In npstat::AbsDistro1DBuilder::buildWeighted: "
+               << "failed to construct distribution with id " << uniqueId;
+            throw std::runtime_error(os.str());
+        }
+        return d;
+    }
+}

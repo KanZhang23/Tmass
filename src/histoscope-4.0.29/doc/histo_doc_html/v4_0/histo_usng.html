@@ -1,0 +1,254 @@
+<title>Using the Main Window</title>
+<h2>
+Using Histo-Scope's Main Window
+</h2>
+<p>
+<p>
+<IMG SRC="hsfig6.gif"><p>
+<p>
+Figure 6.  Histo-Scope's Main Window<p>
+<p>
+When you run Histo-Scope or invoke it from a program, the main window pops up.
+This window allows you to specify how Histo-Scope should access your data and
+which data items to view.  Unless Histo-Scope was invoked from a running
+program, the <i>Category</i> pull-down menu and the <i>Sub Categories</i> and <i>Histogram/Ntuple/Indicator/Control</i> 
+list boxes are greyed out.  This is because you need to tell Histo-Scope to 
+open a file or connect to a running process.
+ (If Histo-Scope was invoked from a running program, the File/Process menu is
+replaced by a <i>Window</i> menu, and histograms, Ntuples, and other data items
+in the top-level category are automatically listed.)   <p>
+<p><a name = "a">
+Histo-Scope</a> supports the notion of categories, equivalent to HBOOK's
+directories, for arranging large numbers of histograms and Ntuples in a
+hierarchy rather than in a single long list.  You can navigate through the
+hierarchy by clicking on items in the "Category" list on the left side of the
+Histo-Scope window or by using the Category pull-down menu:<p>
+<p>
+<IMG SRC="HSfig7.gif"><p>
+<p>
+Figure 7. Category Pull-Down Menu<p>
+<IMG SRC="HSfig9.gif"><p>
+<p>
+Figure 8.  File/Process Pull-down Menu<p>
+<p>
+<p>
+You can use the <i>File/Process</i> pull-down menu in the menu bar to perform
+the following functions:<p>
+<p>	
+			<i>(Accelerator Key):</i><p>
+<p>
+<i>Open Histo-Scope File...	(Ctrl O)</i><p>
+<p>
+Histo-Scope will pop-up a file selection box through which you can
+specify the filename of the Histo-Scope format file. Then Histo-Scope will read
+the file and display the items it has read from the file.  If you already have
+a file open or are connected to a process, Histo-Scope will first ask you if
+you want to close or disconnect before the file selection box appears.<p>
+<p>
+<i>Open HBOOK File...	(Ctrl H)</i><p>
+<p>
+Histo-Scope will pop-up a file selection box through which you can
+specify the filename of the HBOOK file. Then Histo-Scope will read the file and
+display the items it has read from the file.  If you already have a file open
+or are connected to a process, Histo-Scope will first ask you if you want to
+close or disconnect before the file selection box appears.<p>
+<p>
+<i>Connect to Process...	(Ctrl N)</i><p>
+<p>
+Histo-Scope will pop-up a dialog box that lists all processes on the
+machine Histo-Scope was run from that it can connect to.  If desired, a remote
+node name can be entered and the processes Histo-Scope can connect to on that
+machine will be listed.  Pressing the Connect button or double-clicking on a
+process requests Histo-Scope to connect to the highlighted or selected process.
+Once the connection is established, Histo-Scope will display the top-level
+items and sub-categories of data items that Histo-Scope can access from that
+process. When selecting <i>Connect to Process</i>, if you already have a file
+open or are connected to another process, Histo-Scope will first ask you if you
+want to close or disconnect before it pops up the Connect to Process dialog
+box.</a><p>
+<p>
+<p>
+<i>Re-Read Same File	(Ctrl R)</i><p>
+<p>
+If you currently have a file open, you can select <i>Re-Read Same
+File</i> to update Histo-Scope with new data that may have been written to the
+file since Histo-Scope opened it.  To ensure that all your plot windows reflect
+new data, Histo-Scope will close all plot windows (after checking that it's OK
+to do this) before re-reading the file.<p>
+<p><a name="6">
+<i>Close File/Connection</i><p></a>
+<p>
+Selecting <i>Close File/Connection</i> allows you to close a file or
+connection, but leaves all displayed plots available for viewing.  If you were
+connected to a process, no more updating will occur.<p>
+<p>
+<i>Load Configuration	(Ctrl L)</i><p>
+<p>
+Configuration files are files of Histo-Scope commands for opening windows,
+scaling plots, adjusting plot appearance, setting slider positions, etc.
+<i>Save Configuration</i>... saves the current appearance of your Histo-Scope
+session (excluding opening the file or making the connection).  <i>Load
+Configuration</i> re-loads these configuration files.  Use <i>Load
+Configuration</i> after you have opened a data file or connected to a 
+process.  More than one configuration file can be loaded in a single session.
+Loading additional files simply displays the additional plots specified in
+the new files.  Note that configuration files do not specify the file or 
+connection to be opened, nor do they specify Preferences settings. 
+Configuration files are an editable but undocumented ASCII text file format.<p>
+<p>
+<i>Save Configuration	(Ctrl S)</i><p>
+<p>
+<i>Save Configuration</i> saves the current appearanceof your Histo-Scope 
+session (excluding opening the file or making the connection) to a file
+which can later be loaded with <i>Load Configuration</i>.  Histo-Scope will
+pop up a file selection box through which you can specify the file name 
+of the configuration file.  Note that configuration files do not specify 
+the file or connection to be opened, nor do they specify Preferences settings.
+Configuration files are an editable but undocumented ASCII text file format.<p>
+<p> <a name="5">
+<i>Exit		(F3)</i></A><p>
+<p>
+Histo-Scope will exit.<p>
+<p>
+After opening a file or connecting to a process, Histo-Scope will change the
+title in the title bar from "Histo-Scope" to the filename or process you
+specified.  Also, the histograms, Ntuples, and other data items belonging to
+the top-level category will be listed.  The <i>Category</i> pull-down menu and
+<i>Sub Categories</i> list box can be used to select sub-categories and
+navigate through the category (or HBOOK directory) structure for your data.  To
+select a sub-category, click on it and press the <i>Open</i> button, or just
+double-click on the sub-category. <p>
+<p>
+To view a histogram, Ntuple or other data item, first,
+select the one or more items that you are interested in.  If you have one item
+to select, simply point to it with the mouse and either click on it once and
+then press the <i>View</i> button, or just double-click on the item in the list
+box.  If you have more than one item to view, there are a few different ways to
+select them.  If they are contiguous items in the list, you can press the left
+mouse button and drag the mouse over the items you wish to select, then release
+the button.  A second way to do this same thing would be to point and click on
+the first item, then move the mouse to the last item you wish to select and
+point and click on that item while holding down the key.  Then you can press
+the <i>View</i> button.  If you want to select items that are not contiguous in
+the list, select the first item (or group of items) as described above, then
+move the mouse to the next item and select it by pointing and clicking on that
+item while holding down the key.  Then you can select the <i>View</i> button to
+display the plots.  <p>
+<p>
+If the items selected are all 1D Histograms or groups, you should notice that
+two additional <i>View</i> buttons will become sensitive to mouse-clicks, the
+<i>View Overlaid</i> button and the <i>View Multiple</i> button. The<i>View
+Overlaid</i> button will cause the plots to be displayed overlaid on each other
+and the <i>View Multiple</i> button will cause the plots to be displayed in a
+multiple plot window.  If one or more items selected is a 2D Histogram, you can
+view it in a multiple plot window, but it cannot be overlaid.  Therefore, only
+the <i>View</i> and <i>View Multiple</i> buttons will be sensitive.  When
+viewing a histogram, indicator, control, or trigger a plot window will pop up
+displaying the item using the default style for that type of data.   When
+requesting an Ntuple, the Ntuple Window will first appear to allow you to
+specify various kinds of plots and variable assignments.  <p>
+<p><a name="5a">
+When the item selected </a>is a group, the <i>View</i> button will display the
+items in the group according to the group type specified by the user program
+that created the group (see HS_CREATE_GROUP).  Thus plots will be displayed
+individually, in a multiple-plot window, or in an overlaid plot window,
+according to this default group type.  The <i>View Multiple</i> and <i>View
+Overlaid</i> buttons override the default behavior.<p>
+<p>
+<a name="3">
+Once an item is displayed,</a> you can change the presentation style via pop-up
+menus from the plot or indicator window using the third (right) mouse button
+(see section <A HREF="histo_set.html"> <b>Adjusting Plot Settings</b></A>).  
+The plots can also be rescaled by changing the window size, dragging on the 
+axis tick marks, or typing new endpoint values in the Axis Settings dialog.  
+Two-dimensional histogram and 3D scatter plots also allow rotation of the plot 
+in space.  Any number of histograms, Ntuples, plots of Ntuples, or alternate 
+views of histograms and Ntuples can be displayed simultaneously in separate 
+windows, and all plots can be printed.  Further details on the capabilities 
+and functions of each data/plot type can be found in subsequent sections of 
+this guide. <p>
+<p>
+<IMG SRC="HSfig9.gif"><p>
+<p>
+Figure 9.  Preferences Pull-down Menu<p>
+<p>
+The <a name="4"> Preferences pull-down menu </a>in the menu bar allows you to 
+specify:<p>
+<p>
+* how often Histo-Scope should request new data from a connected process, <p>
+<p>
+* to set/unset buffer graphics mode, <p>
+<p>
+* to set/unset whether plot help windows pop up the first time you view that
+kind of plot, and <p>
+<p>
+* to save your preferences of the above.  <p>
+<p>
+<i>Update Frequency</i>...<p>
+<p>
+Update frequency is used only when connected to a running process.  The
+default value is set to three seconds, meaning that every three seconds
+Histo-Scope will request new data from the connected process.  To change the
+update frequency, use the mouse to drag the slider bar to the value you desire.
+Increasing this value will save CPU time at the cost of a longer interval
+between plot updates.<p>
+<p>
+<i>Buffer Graphics</i><p>
+<p>
+Initially Buffer Graphics mode is off (indicated by the absence of the
+square toggle button to the left of the words <i>Buffer Graphics</i>.  Graphics
+buffering changes the way Histo-Scope draws moving graphics in X-Windows.
+Depending on your X-Windows server or X-Terminal, turning on buffered graphics
+may either improve or degrade animation quality.  Whether your hardware will
+run well with buffer graphics turned on depends on a number of relatively
+complicated factors.  The best way to find out is just to try it.  Before you
+do, however, note that some X-Terminals and PC based X servers may not have
+enough memory to run properly in buffered graphics mode.  When an X server runs
+out of memory, it will kill the process that made the last memory request, or
+in some cases, crash itself.  Most X-Terminals and PC X servers with limited
+memory capacity have some kind of memory display that you can invoke to monitor
+their memory usage.  It is advisable to monitor your X server's memory usage
+the first time you use buffered graphics.  The amount of memory that
+Histo-Scope needs for buffered graphics is dependent on the number and size of
+plot windows that you have open.<p>
+<p>
+<a name = "1">
+<i>Automatic Plot Help  </i></a><p>
+<p>
+For new users, Histo-Scope will by default pop up a window that explains
+how to interact with the type of plot just displayed the first time that kind
+of plot is viewed.  Experienced Histo-Scope users will probably want to unset
+this option and save their preferences. <p>
+<p>
+<i>Save Preferences  </i><p>
+<p>
+Any of the above preferences can be set and then saved to a file which is
+automatically  re-loaded every time Histoscope is started.  Selecting <i>Save
+Preferences</i> generates this file in your home directory (Unix) with the 
+name .histo .</a><p>
+<p>
+<p>
+<IMG SRC="newfig10.gif"><p>
+<p>
+Figure 10. Windows Pull-down Menu<p>
+<p>
+The <i>Windows</i> pull-down menu in the menu bar lists all of the currently 
+displayed plot windows.  Selecting one will bring that plot to the front of 
+all other windows. In addition to the list of plot windows, the <i>Windows</i> menu 
+also allows the user to close all plot windows and create a window containing 
+multiple plots:<p>
+
+<p><i>Close All Windows</i><p>
+<p>
+Selecting <i>Close All Windows</i> closes all of the open plot windows without
+closing the currently open file or connection to an attached process.  <p>
+<p>
+<p><i>Multiple Plot Window...</i><p>
+<p>
+Selecting <i>Multiple Plot Window...</i> will pop up a window which allows the
+user to select plots to appear together in one larger window.  This is helpful
+for grouping plots together that are related in some way and provides a
+mechanism that makes all the selected mini-plots visible at the same time.<p>
+<p>
+Histo-Scope also provides a <i>Help</i> menu which gives online help to the
+user. </a>

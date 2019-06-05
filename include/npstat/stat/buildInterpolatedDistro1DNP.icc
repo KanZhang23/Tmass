@@ -1,0 +1,24 @@
+#include "npstat/stat/buildInterpolatedHelpers.hh"
+
+namespace npstat {
+    template <class Point>
+    inline CPP11_auto_ptr<InterpolatedDistro1DNP>
+    buildInterpolatedDistro1DNP(
+        const std::vector<Point>& data,
+        const unsigned* dimPredictors, const unsigned nPredictors,
+        const std::string* predictorNames,
+        const unsigned* predictorNumBins, const int predictorSymbetaPower,
+        const double effectiveEventsPerBin, const bool stretchPredKernels,
+        const unsigned responseDimToUse,
+        const AbsDistro1DBuilder<Point>& builder,
+        const bool interpolateVertically, const unsigned reportFrequency)
+    {
+        return Private::buildInterpolatedHelper<
+            Point,InterpolatedDistro1DNP,AbsDistro1DBuilder>(
+                data, dimPredictors, nPredictors, predictorNames,
+                predictorNumBins, predictorSymbetaPower,
+                effectiveEventsPerBin, stretchPredKernels,
+                &responseDimToUse, 1U, builder,
+                interpolateVertically, reportFrequency);
+    }
+}

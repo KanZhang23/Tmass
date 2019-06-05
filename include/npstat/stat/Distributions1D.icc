@@ -1,0 +1,118 @@
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    template <typename Real>
+    void Tabulated1D::initialize(const Real* data, const unsigned dataLen,
+                                 const unsigned interpolationDegree)
+    {
+        len_ = dataLen;
+        if (!(interpolationDegree < 4)) throw std::invalid_argument(
+            "In npstat::Tabulated1D::initialize: "
+            "interpolation degree is too high");
+        deg_ = interpolationDegree;
+
+        if (dataLen > 1)
+        {
+            if (!(interpolationDegree < dataLen)) throw std::invalid_argument(
+                "In npstat::Tabulated1D::initialize: "
+                "not enough interpolation points");
+            assert(data);
+            table_.reserve(dataLen);
+            bool havePositive = false;
+            for (unsigned i=0; i<dataLen; ++i)
+            {
+                const double datum = static_cast<double>(data[i]);
+                if (datum < 0.0) throw std::invalid_argument(
+                    "In npstat::Tabulated1D::initialize: "
+                    "input density values can not be negative");
+                if (datum > 0.0)
+                    havePositive = true;
+                table_.push_back(datum);
+            }
+            if (!havePositive)  throw std::invalid_argument(
+                "In npstat::Tabulated1D::initialize: "
+                "must have at least one positive input density value");
+            step_ = 1.0/(dataLen - 1);
+            normalize();
+        }
+        else
+        {
+            table_.reserve(2);
+            table_.push_back(1.0);
+            table_.push_back(1.0);
+            len_ = 2;
+            deg_ = 0;
+            step_ = 1.0;
+        }
+    }
+
+    template <typename Real>
+    Tabulated1D::Tabulated1D(const double location, const double scale,
+                             const Real* data, const unsigned dataLen,
+                             const unsigned interpolationDegree)
+        : AbsScalableDistribution1D(location, scale)
+    {
+        initialize(data, dataLen, interpolationDegree);
+    }
+
+    template <typename Real>
+    void BinnedDensity1D::initialize(const Real* data, const unsigned dataLen,
+                                     const unsigned interpolationDegree)
+    {
+        if (!(interpolationDegree < 2)) throw std::invalid_argument(
+            "In npstat::BinnedDensity1D::initialize: "
+            "interpolation degree is too high");
+        len_ = dataLen;
+        deg_ = interpolationDegree;
+
+        if (dataLen > 1)
+        {
+            assert(data);
+            table_.reserve(dataLen);
+            bool havePositive = false;
+            for (unsigned i=0; i<dataLen; ++i)
+            {
+                const double datum = data[i];
+                if (datum < 0.0) throw std::invalid_argument(
+                    "In npstat::BinnedDensity1D::initialize: "
+                    "input density values can not be negative");
+                if (datum > 0.0)
+                {
+                    if (!havePositive)
+                    {
+                        firstNonZeroBin_ = i;
+                        havePositive = true;
+                    }
+                    lastNonZeroBin_ = i;
+                }
+                table_.push_back(datum);
+            }
+            if (!havePositive)  throw std::invalid_argument(
+                "In npstat::BinnedDensity1D::initialize: "
+                "must have at least one positive input density value");
+            step_ = 1.0/dataLen;
+            normalize();
+        }
+        else
+        {
+            table_.reserve(1);
+            table_.push_back(1.0);
+            len_ = 1;
+            deg_ = 0;
+            step_ = 1.0;
+            firstNonZeroBin_ = 0;
+            lastNonZeroBin_ = 0;
+        }
+    }
+
+    template <typename Real>
+    BinnedDensity1D::BinnedDensity1D(
+        const double location, const double scale,
+        const Real* data, const unsigned dataLen,
+        const unsigned interpolationDegree)
+        : AbsScalableDistribution1D(location, scale)
+    {
+        initialize(data, dataLen, interpolationDegree);
+    }
+}

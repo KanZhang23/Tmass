@@ -1,0 +1,73 @@
+#include <cmath>
+#include <limits>
+#include <cfloat>
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    template <typename Result, typename Arg1>
+    bool findRootUsingBisections(const Functor1<Result, Arg1>& f,
+                                 const Result rhs, Arg1 x0, Arg1 x1,
+                                 const Arg1 tol, Arg1* root)
+    {
+        if (tol <= std::numeric_limits<Arg1>::epsilon()) throw std::invalid_argument(
+            "In npstat::findRootUsingBisections: tolerance argument is too small");
+        assert(root);
+
+        const Result f0 = f(x0);
+        if (f0 == rhs)
+        {
+            *root = x0;
+            return true;
+        }
+
+        const Result f1 = f(x1);
+        if (f1 == rhs)
+        {
+            *root = x1;
+            return true;
+        }
+
+        const bool increasing = f0 < rhs && rhs < f1;
+        const bool decreasing = f0 > rhs && rhs > f1;
+        if (!(increasing || decreasing))
+            return false;
+
+        const Arg1 sqrtol = std::sqrt(tol);
+        const unsigned maxiter = 2000;
+        for (unsigned iter=0; iter<maxiter; ++iter)
+        {
+            const Arg1 xmid = (x0 + x1)/2.0;
+            const Result fmid = f(xmid);
+
+            if (fmid == rhs)
+            {
+                *root = xmid;
+                return true;
+            }
+            if (std::abs(x0 - x1)/(std::abs(xmid) + sqrtol) < tol)
+            {
+                *root = xmid;
+                return true;
+            }
+
+            if (increasing)
+            {
+                if (fmid > rhs)
+                    x1 = xmid;
+                else
+                    x0 = xmid;
+            }
+            else
+            {
+                if (fmid > rhs)
+                    x0 = xmid;
+                else
+                    x1 = xmid;
+            }
+        }
+
+        throw std::runtime_error("In npstat::findRootUsingBisections: "
+                                 "iterations faled to converge");
+    }
+}

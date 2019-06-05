@@ -1,0 +1,326 @@
+<title>Histo-Scope Library Subroutines</title>
+<h1>
+Part III - Histo-Scope Library Subroutines
+<a name="bk14"></h1>
+<p>
+The second part of Histo-Scope is a library of routines which make up the 
+application program interface to Histo-Scope.  Calls to these routines are 
+inserted in the physics analysis or data acquisition code so that it can be 
+"scoped" by the Histo-Scope process.  No restrictions are placed on the user 
+analysis process except that it must call a routine to initialize the 
+Histo-Scope application interface and then periodically call an update 
+routine.  The user application does not need to run on a workstation and 
+is not linked with any graphical user interface code. <p>
+<p>
+At the start of the analysis or data acquisition code, a call to the
+Histo-Scope library declares this task to be a potential customer of the scope
+tool, much as an engineer might provide a plug for his oscilloscope or logic
+analyzer on his circuitry.  In the event loop, or wherever it would be useful
+to see changes in the data, the program calls the Histo-Scope library update
+routine.  Only when a scope is connected and a user is watching the evolution
+of a particular histogram or indicator, will the update routine communicate
+changes in the data to the scope.  Otherwise the update routine just returns.
+Even while connected to a Histo-Scope process, the Histo-Scope update routine
+also returns immediately if the update frequency period set by the Histo-Scope
+user has not yet elapsed (initially set at three seconds, but can be changed by
+the Histo-Scope user).  Thus, a programmer can feel free to call the update
+routine as often as is convenient without concern for unnecessary impact to CPU
+usage.  Just before exiting, the program calls a completion routine to notify
+anyone watching that the program is finished and optionally allows the user(s)
+to finish browsing data before the program exits.<p>
+<p><a name="a">
+Histo-Scope</a> can display HBOOK histograms and Ntuples, and Histo-Scope's own
+type of histograms, Ntuples, indicators, controls, and triggers.  The
+data-collection routines in the Histo-Scope library offer some performance
+improvement and are simpler than those in HBOOK.  <u>Both types of data can be
+freely intermixed</u> in a program with no danger of interference between them.
+<p>
+<p>
+If using HBOOK data exclusively, only four calls to Histo-Scope need to be
+added to your program:<p>
+<p>
+HS_INITIALIZE<p>
+HS_HBOOK_SETUP<p>
+HS_UPDATE<p>
+HS_COMPLETE<p>
+<p>
+
+Histo-Scope provides both FORTRAN and C include files that define the
+Histo-Scope routines for the convenience of the programmer.  The FORTRAN
+include file, <b>histoscope.inc</b>, declares the function subprograms as
+externals and defines their data type.  The C include file, <b>histoscope.h</b>
+defines the function prototypes.<p>
+<p>
+Two FORTRAN libraries are supplied for linking with the Histo-Scope routines:<p>
+<p>
+<b>libFHisto</b>	for programs that do <b>not</b> use HBOOK<p>
+<b>libFHistoHB</b>	for programs that <b>do</b> use HBOOK<p>
+<p><a name="b">
+libFHisto</a> does not require HBOOK to be installed on the system.<p>
+<p>
+Similarly, two C libraries are supplied for C language programs: libCHisto and
+libCHistoHB.<p>
+<p>
+
+<h2>
+<a name="1">Histo-Scope Data Routines
+</a><a name="bk17"></h2>
+<p>
+The Histo-Scope libraries discussed above also include a robust set of data
+creation, collection, calculation, and manipulation routines that can be used
+in addition to or instead of HBOOK.  These routines were designed to be simple
+to use and efficient in execution.  Complete routine descriptions can be found
+following the Example Programs.  This section presents an overview of the
+Histo-Scope library capabilities.  <p>
+<p>
+
+Histo-Scope's data types are:<p>
+<p>
+*	1-d histograms<p>
+*	2-d histograms<p>
+*	Ntuples<p>
+*	indicators<p>
+*	controls <p>
+*	triggers<p>
+<p>
+A <u>one dimensional histogram</u> stores a frequency distribution of one
+variable over a pre-specified range: the range is divided into a specified
+number of bins, and Histo-Scope keeps a weighted frequency count per bin.  This
+data is then available for display as a histogram in Histo-Scope or saved to a
+file for later program access or display by Histo-Scope. <a name="3a"> The
+pertinent</a> calls
+for one-dimensional histograms are:<p>
+<p>
+hs_create_1d_hist <p>
+hs_fill_1d_hist <p>
+hs_set_1d_errors hs_1d_hist_block_fill <p>
+hs_1d_hist_num_bins <p>
+hs_1d_hist_range <p>
+hs_1d_hist_bin_contents <p>
+hs_1d_hist_errors <p>
+hs_1d_hist_overflows <p>
+hs_1d_hist_x_value <p>
+hs_1d_hist_bin_value <p>
+hs_1d_hist_minimum <p>
+hs_1d_hist_maximum <p>
+hs_1d_hist_stats <p>
+hs_1d_hist_derivative <p>
+hs_hist_integral  <p>
+hs_hist_set_gauss_errors  <p>
+hs_sum_histograms  <p>
+hs_multiply_histograms  <p>
+hs_divide_histograms  <p>
+hs_sum_category  <p>
+hs_sum_file  <p>
+<p><a name="3">
+A <u>two dimensional histogram</u> </a>stores a weighted frequency distribution of
+two variables, where each variable has its own pre-specified range and number
+of bins. This data is then available for display as a two-dimensional histogram
+in Histo-Scope or saved to a file for later program access or display by
+Histo-Scope.  The pertinent calls for two-dimensional histograms are:<p>
+<p>
+hs_create_2d_hist <p>
+hs_fill_2d_hist <p>
+hs_set_2d_errors <p>
+hs_2d_hist_block_fill <p>
+hs_2d_hist_num_bins <p>
+hs_2d_hist_range <p>
+hs_2d_hist_bin_contents <p>
+hs_2d_hist_errors <p>
+hs_2d_hist_overflows <p>
+hs_2d_hist_xy_value <p>
+hs_2d_hist_bin_value <p>
+hs_2d_hist_minimum <p>
+hs_2d_hist_maximum <p>
+hs_2d_hist_stats hs_hist_integral  <p>
+hs_hist_set_gauss_errors  <p>
+hs_sum_histograms  <p>
+hs_multiply_histograms  <p>
+hs_divide_histograms  <p>
+hs_sum_category  <p>
+hs_sum_file  <p>
+<p>
+An <u>Ntuple</u> is a two-dimensional array composed of a fixed number of named
+variables times a growing number of occurrences.  The Histo-Scope tool allows
+the user to specify which variables in the Ntuple to plot and the type of plot
+to display.  Histo-Scope currently supports only in-memory Ntuples of real
+numbers; i.e. Ntuples must fit in virtual memory in order to be stored and
+displayed by Histo-Scope.  (Always keep in mind the performance limitations of
+your machine when using very large Ntuples.)  Pertinent calls for Ntuples
+are:<p>
+<p>
+hs_create_ntuple <p>
+hs_fill_ntuple hs_num_entries <p>
+hs_num_variables <p>
+hs_variable_name  <p>
+hs_variable_index  <p>
+hs_ntuple_value   <p>
+hs_ntuple_contents   <p>
+hs_row_contents   <p>
+hs_column_contents   <p>
+hs_merge_entries  <p>
+hs_sum_category  <p>
+hs_sum_file  <p>
+<p>
+<a name="1a">
+The combination </a>of <u>indicators, controls and triggers</u> allows the user to
+control the execution of his data acquisition or analysis program from
+Histo-Scope.  For instance, should peculiar results come out of diagnostic
+histograms, certain code paths can be internally enabled or disabled, or the
+job gracefully terminated.<p>
+<p>
+An <u>indicator</u> is a scalar value set by a process to indicate the value of
+a variable or condition.  Indicators are set by the application program and
+viewed by the user of the Histo-Scope tool.   The pertinent calls for
+indicators are:<p>
+<p>
+hs_create_indicator <p>
+hs_set_indicator <p>
+<p>
+
+<u>Controls</u> allow a variable in a process to be set interactively using
+Histo-Scope.  The application creates the control and supplies a default value.
+A user of the Histo-Scope tool can then view the control and change its value.
+It is up to the application program to read the control and detect a new value.
+ The pertinent calls for controls are:<p>
+<p>
+hs_create_control <p>
+hs_read_control 
+
+A <u>trigger</u> is created by the application program and acts like a
+push-button the Histo-Scope user can set which, when detected by the
+application program, can cause the it to perform some action.  Histo-Scope
+remembers whenever a trigger is set and will buffer trigger presses.  Trigger
+presses are detected by calling hs_check_trigger.  Pertinent calls for triggers
+are:<p>
+<p>
+hs_create_trigger <p>
+hs_check_trigger <p>
+
+
+<u>Groups</u> are a pseudo-data type that allow an application to specify a
+grouping of already-created data items.  Once data items are specified as a
+group, they can be displayed all at once from the Histo-Scope Main Panel rather
+than asking for each plot separately.  Groups can be displayed as a Multiple
+Plot Window, an Overlaid Plot, or simply used as a convenience for putting
+plots up individually with fewer mouse clicks.  One of these display types are
+specified as a default when creating the group:<p>
+<p>
+hs_create_group 
+<p>
+<a name="1b">
+In addition </a>to routines specific to a particular data type,  the following
+routines apply to each data type above:<p>
+<p>
+hs_reset	-	Resets the item.  For histograms, all of the bins and overflows are
+set to 0.  For Ntuples all of the data is removed.  Indicators are set to *not
+set*.  Controls are set to their default value. For triggers, any pending
+trigger presses are cleared. <p>
+<p>
+hs_delete	-	Deletes the specified item. <p>
+<p>
+hs_delete_items	-	Deletes a list of items. <p>
+<p>
+hs_delete_category	-	Deletes all items in the specified category. <p>
+<p>
+hs_save_file	-	Saves all current histograms, Ntuples, indicators, and controls
+to a Histo-Scope-format file.  Triggers are not saved to files.<p>
+ <p>
+hs_save_file_items	-	Saves the specified items to a Histo-Scope-format file.<p>
+ <p>
+hs_read_file	-	Reads in the items from a Histo-Scope-format file.  Allows a
+prefix to be added to the categories of all items read so that items from
+various runs can be differentiated. <p>
+<p>
+hs_read_file_items	-	Selectively reads in items matching a specified category
+and list of uid's from a Histo-Scope-format file.  Allows a prefix to be added
+to the categories of all items read so that items from various runs can be
+differentiated.<p>
+<p>
+hs_change_uid	-	Changes the uid of the specified item.<p>
+<p>
+hs_change_category	-	Changes the category of the specified item.<p>
+<p>
+hs_change_title	-	Changes the title of the specified item.<p>
+<p>
+hs_num_items	-	Returns the total number of Histo-Scope data items defined so
+far.<p>
+<p>
+hs_id	-	Returns the histo-scope defined id from an item's uid and category
+pair.<p>
+<p>
+hs_uid	-	Returns the user-defined id for a specified item. <p>
+<p>
+hs_category	-	Returns the category string and its length for an item. <p>
+<p>
+hs_title 	-	Returns the title of an item.<p>
+<p>
+hs_type 	-	Returns the data type of an item.<p>
+<p>
+hs_id_from_title	-	Returns the histo-scope defined id of an item from a
+specified title and category. <p>
+<p>
+hs_list_items	-	Lists all of the item id's matching a specified category and
+title.  Exact and inexact matches are allowed.</a><p>
+<u></u>
+<h2>
+<a name="2">Building and Running the Example Programs on Unix
+</a><a name="bk18"><br>
+<a name="bk19"></h2>
+<p>
+The example programs in the next section can be found on Unix systems in:<p>
+<p>
+	$HISTO_DIR/examples <p>
+<p>
+A makefile for building the programs is also supplied.  Copy the sources and
+the Makefile to your own directory to compile and link the programs.<p>
+<p>
+To copy, compile, and run the example programs on Unix type:<p>
+<p>
+%<i> setup histo</i><p>
+%<i> cp $HISTO_DIR/examples/* .</i><p>
+<p>
+If you have the CERN software installed on your system type:<p>
+<p>
+%<i> setup cern</i><p>
+%<i> make</i><p>
+<p>
+Otherwise (if you do <b>not</b> have CERN installed):<p>
+<p>
+%<i> make hsExample</i><p>
+%<i> make HsExample</i><p>
+<p>
+If necessary, go to an X display and set the DISPLAY environment variable
+(refer to page 7):<p>
+<p>
+%<i> setenv DISPLAY devicename:0</i><p>
+<p>
+Then run any of the example programs you'd like to see, for example:<p>
+<p>
+% <i>HbookExample</i><p>
+<p>
+The example programs automatically run Histo-Scope as a subprocess.  Removing
+the HS_HISTOSCOPE call will make the program run independently of Histo-Scope.
+When Histo-Scope is run as a sub-process, it is automatically connected to the
+running process.  Refer to Part I on using the Histo-Scope tool.<p>
+<p>
+Following the example programs is a description of each routine in the
+Histo-Scope library for FORTRAN and C.<p>
+
+<a name="2a">
+<u>Linking your own Histo-Scope application:</u></a><p>
+<p>
+Once the setup histo command has  been  invoked, all user binary object
+libraries are accessible via the environment variable HISTOLIB_DIR.  Which 
+library to use depends on whether your program is written  in FORTRAN or C, 
+and whether or not you are using HBOOK.  Use one of the following libraries: <p>
+   <p>
+	libFHisto.a <p>
+	libCHisto.a <p>
+	libFHistoHB.a <p>
+	libCHistoHB.OLB <p>
+
+
+For example to link a FORTRAN user program that includes calls to the 
+Histo-Scope and HBOOK libraries, use the library libFHistoHB.a.<p>
+<a name="bk20">

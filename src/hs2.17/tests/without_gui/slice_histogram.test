@@ -1,0 +1,420 @@
+proc check_2d_x_slice {slice_bin} {
+    set nxbins 4
+    set nybins 7
+    set xmin 1.0
+    set xmax 2.0
+    set ymin 3.0
+    set ymax 4.0
+    set parent_id [hs::create_2d_hist [next_uid] "Example 2d histo" \
+            "Test" X Y Z $nxbins $nybins $xmin $xmax $ymin $ymax]
+
+    set data {}
+    set poserr {}
+    set slice_data {}
+    set slice_poserr {}
+    set check_bin $slice_bin
+    if {$check_bin < 0} {
+	set check_bin 0
+    } elseif {$check_bin >= $nxbins} {
+	set check_bin [expr {$nxbins-1}]
+    }
+    set value 0
+    for {set i 0} {$i < $nxbins} {incr i} {
+        for {set j 0} {$j < $nybins} {incr j} {
+            lappend data $value
+            lappend poserr [expr {$value/2.0}]
+            if {$i == $check_bin} {
+                lappend slice_data $value
+                lappend slice_poserr [expr {$value/2.0}]
+            }
+	    incr value
+        }
+    }
+    hs::2d_hist_block_fill $parent_id $data $poserr
+
+    set slice_id [hs::slice_histogram [next_uid] \
+            "x slice" "Slices" $parent_id x $slice_bin]
+    set slice_ref [hs::create_1d_hist [next_uid] \
+            "x slice" "Slices" Y Z $nybins $ymin $ymax]
+    hs::1d_hist_block_fill $slice_ref $slice_data $slice_poserr
+    verify_similarity $slice_id $slice_ref 0
+    return
+}
+
+proc check_2d_y_slice {slice_bin} {
+    set nxbins 11
+    set nybins 6
+    set xmin 1.0
+    set xmax 2.0
+    set ymin 3.0
+    set ymax 4.0
+    set parent_id [hs::create_2d_hist [next_uid] "Example 2d histo" \
+            "Test" X Y Z $nxbins $nybins $xmin $xmax $ymin $ymax]
+
+    set data {}
+    set poserr {}
+    set slice_data {}
+    set slice_poserr {}
+    set check_bin $slice_bin
+    if {$check_bin < 0} {
+	set check_bin 0
+    } elseif {$check_bin >= $nybins} {
+	set check_bin [expr {$nybins-1}]
+    }
+    set value 0
+    for {set i 0} {$i < $nxbins} {incr i} {
+        for {set j 0} {$j < $nybins} {incr j} {
+            lappend data $value
+            lappend poserr [expr {$value/2.0}]
+            if {$j == $check_bin} {
+                lappend slice_data $value
+                lappend slice_poserr [expr {$value/2.0}]
+            }
+	    incr value
+        }
+    }
+    hs::2d_hist_block_fill $parent_id $data $poserr
+
+    set slice_id [hs::slice_histogram [next_uid] \
+            "y slice" "Slices" $parent_id y $slice_bin]
+    set slice_ref [hs::create_1d_hist [next_uid] \
+            "y slice" "Slices" X Z $nxbins $xmin $xmax]
+    hs::1d_hist_block_fill $slice_ref $slice_data $slice_poserr
+    verify_similarity $slice_id $slice_ref 0
+    return
+}
+
+proc check_3d_slice {axis slice_bin} {
+    set nxbins 5
+    set nybins 7
+    set nzbins 11
+    set xmin 1.0
+    set xmax 2.0
+    set ymin 3.0
+    set ymax 4.0
+    set zmin 5.0
+    set zmax 6.0
+    set parent_id [hs::create_3d_hist [next_uid] "Example 3d histo" "Test" \
+            X Y Z V $nxbins $nybins $nzbins $xmin $xmax $ymin $ymax $zmin $zmax]
+
+    set data {}
+    set poserr {}
+    set slice_data {}
+    set slice_poserr {}
+    set check_bin $slice_bin
+    if {$check_bin < 0} {
+	set check_bin 0
+    }
+    set value 0
+
+    if {$axis == "x"} {
+	if {$check_bin >= $nxbins} {
+	    set check_bin [expr {$nxbins-1}]
+	}
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    for {set j 0} {$j < $nybins} {incr j} {
+		for {set k 0} {$k < $nzbins} {incr k} {
+		    lappend data $value
+		    lappend poserr [expr {$value/2.0}]
+		    if {$i == $check_bin} {
+			lappend slice_data $value
+			lappend slice_poserr [expr {$value/2.0}]
+		    }
+		    incr value
+		}
+	    }
+	}
+    } elseif {$axis == "y"} {
+	if {$check_bin >= $nybins} {
+	    set check_bin [expr {$nybins-1}]
+	}
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    for {set j 0} {$j < $nybins} {incr j} {
+		for {set k 0} {$k < $nzbins} {incr k} {
+		    lappend data $value
+		    lappend poserr [expr {$value/2.0}]
+		    if {$j == $check_bin} {
+			lappend slice_data $value
+			lappend slice_poserr [expr {$value/2.0}]
+		    }
+		    incr value
+		}
+	    }
+	}
+    } elseif {$axis == "z"} {
+	if {$check_bin >= $nzbins} {
+	    set check_bin [expr {$nzbins-1}]
+	}
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    for {set j 0} {$j < $nybins} {incr j} {
+		for {set k 0} {$k < $nzbins} {incr k} {
+		    lappend data $value
+		    lappend poserr [expr {$value/2.0}]
+		    if {$k == $check_bin} {
+			lappend slice_data $value
+			lappend slice_poserr [expr {$value/2.0}]
+		    }
+		    incr value
+		}
+	    }
+	}
+    } else {
+	error "bad axis \"$axis\""
+    }
+
+    hs::3d_hist_block_fill $parent_id $data $poserr
+
+    set slice_id [hs::slice_histogram [next_uid] "3d slice" \
+            "Slices" $parent_id $axis $slice_bin]
+    if {$axis == "x"} {
+	set slice_ref [hs::create_2d_hist [next_uid] "3d slice" \
+		"Slices" Y Z V $nybins $nzbins $ymin $ymax $zmin $zmax]
+    } elseif {$axis == "y"} {
+	set slice_ref [hs::create_2d_hist [next_uid] "3d slice" \
+		"Slices" X Z V $nxbins $nzbins $xmin $xmax $zmin $zmax]
+    } elseif {$axis == "z"} {
+	set slice_ref [hs::create_2d_hist [next_uid] "3d slice" \
+		"Slices" X Y V $nxbins $nybins $xmin $xmax $ymin $ymax]
+    } else {
+	error "bad axis \"$axis\""
+    }
+    hs::2d_hist_block_fill $slice_ref $slice_data $slice_poserr
+    verify_similarity $slice_id $slice_ref 0
+    return
+}
+
+proc check_3d_stack {axis1 slice_bin1 axis2 slice_bin2} {
+    set nxbins 5
+    set nybins 7
+    set nzbins 11
+    set xmin 1.0
+    set xmax 2.0
+    set ymin 3.0
+    set ymax 4.0
+    set zmin 5.0
+    set zmax 6.0
+    set parent_id [hs::create_3d_hist [next_uid] "Example 3d histo" "Test" \
+            X Y Z V $nxbins $nybins $nzbins $xmin $xmax $ymin $ymax $zmin $zmax]
+
+    set data {}
+    set poserr {}
+    set value 0
+    for {set i 0} {$i < $nxbins} {incr i} {
+	for {set j 0} {$j < $nybins} {incr j} {
+	    for {set k 0} {$k < $nzbins} {incr k} {
+		lappend data $value
+		lappend poserr [expr {$value/2.0}]
+		incr value
+	    }
+	}
+    }
+    hs::3d_hist_block_fill $parent_id $data $poserr
+
+    if {$axis1 == "x" && $axis2 == "y"} {
+	set axis_proj z
+	set check_x $slice_bin1
+	set check_y $slice_bin2
+    } elseif {$axis1 == "y" && $axis2 == "x"} {
+	set axis_proj z
+	set check_x $slice_bin2
+	set check_y $slice_bin1
+    } elseif {$axis1 == "x" && $axis2 == "z"} {
+	set axis_proj y
+	set check_x $slice_bin1
+	set check_z $slice_bin2
+    } elseif {$axis1 == "z" && $axis2 == "x"} {
+	set axis_proj y
+	set check_x $slice_bin2
+	set check_z $slice_bin1
+    } elseif {$axis1 == "y" && $axis2 == "z"} {
+	set axis_proj x
+	set check_y $slice_bin1
+	set check_z $slice_bin2
+    } elseif {$axis1 == "z" && $axis2 == "y"} {
+	set axis_proj x
+	set check_y $slice_bin2
+	set check_z $slice_bin1
+    } else {
+	error "bad axis combination"
+    }
+    catch {
+	if {$check_x < 0} {
+	    set check_x 0
+	}
+	if {$check_x >= $nxbins} {
+	    set check_x [expr {$nxbins-1}]
+	}
+    }
+    catch {
+	if {$check_y < 0} {
+	    set check_y 0
+	}
+	if {$check_y >= $nybins} {
+	    set check_y [expr {$nybins-1}]
+	}
+    }
+    catch {
+	if {$check_z < 0} {
+	    set check_z 0
+	}
+	if {$check_z >= $nzbins} {
+	    set check_z [expr {$nzbins-1}]
+	}
+    }
+
+    set slice_data {}
+    set slice_poserr {}
+    set value 0
+    if {$axis_proj == "x"} {
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    for {set j 0} {$j < $nybins} {incr j} {
+		for {set k 0} {$k < $nzbins} {incr k} {
+		    if {$j == $check_y && $k == $check_z} {
+			lappend slice_data $value
+			lappend slice_poserr [expr {$value/2.0}]
+		    }
+		    incr value
+		}
+	    }
+	}
+    } elseif {$axis_proj == "y"} {
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    for {set j 0} {$j < $nybins} {incr j} {
+		for {set k 0} {$k < $nzbins} {incr k} {
+		    if {$i == $check_x && $k == $check_z} {
+			lappend slice_data $value
+			lappend slice_poserr [expr {$value/2.0}]
+		    }
+		    incr value
+		}
+	    }
+	}
+    } elseif {$axis_proj == "z"} {
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    for {set j 0} {$j < $nybins} {incr j} {
+		for {set k 0} {$k < $nzbins} {incr k} {
+		    if {$i == $check_x && $j == $check_y} {
+			lappend slice_data $value
+			lappend slice_poserr [expr {$value/2.0}]
+		    }
+		    incr value
+		}
+	    }
+	}
+    } else {
+	error "bad projection axis"
+    }
+
+    set slice_id [hs::slice_histogram [next_uid] "3d stack" \
+            "Slices" $parent_id $axis1 $slice_bin1 $axis2 $slice_bin2]
+    set slice_ref [hs::create_1d_hist [next_uid] "3d stack" \
+	    "Slices" [string toupper $axis_proj] V [set n${axis_proj}bins] \
+	    [set ${axis_proj}min] [set ${axis_proj}max]]
+    hs::1d_hist_block_fill $slice_ref $slice_data $slice_poserr
+    verify_similarity $slice_id $slice_ref 0
+    return
+}
+
+test slice_histogram-1.1 {2d histogram slice} {} {
+    foreach {a1 v1 is_out_of_range} {
+	x 2   0
+	x 6   1
+	x -10 1
+	x 100 1
+	y 2   0
+	y 7   1
+	y -10 1
+	y 100 1
+    } {
+	if {[catch {check_2d_${a1}_slice $v1} errmess]} {
+	    if {[string compare $errmess "bin number out of range"] || \
+	         !$is_out_of_range} {
+	        error "failed at $a1 $v1: $errmess"
+            }
+	} elseif {$is_out_of_range} {
+            error "did not generate an error at $a1 $v1"
+        }
+    }
+} {}
+
+test slice_histogram-1.2 {3d histogram slice} {} {
+    foreach {a1 v1 is_out_of_range} {
+	x 2   0
+	x 6   1
+	x -10 1
+	x 100 1
+	y 2   0
+	y 8   1
+	y -10 1
+	y 100 1
+	z 2   0
+	z 11  1
+	z -10 1
+	z 100 1
+    } {
+	if {[catch {check_3d_slice $a1 $v1} errmess]} {
+	    if {[string compare $errmess "bin number out of range"] || \
+	         !$is_out_of_range} {
+	        error "failed at $a1 $v1: $errmess"
+            }
+	} elseif {$is_out_of_range} {
+            error "did not generate an error at $a1 $v1"
+        }
+    }
+} {}
+
+test slice_histogram-1.3 {3d histogram stack} {} {
+    foreach {a1 v1 a2 v2 is_out_of_range} {
+	x 2 y 3    0
+	y 3 x 2    0
+	x 100 y 3  1
+	y 3 x 100  1
+	x -10 y 3  1
+	y 3 x -10  1
+	x 1 y -100 1
+	y -100 x 1 1
+	x 1 y 100  1
+	y 100 x 1  1
+	x 2 z 3    0
+	z 3 x 2    0
+	x 100 z 4  1
+	z 4 x 100  1
+	x -10 z 3  1
+	z 3 x -10  1
+	x 1 z -100 1
+	z -100 x 1 1
+	x 1 z 100  1
+	z 100 x 1  1
+	y 2 z 3    0
+	z 3 y 2    0
+	y 100 z 3  1
+	z 3 y 100  1
+	y -10 z 3  1
+	z 3 y -10  1
+	y 1 z -100 1
+	z -100 y 1 1
+	y 1 z 100  1
+	z 100 y 1  1
+    } {
+	if {[catch {check_3d_stack $a1 $v1 $a2 $v2} errmess]} {
+	    if {[string compare $errmess "bin number out of range"] || \
+	         !$is_out_of_range} {
+	        error "failed at $a1 $v1 $a2 $v2: $errmess"
+            }
+	} elseif {$is_out_of_range} {
+            error "did not generate an error at $a1 $v1 $a2 $v2"
+        }
+    }
+} {}
+
+catch {unset a1 v1 is_out_of_range}
+catch {unset a2 v2}
+catch {unset errmess}
+catch {rename check_2d_x_slice {}}
+catch {rename check_2d_y_slice {}}
+catch {rename check_3d_slice {}}
+catch {rename check_3d_stack {}}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

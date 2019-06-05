@@ -1,0 +1,24 @@
+test ntuple_subset-1.1 {ntuple subset} {} {
+    set id0 [hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c}]
+    hs::ntuple_block_fill $id0 [list \
+            1.0  3.0 7.0 \
+            2.0  1.0 5.0 \
+            4.0  1.5 1.0 \
+    ]
+    set id1 [hs::create_ntuple [next_uid] "Test ntuple" "tests" {c b}]
+    hs::ntuple_block_fill $id1 [list \
+            7.0 3.0 \
+            5.0 1.0 \
+            1.0 1.5 \
+    ]
+    set id2 [hs::ntuple_subset [next_uid] "Test ntuple" "tests" $id0 {c b}]
+    verify_similarity $id1 $id2 0
+} {}
+
+catch {unset id0}
+catch {unset id1}
+catch {unset id2}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

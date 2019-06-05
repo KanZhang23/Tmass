@@ -1,0 +1,68 @@
+#include <cmath>
+#include <stdexcept>
+#include <algorithm>
+
+namespace npstat {
+    template <typename FcnResult, typename FcnArg>
+    inline long double GaussHermiteQuadrature::integrate(
+        const Functor1<FcnResult,FcnArg>& function) const
+    {
+        if (buf_.size() != npoints_)
+            buf_.resize(npoints_);
+        std::pair<long double, long double>* results = &buf_[0];
+        const unsigned halfpoints = npoints_/2;
+        FcnArg a;
+        long double v;
+        for (unsigned i=0; i<halfpoints; ++i)
+        {
+            a = static_cast<FcnArg>(a_[i]);
+            v = w_[i]*static_cast<long double>(function(a));
+            results[2*i].first = std::abs(v);
+            results[2*i].second = v;
+            a = static_cast<FcnArg>(-a_[i]);
+            v = w_[i]*static_cast<long double>(function(a));
+            results[2*i+1].first = std::abs(v);
+            results[2*i+1].second = v;
+        }
+        std::sort(buf_.begin(), buf_.end());
+        v = 0.0L;
+        for (unsigned i=0; i<npoints_; ++i)
+            v += results[i].second;
+        return v;
+    }
+
+    template <typename FcnResult, typename FcnArg>
+    inline long double GaussHermiteQuadrature::integrateProb(
+        const long double mean, const long double sigma,
+        const Functor1<FcnResult,FcnArg>& function) const
+    {
+        const long double sqr2 = 1.41421356237309504880168872421L;
+
+        if (buf_.size() != npoints_)
+            buf_.resize(npoints_);
+        if (sigma <= 0.L) throw std::invalid_argument(
+            "In npstat::GaussHermiteQuadrature::integrateProb: "
+            "sigma must be positive");
+        std::pair<long double, long double>* results = &buf_[0];
+        const unsigned halfpoints = npoints_/2;
+        FcnArg a;
+        long double v;
+        for (unsigned i=0; i<halfpoints; ++i)
+        {
+            const long double delta = sqr2*sigma*a_[i];
+            a = static_cast<FcnArg>(mean + delta);
+            v = w_[i]*static_cast<long double>(function(a));
+            results[2*i].first = std::abs(v);
+            results[2*i].second = v;
+            a = static_cast<FcnArg>(mean - delta);
+            v = w_[i]*static_cast<long double>(function(a));
+            results[2*i+1].first = std::abs(v);
+            results[2*i+1].second = v;
+        }
+        std::sort(buf_.begin(), buf_.end());
+        v = 0.0L;
+        for (unsigned i=0; i<npoints_; ++i)
+            v += results[i].second;
+        return v/1.77245385090551602729816748334L;
+    }
+}

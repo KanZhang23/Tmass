@@ -1,0 +1,35 @@
+Normalization factors are applied as follows:
+
+The jet transfer functions are Dirac deltas in eta and phi. The partons
+are considered massless. Then p^2 d p d Omega/E = p d p d Omega = 
+pT d pT d eta d phi. Thus, after integration with deltas, there is
+a remaining pT term per jet which is applied inside "integrateW4Jets",
+in the same cycle where the event weight is multiplied by the weight
+from the W mass scan.
+
+For the neutrino, we use a flat prior in the d^3 p space. This leaves
+the 1/E term which is applied inside "weightForKnownWMass". The jacobian
+for d mw^2/d nu_pz is applied inside "weightForKnownWMass", together
+with the division by W sampling density (because matrix element includes
+the W mass propagator factor).
+
+The flux factor is applied inside "matrixElementWeight", together with
+the proton structure functions (which are applied by VECBOS). This
+is consistent with the flux use in VECBOS.
+
+The normalization is somewhat tricky for the charged lepton because
+it has to be consistent between W -> l nu and W -> tau nu. We will
+assume that, for  W -> l nu, the transfer function looks like
+delta(cos(theta)) delta(phi) delta(p). Then, after integration over
+p^2 d p d Omega/E, one "p" factor is left. This factor is applied
+inside the "if (allowDirectDecay)" branch of the W mass scan, function
+"integrateW4Jets".
+
+For integration over tau, we will assume the transfer function that looks 
+like f(p_l|p_tau) = delta(cos(theta)) delta(phi) 1/p_tau g(p_l/p_tau).
+Then f(p_l|p_tau) p_tau^2 d p_tau d Omega/E_tau -> g(p_l/p_tau) d p_tau.
+The integration will perform the averaging over g(p_l/p_tau) (together
+with the rest of the things) multiplied by (p_tau_max - p_tau_min).
+Thus there is no additional normalization term left. Multiplication
+by (p_tau_max - p_tau_min) is performed inside the "if (allowTau)" branch
+of the W mass scan, function "integrateW4Jets".

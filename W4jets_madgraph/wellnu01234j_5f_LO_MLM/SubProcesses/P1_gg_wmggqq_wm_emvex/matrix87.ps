@@ -1,0 +1,6239 @@
+%!PS-Adobe-2.0
+%%BoundingBox: -20 -20 450  450 
+%%DocumentFonts: Helvetica
+%%Pages:  10 
+%!MadGraph
+%
+% Feynman Diagrams drawn by MadGraph5_aMC@NLO
+%
+% Using FEYNMAN DRAW
+% A program by David J. Summers to draw
+% Feynman diagrams. (c) 1992
+% Version 2.7 (c) 1993
+%
+% Comments and questions to 
+%  D.J.Summers@uk.ac.durham
+%
+
+/Fnopoints 10 def 
+/Fr 2.5 def 
+/pi 3.14159265359 def
+
+/Frmod {dup 360 div floor 360 mul sub} def
+/Fsign {0 ge {1} {-1} ifelse} def
+
+/Fbasis
+{/Fby exch def /Fbx exch def /Fdist Fbx Fbx
+mul Fby Fby mul add sqrt def /Fxl Fbx Fdist
+div Fr mul def /Fyl Fby Fdist div Fr mul def
+/Fxt Fby Fdist div Fr mul def /Fyt Fbx neg
+Fdist div Fr mul def } def
+
+/Fstraight 
+{/Fshape exch def /Ftype exch def /Fy2 exch
+def /Fx2 exch def /Fy1 exch def /Fx1 exch def
+Fx2 Fx1 sub Fy2 Fy1 sub Fbasis /Fttype 1
+Ftype 2 mod 2 mul abs sub def Ftype 0 ge
+{/Fddist Fdist Fr div 2 div def /Fn Fddist round
+def Ftype 1 gt {/Fn Fn Fddist Fn sub Fsign
+add def} if} {/Fn Fdist Fr div 2 div round 2
+mul def} ifelse Fx1 Fy1 moveto 0 1 Fnopoints
+Fn mul {/Fi exch def Fshape lineto } for
+stroke } def
+
+/Floop
+{/Fshape exch def /Fe exch def /Ftype exch
+def /Fy2 exch def /Fx2 exch def /Fy1 exch def
+/Fx1 exch def /Flam 1 Fe Fe mul sub 2 div Fe
+div def /Fxc Fx1 Fx2 Flam Fy2 Fy1 sub mul add
+add 2 div def /Fyc Fy1 Fy2 Flam Fx1 Fx2 sub
+mul add add 2 div def /Frr Fx1 Fxc sub dup
+mul Fy1 Fyc sub dup mul add sqrt def /Fth1
+Fy1 Fyc sub Fx1 Fxc sub atan def /Fth2 Fy2
+Fyc sub Fx2 Fxc sub atan def Fe 0 lt Fth2
+Fth1 lt and {/Fth1 Fth1 360 sub def} if Fe 0
+gt Fth2 Fth1 gt and {/Fth2 Fth2 360 sub def}
+if /Fdth Fth2 Fth1 sub Fsign def /Fttype 1
+Ftype 2 mod abs 2 mul sub def Ftype 0 ge
+{/Fddist Fth2 Fth1 sub abs 180 div pi mul Frr
+mul Fr div def /Fn Fddist round def Ftype 1
+gt {/Fn Fn Fddist Fn sub Fsign add def} if}
+{/Fn Fth2 Fth1 sub abs 180 div pi mul Frr mul
+Fr div 2 div round 2 mul def} ifelse Fx1 Fy1
+moveto 0 1 Fnopoints Fn mul {/Fi exch def
+/Fth Fth1 Fth2 Fth1 sub Fi mul Fnopoints div
+Fn div add Frmod def Fth sin neg Fdth mul Fth
+cos Fdth mul Fbasis Fshape lineto } for
+stroke } def
+
+/Farrow
+{ moveto Fxt Fxl sub Fyt Fyl sub
+rlineto Fxl 2 mul Fxt sub Fyl 2 mul Fyt sub
+rlineto Fxl 2 mul Fxt add neg Fyl 2 mul Fyt
+add neg rlineto fill } def
+
+/Fphoton
+{{ Fx1 Fx2 Fx1 sub Fi mul Fnopoints div Fn
+div Fxt Fi 360 mul Fnopoints div Frmod sin
+mul Fttype mul 2 div add add Fy1 Fy2 Fy1 sub
+Fi mul Fnopoints div Fn div Fyt Fi 360 mul
+Fnopoints div Frmod sin mul Fttype mul 2 div
+add add } Fstraight } def
+
+/Fphotonr
+{{ Fx1 Fx2 Fx1 sub Fi mul Fnopoints div Fn
+div Fxt Fi 180 mul Fnopoints div Frmod sin
+mul Fttype mul 1 div add add Fy1 Fy2 Fy1 sub
+Fi mul Fnopoints div Fn div Fyt Fi 180 mul
+Fnopoints div Frmod sin mul Fttype mul 1 div
+add add } Fstraight } def
+
+/Fphotond
+{{ Fx1 Fx2 Fx1 sub Fi mul Fnopoints div Fn
+div Fxt Fi 360 mul Fnopoints div Frmod sin
+mul Fttype mul 2 div add add Fy1 Fy2 Fy1 sub
+Fi mul Fnopoints div Fn div Fyt Fi 360 mul
+Fnopoints div Frmod sin mul Fttype mul 2 div
+add add } Fstraight Fx1
+Fx2 add 2 div Fy1 Fy2 add 2 div Farrow} def
+
+/Fphotonl
+{exch dup 3 1 roll 0 ge {{ Fxc Fth cos Frr
+mul Fxt Fi 180 mul Fnopoints div Frmod sin
+mul Fttype mul 2 div add add Fyc Fth sin Frr
+mul Fyt Fi 180 mul Fnopoints div Frmod sin
+mul Fttype mul 2 div add add }} {{ Fxc Fth
+cos Frr mul Fxt 1 Fi 180 mul Fnopoints div
+Frmod cos sub mul Fttype mul 2 div add add
+Fyc Fth sin Frr mul Fyt 1 Fi 180 mul
+Fnopoints div Frmod cos sub mul Fttype mul 2
+div add add }} ifelse Floop } def
+
+/Fgluon
+{2 sub { Fx1 Fx2 Fx1 sub Fi mul Fnopoints div
+Fn div Fxt 1 Fi 180 mul Fnopoints div cos sub
+mul Fttype mul Fxl Fi 180 mul Fnopoints div
+sin mul add add add Fy1 Fy2 Fy1 sub Fi mul
+Fnopoints div Fn div Fyt 1 Fi 180 mul
+Fnopoints div cos sub mul Fttype mul Fyl Fi
+180 mul Fnopoints div sin mul add add add }
+Fstraight } def
+
+/Fgluonr
+{2 sub { Fx1 Fx2 Fx1 sub Fi mul Fnopoints div
+Fn div Fxt 0 Fi 120 mul Fnopoints div cos sub
+mul Fttype mul Fxl Fi 120 mul Fnopoints div
+sin mul add add add Fy1 Fy2 Fy1 sub Fi mul
+Fnopoints div Fn div Fyt 0 Fi 120 mul
+Fnopoints div cos sub mul Fttype mul Fyl Fi
+120 mul Fnopoints div sin mul add add add }
+Fstraight } def
+
+
+/Fgluonl
+{exch 2 sub exch { Fxc Fth cos Frr mul Fxt 1
+Fi 180 mul Fnopoints div cos sub mul Fttype
+mul Fxl Fi 180 mul Fnopoints div sin mul add
+add add Fyc Fth sin Frr mul Fyt 1 Fi 180 mul
+Fnopoints div cos sub mul Fttype mul Fyl Fi
+180 mul Fnopoints div sin mul add add add }
+Floop} def
+
+/Ffermion
+{/Fy2 exch def /Fx2 exch def /Fy1 exch def
+/Fx1 exch def newpath Fx2 Fx1 sub Fy2 Fy1 sub
+Fbasis Fx1 Fy1 moveto Fx2 Fy2 lineto stroke Fx1
+Fx2 add 2 div Fy1 Fy2 add 2 div Farrow } def
+
+/Fscalar
+{newpath moveto lineto stroke} def
+
+/Ffermionl
+{/Fe exch def /Fy2 exch def /Fx2 exch def
+/Fy1 exch def /Fx1 exch def newpath /Flam 1 Fe
+Fe mul sub 2 div Fe div def /Fxc Fx1 Fx2 Flam Fy2
+Fy1 sub mul add add 2 div def /Fyc Fy1 Fy2
+Flam Fx1 Fx2 sub mul add add 2 div def /Frr
+Fx1 Fxc sub dup mul Fy1 Fyc sub dup mul add
+sqrt def /Fth1 Fy1 Fyc sub Fx1 Fxc sub atan
+def /Fth2 Fy2 Fyc sub Fx2 Fxc sub atan def Fe
+0 lt Fth2 Fth1 lt and {/Fth1 Fth1 360 sub
+def} if Fe 0 gt Fth2 Fth1 gt and {/Fth2 Fth2
+360 sub def} if /Fthc Fth1 Fth2 add 2 div def
+Fxc Fyc Frr Fth1 Fth2 Fe 0 gt {arcn} {arc}
+ifelse stroke Fthc sin Fe 0 lt {neg} if Fthc
+cos Fe 0 gt {neg} if Fbasis Fxc Fthc cos Frr
+mul add Fyc Fthc sin Frr mul add Farrow } def
+
+/Fscalarl
+{/Fe exch def /Fy2 exch def /Fx2 exch def
+/Fy1 exch def /Fx1 exch def newpath /Flam 1 Fe
+Fe mul sub 2 div Fe div def /Fxc Fx1 Fx2 Flam Fy2
+Fy1 sub mul add add 2 div def /Fyc Fy1 Fy2
+Flam Fx1 Fx2 sub mul add add 2 div def /Frr
+Fx1 Fxc sub dup mul Fy1 Fyc sub dup mul add
+sqrt def /Fth1 Fy1 Fyc sub Fx1 Fxc sub atan
+def /Fth2 Fy2 Fyc sub Fx2 Fxc sub atan def Fe
+0 lt Fth2 Fth1 lt and {/Fth1 Fth1 360 sub
+def} if Fe 0 gt Fth2 Fth1 gt and {/Fth2 Fth2
+360 sub def} if /Fthc Fth1 Fth2 add 2 div def
+Fxc Fyc Frr Fth1 Fth2 Fe 0 gt {arcn} {arc}
+ifelse stroke } def
+
+/Fblob 
+{/Fshade exch def newpath Fr mul 0 360 arc gsave
+1 Fshade sub setgray fill grestore stroke} def
+
+/Fhiggs
+{/Fy2 exch def /Fx2 exch def /Fy1 exch def
+/Fx1 exch def gsave Fx1 Fx2 sub dup mul
+Fy1 Fy2 sub dup mul add sqrt dup Fr div
+2 div round 2 mul 1 add div /dashln exch def
+[dashln dashln] 0 setdash Fx1 Fy1 moveto
+Fx2 Fy2 lineto stroke grestore} def
+
+
+/Fhiggsd
+{/Fy2 exch def /Fx2 exch def /Fy1 exch def
+/Fx1 exch def gsave Fx1 Fx2 sub dup mul
+Fy1 Fy2 sub dup mul add sqrt dup Fr div
+2 div round 2 mul 1 add div /dashln exch def
+[dashln dashln] 0 setdash Fx1 Fy1 moveto
+Fx2 Fy2 lineto stroke grestore Fx1 Fx2 add 2 div
+Fy1 Fy2 add 2 div Farrow} def
+
+/Fhiggsl
+{/Fe exch def /Fy2 exch def /Fx2 exch def
+/Fy1 exch def /Fx1 exch def /Flam gsave 1 Fe
+Fe mul sub 2 div Fe div def /Fxc Fx1 Fx2 Flam
+Fy2 Fy1 sub mul add add 2 div def /Fyc Fy1
+Fy2 Flam Fx1 Fx2 sub mul add add 2 div def
+/Frr Fx1 Fxc sub dup mul Fy1 Fyc sub dup mul
+add sqrt def /Fth1 Fy1 Fyc sub Fx1 Fxc sub
+atan def /Fth2 Fy2 Fyc sub Fx2 Fxc sub atan
+def Fe 0 lt Fth2 Fth1 lt and {/Fth1 Fth1 360
+sub def} if Fe 0 gt Fth2 Fth1 gt and {/Fth2
+Fth2 360 sub def} if /Fthc Fth1 Fth2 add 2
+div def Fxc Fyc Frr Fth1 Fth2 Fe 0 gt {arcn}
+{arc} ifelse Fth2 Fth1 sub abs 180 div pi mul
+Frr mul dup Fr div 2 div round 2 mul 1 add
+div /dashln exch def [dashln dashln] 0
+setdash stroke grestore} def
+
+/Fghost
+{/Fy2 exch def /Fx2 exch def /Fy1 exch def
+/Fx1 exch def Fx2 Fx1 sub Fy2 Fy1 sub Fbasis
+/Fn Fx1 Fx2 sub dup mul Fy1 Fy2 sub dup mul
+add sqrt Fr div round def 0 1 Fn {/Fi exch
+def Fx2 Fx1 sub Fi Fn div mul Fx1 add Fy2 Fy1
+sub Fi Fn div mul Fy1 add Fr 10 div 0 360 arc
+fill} for Fx1 Fx2 add 2 div Fy1 Fy2 add 2 div
+Farrow } def
+
+/Fghostl
+{/Fe exch def /Fy2 exch def /Fx2 exch def
+/Fy1 exch def /Fx1 exch def /Flam 1 Fe Fe mul
+sub 2 div Fe div def /Fxc Fx1 Fx2 Flam Fy2
+Fy1 sub mul add add 2 div def /Fyc Fy1 Fy2
+Flam Fx1 Fx2 sub mul add add 2 div def /Frr
+Fx1 Fxc sub dup mul Fy1 Fyc sub dup mul add
+sqrt def /Fth1 Fy1 Fyc sub Fx1 Fxc sub atan
+def /Fth2 Fy2 Fyc sub Fx2 Fxc sub atan def Fe
+0 lt Fth2 Fth1 lt and {/Fth1 Fth1 360 sub
+def} if Fe 0 gt Fth2 Fth1 gt and {/Fth2 Fth2
+360 sub def} if /Fthc Fth1 Fth2 add 2 div def
+/Fn Fth2 Fth1 sub abs 180 div pi mul Frr mul
+Fr div round def 0 1 Fn {/Fi exch def Fth2
+Fth1 sub Fi Fn div mul Fth1 add dup cos Frr
+mul Fxc add exch sin Frr mul Fyc add Fr 10
+div 0 360 arc fill} for Fthc sin Fe 0 lt
+{neg} if Fthc cos Fe 0 gt {neg} if Fbasis Fxc
+Fthc cos Frr mul add Fyc Fthc sin Frr mul add
+Farrow } def
+
+/Fproton
+{/Fy2 exch def /Fx2 exch def /Fy1 exch def
+/Fx1 exch def Fx2 Fx1 sub Fy2 Fy1 sub Fbasis
+Fx1 Fxt 2 div add Fy1 Fyt 2 div add moveto
+Fx2 Fxt 2 div add Fy2 Fyt 2 div add lineto
+Fx1 Fxt 2 div sub Fy1 Fyt 2 div sub moveto
+Fx2 Fxt 2 div sub Fy2 Fyt 2 div sub lineto
+Fx1 Fx2 add 2 div Fxt Fxl sub add Fy1 Fy2 add
+2 div Fyt Fyl sub add moveto Fx1 Fx2 add Fxl
+add 2 div Fy1 Fy2 add Fyl add 2 div lineto
+Fx1 Fx2 add 2 div Fxt Fxl add sub Fy1 Fy2 add
+2 div Fyt Fyl add sub lineto stroke} def
+
+/Fmax {2 copy lt {exch} if pop} def
+/Fstart {gsave currentpoint
+translate 0 0 moveto 0 rm Fr 4 mul
+scalefont setfont} def
+/Fsubspt {gsave currentpoint Fcharheight 5 div
+sub translate 0.6 0.6 scale 0 0 moveto 0} def
+/Fsupspt {gsave currentpoint Fcharheight 0.6 mul
+add translate 0.6 0.6 scale 0 0 moveto 0} def
+/Feend {currentpoint pop Fmax 0.6 mul
+grestore currentpoint pop add Fmax} def
+/Fendd {pop grestore} def
+/Fshow {exch 0 moveto show currentpoint pop} def
+/Fcharheight
+{gsave (X) true charpath flattenpath pathbbox
+3 1 roll pop sub exch pop grestore} def
+
+/Foverline
+{exch 0 moveto gsave dup true charpath
+flattenpath pathbbox Fcharheight 10 div dup
+2 div setlinewidth add dup 4
+1 roll newpath moveto pop lineto stroke
+grestore show currentpoint pop} def
+
+/Funderline 
+{exch 0 moveto gsave dup true charpath
+flattenpath pathbbox pop exch Fcharheight
+10 div dup 2 div setlinewidth
+sub dup 3 1 roll newpath moveto lineto stroke
+grestore show currentpoint pop} def
+
+/rm /Times-Roman findfont def
+/it /Times-Italic findfont def
+/sy /Symbol findfont def
+
+/wedge 
+/{ /ystop exch def /xstop exch def /ystart exch def
+/xstart exch def /delx xstop xstart sub def /dely 
+ystop ystart sub def /dist delx dup mul dely dup 
+mul add sqrt def /halfdist dist 2 div def
+/angle dely delx atan def xstart ystart moveto 
+angle rotate 0 halfdist rlineto dist halfdist
+neg rlineto dist neg halfdist neg rlineto 
+0 halfdist rlineto }def
+
+/ch_photon
+{/ystop exch def /xstop exch def /ystart exch def
+/xstart exch def /xmid xstart xstop add 2 div def
+/ymid ystart ystop add 2 div def
+/dx xstop xstart sub def /dy ystop ystart sub def
+/length dx dup mul dy dup mul add sqrt def
+/xunit dx length div def /yunit dy length div def
+/x1 xmid xunit -4.8 mul add def
+/y1 ymid yunit -4.8 mul add def
+/x2 xmid xunit 4.8 mul add def
+/y2 ymid yunit 4.8 mul add def
+/y2 ymid yunit 4.8 mul add def
+xstart ystart x1 y1 1 Fphoton 
+x2 y2 xstop ystop 1 Fphoton
+/x1 xmid xunit -5.2 mul add def 
+/y1 ymid yunit -5.2 mul add def
+/x2 xmid xunit 5.2 mul add def 
+/y2 ymid yunit 5.2 mul add def
+gsave x1 y1 x2 y2 wedge fill grestore} def
+
+/ch_higgs 
+{ /ystop exch def /xstop exch def /ystart exch def
+/xstart exch def 
+/xmid xstart xstop add 2 div def
+/ymid ystart ystop add 2 div def
+/dx xstop xstart sub def /dy ystop ystart sub def
+/length dx dup mul dy dup mul add sqrt def
+/xunit dx length div def /yunit dy length div def
+/x1 xmid xunit -4.8 mul add def 
+/y1 ymid yunit -4.8 mul add def
+/x2 xmid xunit 4.8 mul add def 
+/y2 ymid yunit 4.8 mul add def
+xstart ystart x1 y1 Fhiggs 
+x2 y2 xstop ystop Fhiggs
+/x1 xmid xunit -5.2 mul add def
+/y1 ymid yunit -5.2 mul add def
+/x2 xmid xunit 5.2 mul add def
+/y2 ymid yunit 5.2 mul add def
+gsave x1 y1 x2 y2 wedge fill grestore} def
+% End of the header
+
+%%Page:       1       1
+%%PageBoundingBox:-20 -20 600 800
+%%PageFonts: Helvetica
+
+/Helvetica findfont 9 scalefont setfont
+ 50         770  moveto
+ () show
+ 525         770  moveto
+ (page 1/10) show
+ 260         50  moveto
+ (Diagrams made by MadGraph5_aMC@NLO) show
+ 208.333333333 578.75 275.0 560 0 Fgluon 
+ 243.666666667  572.375 moveto 
+(g)   show
+ 283.0  557.75 moveto 
+(5)   show
+ 208.333333333 578.75 275.0 590.0 0 Fgluon 
+ 235.666666667  587.375 moveto 
+(g)   show
+ 283.0  591.35 moveto 
+(6)   show
+ 141.666666667 578.75 208.333333333 578.75 0 Fgluon 
+ 173.0  582.5 moveto 
+(g)   show
+ 141.666666667 578.75 75 560 Ffermion 
+ 96.3333333333  575.375 moveto 
+(u~)   show
+ 67.0  560 moveto 
+(1)   show
+ 141.666666667 616.25 141.666666667 578.75 Ffermion 
+ 144.666666667  596.0 moveto 
+(u~)   show
+ 275.0 680.0 208.333333333 691.25 Ffermion 
+ 243.666666667  688.625 moveto 
+(ve~)   show
+ 283.0  678.65 moveto 
+(4)   show
+ 208.333333333 691.25 275.0 710 Ffermion 
+ 229.666666667  706.625 moveto 
+(e-)   show
+ 283.0  712.25 moveto 
+(3)   show
+ 208.333333333 691.25 141.666666667 691.25 0 Fphoton 
+ 173.0  695.0 moveto 
+(w-)   show
+ 141.666666667 691.25 75 710 Ffermion 
+ 110.333333333  703.625 moveto 
+(c~)   show
+ 67.0  710 moveto 
+(2)   show
+ 141.666666667 653.75 141.666666667 691.25 Ffermion 
+ 144.666666667  671.0 moveto 
+(s)   show
+ 241.596428238 650.939475456 141.666666667 653.75 Ffermion 
+ 193.631547452  655.344737728 moveto 
+(s~)   show
+ 249.596428238  650.714475456 moveto 
+(8)   show
+ 141.666666667 653.75 141.666666667 616.25 0 Fgluon 
+ 144.666666667  633.5 moveto 
+(g)   show
+ 241.596428238 619.060524544 141.666666667 616.25 Ffermion 
+ 179.631547452  623.655262272 moveto 
+(u~)   show
+ 249.596428238  619.285524544 moveto 
+(7)   show
+ 115.0  534.5 moveto 
+( diagram 1 )   show
+ 195.0  534.5 moveto 
+ (QCD=4, QED=2)   show
+ 500.0 605.0 550.0 590.0 0 Fgluon 
+ 527.0  600.5 moveto 
+(g)   show
+ 558.0  587.6 moveto 
+(5)   show
+ 500.0 605.0 550.0 620.0 0 Fgluon 
+ 519.0  615.5 moveto 
+(g)   show
+ 558.0  622.4 moveto 
+(6)   show
+ 450.0 585.0 500.0 605.0 0 Fgluon 
+ 469.0  598.0 moveto 
+(g)   show
+ 521.151247354 567.212188162 450.0 585.0 Ffermion 
+ 487.575623677  579.106094081 moveto 
+(u~)   show
+ 529.151247354  565.212188162 moveto 
+(7)   show
+ 450.0 585.0 400.0 585.0 Ffermion 
+ 423.0  588.75 moveto 
+(u~)   show
+ 524.833886839 681.258305658 450.0 685.0 Ffermion 
+ 489.41694342  686.129152829 moveto 
+(ve~)   show
+ 532.833886839  680.858305658 moveto 
+(4)   show
+ 450.0 685.0 521.151247354 702.787811838 Ffermion 
+ 473.575623677  699.893905919 moveto 
+(e-)   show
+ 529.151247354  704.787811838 moveto 
+(3)   show
+ 450.0 685.0 400.0 685.0 0 Fphoton 
+ 423.0  688.75 moveto 
+(w-)   show
+ 400.0 685.0 350 710 Ffermion 
+ 377.0  700.5 moveto 
+(c~)   show
+ 342.0  710 moveto 
+(2)   show
+ 400.0 635.0 400.0 685.0 Ffermion 
+ 403.0  658.5 moveto 
+(s)   show
+ 474.342092551 642.434209255 400.0 635.0 Ffermion 
+ 425.171046276  644.717104628 moveto 
+(s~)   show
+ 482.342092551  643.234209255 moveto 
+(8)   show
+ 400.0 635.0 400.0 585.0 0 Fgluon 
+ 403.0  608.5 moveto 
+(g)   show
+ 400.0 585.0 350 560 Ffermion 
+ 363.0  578.5 moveto 
+(u~)   show
+ 342.0  560 moveto 
+(1)   show
+ 390.0  534.5 moveto 
+( diagram 2 )   show
+ 470.0  534.5 moveto 
+ (QCD=4, QED=2)   show
+ 275.0 460.0 208.333333333 471.25 Ffermion 
+ 243.666666667  468.625 moveto 
+(ve~)   show
+ 283.0  458.65 moveto 
+(4)   show
+ 208.333333333 471.25 275.0 490 Ffermion 
+ 229.666666667  486.625 moveto 
+(e-)   show
+ 283.0  492.25 moveto 
+(3)   show
+ 208.333333333 471.25 141.666666667 471.25 0 Fphoton 
+ 173.0  475.0 moveto 
+(w-)   show
+ 141.666666667 471.25 75 490 Ffermion 
+ 110.333333333  483.625 moveto 
+(c~)   show
+ 67.0  490 moveto 
+(2)   show
+ 141.666666667 433.75 141.666666667 471.25 Ffermion 
+ 144.666666667  451.0 moveto 
+(s)   show
+ 208.333333333 433.75 275.0 400.0 0 Fgluon 
+ 243.666666667  419.875 moveto 
+(g)   show
+ 283.0  395.95 moveto 
+(5)   show
+ 208.333333333 433.75 275.0 430.0 0 Fgluon 
+ 243.666666667  434.875 moveto 
+(g)   show
+ 283.0  429.55 moveto 
+(6)   show
+ 141.666666667 433.75 208.333333333 433.75 0 Fgluon 
+ 173.0  437.5 moveto 
+(g)   show
+ 141.666666667 396.25 141.666666667 433.75 Ffermion 
+ 144.666666667  413.5 moveto 
+(s)   show
+ 239.95388536 344.928359871 141.666666667 358.75 Ffermion 
+ 192.810276013  354.839179936 moveto 
+(u~)   show
+ 247.95388536  343.803359871 moveto 
+(7)   show
+ 141.666666667 358.75 75 340 Ffermion 
+ 96.3333333333  355.375 moveto 
+(u~)   show
+ 67.0  340 moveto 
+(1)   show
+ 141.666666667 396.25 141.666666667 358.75 0 Fgluon 
+ 144.666666667  376.0 moveto 
+(g)   show
+ 238.389763205 377.207640369 141.666666667 396.25 Ffermion 
+ 192.028214936  389.728820185 moveto 
+(s~)   show
+ 246.389763205  375.632640369 moveto 
+(8)   show
+ 115.0  314.5 moveto 
+( diagram 3 )   show
+ 195.0  314.5 moveto 
+ (QCD=4, QED=2)   show
+ 550.0 460.0 483.333333333 471.25 Ffermion 
+ 518.666666667  468.625 moveto 
+(ve~)   show
+ 558.0  458.65 moveto 
+(4)   show
+ 483.333333333 471.25 550.0 490 Ffermion 
+ 504.666666667  486.625 moveto 
+(e-)   show
+ 558.0  492.25 moveto 
+(3)   show
+ 483.333333333 471.25 416.666666667 471.25 0 Fphoton 
+ 448.0  475.0 moveto 
+(w-)   show
+ 416.666666667 471.25 350 490 Ffermion 
+ 385.333333333  483.625 moveto 
+(c~)   show
+ 342.0  490 moveto 
+(2)   show
+ 416.666666667 433.75 416.666666667 471.25 Ffermion 
+ 419.666666667  451.0 moveto 
+(s)   show
+ 483.333333333 396.25 550.0 370.0 0 Fgluon 
+ 518.666666667  386.125 moveto 
+(g)   show
+ 558.0  366.85 moveto 
+(5)   show
+ 483.333333333 396.25 550.0 400.0 0 Fgluon 
+ 510.666666667  401.125 moveto 
+(g)   show
+ 558.0  400.45 moveto 
+(6)   show
+ 416.666666667 396.25 483.333333333 396.25 0 Fgluon 
+ 448.0  400.0 moveto 
+(g)   show
+ 514.95388536 344.928359871 416.666666667 358.75 Ffermion 
+ 467.810276013  354.839179936 moveto 
+(u~)   show
+ 522.95388536  343.803359871 moveto 
+(7)   show
+ 416.666666667 358.75 350 340 Ffermion 
+ 371.333333333  355.375 moveto 
+(u~)   show
+ 342.0  340 moveto 
+(1)   show
+ 416.666666667 396.25 416.666666667 358.75 0 Fgluon 
+ 419.666666667  376.0 moveto 
+(g)   show
+ 416.666666667 433.75 416.666666667 396.25 0 Fgluon 
+ 419.666666667  413.5 moveto 
+(g)   show
+ 516.596428238 430.939475456 416.666666667 433.75 Ffermion 
+ 468.631547452  435.344737728 moveto 
+(s~)   show
+ 524.596428238  430.714475456 moveto 
+(8)   show
+ 390.0  314.5 moveto 
+( diagram 4 )   show
+ 470.0  314.5 moveto 
+ (QCD=4, QED=2)   show
+ 225.0 195.0 275.0 180.0 0 Fgluon 
+ 252.0  190.5 moveto 
+(g)   show
+ 283.0  177.6 moveto 
+(5)   show
+ 225.0 195.0 275.0 210.0 0 Fgluon 
+ 244.0  205.5 moveto 
+(g)   show
+ 283.0  212.4 moveto 
+(6)   show
+ 175.0 195.0 225.0 195.0 0 Fgluon 
+ 198.0  198.75 moveto 
+(g)   show
+ 239.311969428 166.059613757 175.0 195.0 Ffermion 
+ 209.155984714  183.529806879 moveto 
+(s~)   show
+ 247.311969428  162.459613757 moveto 
+(8)   show
+ 175.0 195.0 125.0 195.0 Ffermion 
+ 148.0  198.75 moveto 
+(s~)   show
+ 249.833886839 241.258305658 175.0 245.0 Ffermion 
+ 214.41694342  246.129152829 moveto 
+(ve~)   show
+ 257.833886839  240.858305658 moveto 
+(4)   show
+ 175.0 245.0 246.151247354 262.787811838 Ffermion 
+ 198.575623677  259.893905919 moveto 
+(e-)   show
+ 254.151247354  264.787811838 moveto 
+(3)   show
+ 175.0 245.0 125.0 245.0 0 Fphoton 
+ 148.0  248.75 moveto 
+(w-)   show
+ 125.0 245.0 75 270 Ffermion 
+ 102.0  260.5 moveto 
+(c~)   show
+ 67.0  270 moveto 
+(2)   show
+ 125.0 195.0 125.0 245.0 Ffermion 
+ 128.0  218.5 moveto 
+(s)   show
+ 198.214029514 132.797661748 125.0 145.0 Ffermion 
+ 163.607014757  141.898830874 moveto 
+(u~)   show
+ 206.214029514  131.464328414 moveto 
+(7)   show
+ 125.0 145.0 75 120 Ffermion 
+ 88.0  138.5 moveto 
+(u~)   show
+ 67.0  120 moveto 
+(1)   show
+ 125.0 195.0 125.0 145.0 0 Fgluon 
+ 128.0  168.5 moveto 
+(g)   show
+ 115.0  94.5 moveto 
+( diagram 5 )   show
+ 195.0  94.5 moveto 
+ (QCD=4, QED=2)   show
+ 450.0 145.0 521.151247354 127.212188162 0 Fgluon 
+ 487.575623677  139.106094081 moveto 
+(g)   show
+ 529.151247354  125.212188162 moveto 
+(5)   show
+ 450.0 145.0 524.833886839 148.741694342 0 Fgluon 
+ 481.41694342  149.870847171 moveto 
+(g)   show
+ 532.833886839  149.141694342 moveto 
+(6)   show
+ 400.0 145.0 450.0 145.0 0 Fgluon 
+ 423.0  148.75 moveto 
+(g)   show
+ 400.0 145.0 350 120 Ffermion 
+ 363.0  138.5 moveto 
+(u~)   show
+ 342.0  120 moveto 
+(1)   show
+ 400.0 195.0 400.0 145.0 Ffermion 
+ 403.0  168.5 moveto 
+(u~)   show
+ 550.0 240.0 500.0 255.0 Ffermion 
+ 527.0  250.5 moveto 
+(ve~)   show
+ 558.0  237.6 moveto 
+(4)   show
+ 500.0 255.0 550.0 270 Ffermion 
+ 513.0  268.5 moveto 
+(e-)   show
+ 558.0  272.4 moveto 
+(3)   show
+ 500.0 255.0 450.0 245.0 0 Fphoton 
+ 463.0  256.0 moveto 
+(w-)   show
+ 517.9637355 221.212692575 450.0 245.0 Ffermion 
+ 485.98186775  236.106346288 moveto 
+(s~)   show
+ 525.9637355  218.412692575 moveto 
+(8)   show
+ 450.0 245.0 400.0 245.0 Ffermion 
+ 423.0  248.75 moveto 
+(c~)   show
+ 400.0 245.0 350 270 Ffermion 
+ 377.0  260.5 moveto 
+(c~)   show
+ 342.0  270 moveto 
+(2)   show
+ 400.0 245.0 400.0 195.0 0 Fgluon 
+ 403.0  218.5 moveto 
+(g)   show
+ 474.342092551 187.565790745 400.0 195.0 Ffermion 
+ 439.171046276  194.282895372 moveto 
+(u~)   show
+ 482.342092551  186.765790745 moveto 
+(7)   show
+ 390.0  94.5 moveto 
+( diagram 6 )   show
+ 470.0  94.5 moveto 
+ (QCD=4, QED=2)   show
+showpage
+%%Page: 2 2 
+%%PageBoundingBox:-20 -20 600 800
+%%PageFonts: Helvetica
+/Helvetica findfont 9 scalefont setfont
+ 50         770  moveto
+ () show
+ 525         770  moveto
+ (page 2/10) show
+ 260         40  moveto
+ (Diagrams made by MadGraph5) show
+ 225.0 616.25 275.0 590.0 0 Fgluon 
+ 252.0  606.125 moveto 
+(g)   show
+ 283.0  585.8 moveto 
+(5)   show
+ 225.0 616.25 275.0 620.0 0 Fgluon 
+ 244.0  621.125 moveto 
+(g)   show
+ 283.0  620.6 moveto 
+(6)   show
+ 175.0 597.5 225.0 616.25 0 Fgluon 
+ 194.0  609.875 moveto 
+(g)   show
+ 242.082039325 572.344235253 175.0 597.5 Ffermion 
+ 210.541019662  587.922117627 moveto 
+(u~)   show
+ 250.082039325  569.344235253 moveto 
+(7)   show
+ 175.0 597.5 125.0 597.5 Ffermion 
+ 148.0  601.25 moveto 
+(u~)   show
+ 275.0 680.0 225.0 691.25 Ffermion 
+ 252.0  688.625 moveto 
+(ve~)   show
+ 283.0  678.2 moveto 
+(4)   show
+ 225.0 691.25 275.0 710 Ffermion 
+ 238.0  706.625 moveto 
+(e-)   show
+ 283.0  713.0 moveto 
+(3)   show
+ 225.0 691.25 175.0 672.5 0 Fphoton 
+ 188.0  687.875 moveto 
+(w-)   show
+ 246.836971392 656.336681437 175.0 672.5 Ffermion 
+ 212.918485696  667.418340718 moveto 
+(s~)   show
+ 254.836971392  654.536681437 moveto 
+(8)   show
+ 175.0 672.5 125.0 672.5 Ffermion 
+ 148.0  676.25 moveto 
+(c~)   show
+ 125.0 672.5 75 710 Ffermion 
+ 102.0  694.25 moveto 
+(c~)   show
+ 67.0  710 moveto 
+(2)   show
+ 125.0 672.5 125.0 597.5 0 Fgluon 
+ 128.0  633.5 moveto 
+(g)   show
+ 125.0 597.5 75 560 Ffermion 
+ 88.0  584.75 moveto 
+(u~)   show
+ 67.0  560 moveto 
+(1)   show
+ 115.0  534.5 moveto 
+( diagram 7 )   show
+ 195.0  534.5 moveto 
+ (QCD=4, QED=2)   show
+ 550.0 620.0 510.0 635.0 Ffermion 
+ 532.0  630.5 moveto 
+(ve~)   show
+ 558.0  617.0 moveto 
+(4)   show
+ 510.0 635.0 550.0 650.0 Ffermion 
+ 518.0  648.5 moveto 
+(e-)   show
+ 558.0  653.0 moveto 
+(3)   show
+ 510.0 635.0 470.0 635.0 0 Fphoton 
+ 488.0  638.75 moveto 
+(w-)   show
+ 518.0 608.0 470.0 635.0 Ffermion 
+ 496.0  624.5 moveto 
+(s~)   show
+ 526.0  603.5 moveto 
+(8)   show
+ 470.0 635.0 430.0 672.5 Ffermion 
+ 452.0  656.75 moveto 
+(c~)   show
+ 470.0 685.0 529.792745495 681.262953407 0 Fgluon 
+ 501.896372747  686.131476703 moveto 
+(g)   show
+ 537.792745495  680.762953407 moveto 
+(5)   show
+ 470.0 685.0 525.384615385 702.307692308 0 Fgluon 
+ 491.692307692  696.653846154 moveto 
+(g)   show
+ 533.384615385  704.807692308 moveto 
+(6)   show
+ 430.0 672.5 470.0 685.0 0 Fgluon 
+ 444.0  681.75 moveto 
+(g)   show
+ 430.0 672.5 390.0 672.5 Ffermion 
+ 408.0  676.25 moveto 
+(c~)   show
+ 447.268798682 584.077625309 390.0 597.5 Ffermion 
+ 420.634399341  593.788812654 moveto 
+(u~)   show
+ 455.268798682  582.202625309 moveto 
+(7)   show
+ 390.0 597.5 350 560 Ffermion 
+ 358.0  584.75 moveto 
+(u~)   show
+ 342.0  560 moveto 
+(1)   show
+ 390.0 672.5 390.0 597.5 0 Fgluon 
+ 393.0  633.5 moveto 
+(g)   show
+ 390.0 672.5 350 710 Ffermion 
+ 372.0  694.25 moveto 
+(c~)   show
+ 342.0  710 moveto 
+(2)   show
+ 390.0  534.5 moveto 
+( diagram 8 )   show
+ 470.0  534.5 moveto 
+ (QCD=4, QED=2)   show
+ 275.0 460.0 225.0 475.0 Ffermion 
+ 252.0  470.5 moveto 
+(ve~)   show
+ 283.0  457.6 moveto 
+(4)   show
+ 225.0 475.0 275.0 490 Ffermion 
+ 238.0  488.5 moveto 
+(e-)   show
+ 283.0  492.4 moveto 
+(3)   show
+ 225.0 475.0 175.0 465.0 0 Fphoton 
+ 188.0  476.0 moveto 
+(w-)   show
+ 242.9637355 441.212692575 175.0 465.0 Ffermion 
+ 210.98186775  456.106346288 moveto 
+(s~)   show
+ 250.9637355  438.412692575 moveto 
+(8)   show
+ 175.0 465.0 125.0 465.0 Ffermion 
+ 148.0  468.75 moveto 
+(c~)   show
+ 175.0 415.0 239.311969428 386.059613757 0 Fgluon 
+ 209.155984714  403.529806879 moveto 
+(g)   show
+ 247.311969428  382.459613757 moveto 
+(5)   show
+ 175.0 415.0 248.543550677 403.968467398 0 Fgluon 
+ 213.771775338  412.484233699 moveto 
+(g)   show
+ 256.543550677  402.768467398 moveto 
+(6)   show
+ 125.0 415.0 175.0 415.0 0 Fgluon 
+ 148.0  418.75 moveto 
+(g)   show
+ 198.214029514 352.797661748 125.0 365.0 Ffermion 
+ 163.607014757  361.898830874 moveto 
+(u~)   show
+ 206.214029514  351.464328414 moveto 
+(7)   show
+ 125.0 365.0 75 340 Ffermion 
+ 88.0  358.5 moveto 
+(u~)   show
+ 67.0  340 moveto 
+(1)   show
+ 125.0 415.0 125.0 365.0 0 Fgluon 
+ 128.0  388.5 moveto 
+(g)   show
+ 125.0 465.0 125.0 415.0 0 Fgluon 
+ 128.0  438.5 moveto 
+(g)   show
+ 125.0 465.0 75 490 Ffermion 
+ 102.0  480.5 moveto 
+(c~)   show
+ 67.0  490 moveto 
+(2)   show
+ 115.0  314.5 moveto 
+( diagram 9 )   show
+ 195.0  314.5 moveto 
+ (QCD=4, QED=2)   show
+ 550.0 400.0 500.0 415.0 Ffermion 
+ 527.0  410.5 moveto 
+(ve~)   show
+ 558.0  397.6 moveto 
+(4)   show
+ 500.0 415.0 550.0 430.0 Ffermion 
+ 513.0  428.5 moveto 
+(e-)   show
+ 558.0  432.4 moveto 
+(3)   show
+ 500.0 415.0 450.0 415.0 0 Fphoton 
+ 473.0  418.75 moveto 
+(w-)   show
+ 514.311969428 386.059613757 450.0 415.0 Ffermion 
+ 484.155984714  403.529806879 moveto 
+(s~)   show
+ 522.311969428  382.459613757 moveto 
+(8)   show
+ 450.0 415.0 400.0 415.0 Ffermion 
+ 423.0  418.75 moveto 
+(c~)   show
+ 450.0 465.0 524.833886839 461.258305658 0 Fgluon 
+ 489.41694342  466.129152829 moveto 
+(g)   show
+ 532.833886839  460.858305658 moveto 
+(5)   show
+ 450.0 465.0 521.151247354 482.787811838 0 Fgluon 
+ 479.575623677  476.893905919 moveto 
+(g)   show
+ 529.151247354  484.787811838 moveto 
+(6)   show
+ 400.0 465.0 450.0 465.0 0 Fgluon 
+ 423.0  468.75 moveto 
+(g)   show
+ 400.0 465.0 350 490 Ffermion 
+ 377.0  480.5 moveto 
+(c~)   show
+ 342.0  490 moveto 
+(2)   show
+ 400.0 415.0 400.0 465.0 Ffermion 
+ 403.0  438.5 moveto 
+(c)   show
+ 473.214029514 352.797661748 400.0 365.0 Ffermion 
+ 438.607014757  361.898830874 moveto 
+(u~)   show
+ 481.214029514  351.464328414 moveto 
+(7)   show
+ 400.0 365.0 350 340 Ffermion 
+ 363.0  358.5 moveto 
+(u~)   show
+ 342.0  340 moveto 
+(1)   show
+ 400.0 415.0 400.0 365.0 0 Fgluon 
+ 403.0  388.5 moveto 
+(g)   show
+ 390.0  314.5 moveto 
+( diagram 10 )   show
+ 470.0  314.5 moveto 
+ (QCD=4, QED=2)   show
+ 239.95388536 124.928359871 141.666666667 138.75 Ffermion 
+ 192.810276013  134.839179936 moveto 
+(u~)   show
+ 247.95388536  123.803359871 moveto 
+(7)   show
+ 141.666666667 138.75 75 120 Ffermion 
+ 96.3333333333  135.375 moveto 
+(u~)   show
+ 67.0  120 moveto 
+(1)   show
+ 141.666666667 176.25 141.666666667 138.75 0 Fgluon 
+ 144.666666667  156.0 moveto 
+(g)   show
+ 238.389763205 157.207640369 141.666666667 176.25 Ffermion 
+ 192.028214936  169.728820185 moveto 
+(s~)   show
+ 246.389763205  155.632640369 moveto 
+(8)   show
+ 141.666666667 176.25 141.666666667 213.75 Ffermion 
+ 144.666666667  193.5 moveto 
+(s)   show
+ 208.333333333 251.25 275.0 240.0 0 Fgluon 
+ 243.666666667  248.625 moveto 
+(g)   show
+ 283.0  238.65 moveto 
+(5)   show
+ 208.333333333 251.25 275.0 270 0 Fgluon 
+ 235.666666667  263.625 moveto 
+(g)   show
+ 283.0  272.25 moveto 
+(6)   show
+ 141.666666667 251.25 208.333333333 251.25 0 Fgluon 
+ 173.0  255.0 moveto 
+(g)   show
+ 141.666666667 251.25 75 270 Ffermion 
+ 110.333333333  263.625 moveto 
+(c~)   show
+ 67.0  270 moveto 
+(2)   show
+ 141.666666667 213.75 141.666666667 251.25 Ffermion 
+ 144.666666667  231.0 moveto 
+(c)   show
+ 275.0 180.0 208.333333333 213.75 Ffermion 
+ 243.666666667  199.875 moveto 
+(ve~)   show
+ 283.0  175.95 moveto 
+(4)   show
+ 208.333333333 213.75 275.0 210.0 Ffermion 
+ 243.666666667  214.875 moveto 
+(e-)   show
+ 283.0  209.55 moveto 
+(3)   show
+ 208.333333333 213.75 141.666666667 213.75 0 Fphoton 
+ 173.0  217.5 moveto 
+(w-)   show
+ 115.0  94.5 moveto 
+( diagram 11 )   show
+ 195.0  94.5 moveto 
+ (QCD=4, QED=2)   show
+ 510.0 195.0 550.0 180.0 0 Fgluon 
+ 532.0  190.5 moveto 
+(g)   show
+ 558.0  177.0 moveto 
+(5)   show
+ 510.0 195.0 550.0 210.0 0 Fgluon 
+ 524.0  205.5 moveto 
+(g)   show
+ 558.0  213.0 moveto 
+(6)   show
+ 470.0 195.0 510.0 195.0 0 Fgluon 
+ 488.0  198.75 moveto 
+(g)   show
+ 518.0 168.0 470.0 195.0 Ffermion 
+ 496.0  184.5 moveto 
+(s~)   show
+ 526.0  163.5 moveto 
+(8)   show
+ 470.0 195.0 430.0 232.5 Ffermion 
+ 452.0  216.75 moveto 
+(s~)   show
+ 447.268798682 144.077625309 390.0 157.5 Ffermion 
+ 420.634399341  153.788812654 moveto 
+(u~)   show
+ 455.268798682  142.202625309 moveto 
+(7)   show
+ 390.0 157.5 350 120 Ffermion 
+ 358.0  144.75 moveto 
+(u~)   show
+ 342.0  120 moveto 
+(1)   show
+ 390.0 232.5 390.0 157.5 0 Fgluon 
+ 393.0  193.5 moveto 
+(g)   show
+ 390.0 232.5 350 270 Ffermion 
+ 372.0  254.25 moveto 
+(c~)   show
+ 342.0  270 moveto 
+(2)   show
+ 430.0 232.5 390.0 232.5 Ffermion 
+ 408.0  236.25 moveto 
+(c~)   show
+ 529.792745495 241.262953407 470.0 245.0 Ffermion 
+ 501.896372747  246.131476703 moveto 
+(ve~)   show
+ 537.792745495  240.762953407 moveto 
+(4)   show
+ 470.0 245.0 525.384615385 262.307692308 Ffermion 
+ 485.692307692  259.653846154 moveto 
+(e-)   show
+ 533.384615385  264.807692308 moveto 
+(3)   show
+ 470.0 245.0 430.0 232.5 0 Fphoton 
+ 438.0  244.75 moveto 
+(w-)   show
+ 390.0  94.5 moveto 
+( diagram 12 )   show
+ 470.0  94.5 moveto 
+ (QCD=4, QED=2)   show
+showpage
+%%Page: 3 3 
+%%PageBoundingBox:-20 -20 600 800
+%%PageFonts: Helvetica
+/Helvetica findfont 9 scalefont setfont
+ 50         770  moveto
+ () show
+ 525         770  moveto
+ (page 3/10) show
+ 260         40  moveto
+ (Diagrams made by MadGraph5) show
+ 141.666666667 695.0 75 710 Ffermion 
+ 110.333333333  705.5 moveto 
+(c~)   show
+ 67.0  710 moveto 
+(2)   show
+ 141.666666667 695.0 240.560301953 706.12553397 0 Fgluon 
+ 185.11348431  703.562766985 moveto 
+(g)   show
+ 248.560301953  707.02553397 moveto 
+(6)   show
+ 141.666666667 665.0 141.666666667 695.0 Ffermion 
+ 144.666666667  678.5 moveto 
+(c)   show
+ 275.0 650.0 208.333333333 665.0 Ffermion 
+ 243.666666667  660.5 moveto 
+(ve~)   show
+ 283.0  648.2 moveto 
+(4)   show
+ 208.333333333 665.0 275.0 680.0 Ffermion 
+ 229.666666667  678.5 moveto 
+(e-)   show
+ 283.0  681.8 moveto 
+(3)   show
+ 208.333333333 665.0 141.666666667 665.0 0 Fphoton 
+ 173.0  668.75 moveto 
+(w-)   show
+ 141.666666667 635.0 141.666666667 665.0 Ffermion 
+ 144.666666667  648.5 moveto 
+(s)   show
+ 141.666666667 575.0 75 560 Ffermion 
+ 96.3333333333  573.5 moveto 
+(u~)   show
+ 67.0  560 moveto 
+(1)   show
+ 141.666666667 575.0 240.560301953 563.87446603 0 Fgluon 
+ 193.11348431  572.437233015 moveto 
+(g)   show
+ 248.560301953  562.97446603 moveto 
+(5)   show
+ 141.666666667 605.0 141.666666667 575.0 Ffermion 
+ 144.666666667  588.5 moveto 
+(u~)   show
+ 240.560301953 593.87446603 141.666666667 605.0 Ffermion 
+ 193.11348431  602.437233015 moveto 
+(u~)   show
+ 248.560301953  592.97446603 moveto 
+(7)   show
+ 141.666666667 635.0 141.666666667 605.0 0 Fgluon 
+ 144.666666667  618.5 moveto 
+(g)   show
+ 240.560301953 623.87446603 141.666666667 635.0 Ffermion 
+ 193.11348431  632.437233015 moveto 
+(s~)   show
+ 248.560301953  622.97446603 moveto 
+(8)   show
+ 115.0  534.5 moveto 
+( diagram 13 )   show
+ 195.0  534.5 moveto 
+ (QCD=4, QED=2)   show
+ 550.0 650.0 500.0 665.0 Ffermion 
+ 527.0  660.5 moveto 
+(ve~)   show
+ 558.0  647.6 moveto 
+(4)   show
+ 500.0 665.0 550.0 680.0 Ffermion 
+ 513.0  678.5 moveto 
+(e-)   show
+ 558.0  682.4 moveto 
+(3)   show
+ 500.0 665.0 450.0 653.75 0 Fphoton 
+ 463.0  665.375 moveto 
+(w-)   show
+ 518.394112888 630.6669869 450.0 653.75 Ffermion 
+ 486.197056444  645.20849345 moveto 
+(s~)   show
+ 526.394112888  627.9669869 moveto 
+(8)   show
+ 450.0 653.75 400.0 653.75 Ffermion 
+ 423.0  657.5 moveto 
+(c~)   show
+ 400.0 691.25 350 710 Ffermion 
+ 377.0  703.625 moveto 
+(c~)   show
+ 342.0  710 moveto 
+(2)   show
+ 400.0 691.25 473.979544287 700.497443036 0 Fgluon 
+ 430.989772144  698.873721518 moveto 
+(g)   show
+ 481.979544287  701.497443036 moveto 
+(6)   show
+ 400.0 653.75 400.0 691.25 Ffermion 
+ 403.0  671.0 moveto 
+(c)   show
+ 400.0 578.75 350 560 Ffermion 
+ 363.0  575.375 moveto 
+(u~)   show
+ 342.0  560 moveto 
+(1)   show
+ 400.0 578.75 473.979544287 569.502556964 0 Fgluon 
+ 438.989772144  577.126278482 moveto 
+(g)   show
+ 481.979544287  568.502556964 moveto 
+(5)   show
+ 400.0 616.25 400.0 578.75 Ffermion 
+ 403.0  596.0 moveto 
+(u~)   show
+ 473.038090731 603.468334122 400.0 616.25 Ffermion 
+ 438.519045365  612.859167061 moveto 
+(u~)   show
+ 481.038090731  602.068334122 moveto 
+(7)   show
+ 400.0 653.75 400.0 616.25 0 Fgluon 
+ 403.0  633.5 moveto 
+(g)   show
+ 390.0  534.5 moveto 
+( diagram 14 )   show
+ 470.0  534.5 moveto 
+ (QCD=4, QED=2)   show
+ 275.0 460.0 208.333333333 471.25 Ffermion 
+ 243.666666667  468.625 moveto 
+(ve~)   show
+ 283.0  458.65 moveto 
+(4)   show
+ 208.333333333 471.25 275.0 490 Ffermion 
+ 229.666666667  486.625 moveto 
+(e-)   show
+ 283.0  492.25 moveto 
+(3)   show
+ 208.333333333 471.25 141.666666667 471.25 0 Fphoton 
+ 173.0  475.0 moveto 
+(w-)   show
+ 141.666666667 471.25 75 490 Ffermion 
+ 110.333333333  483.625 moveto 
+(c~)   show
+ 67.0  490 moveto 
+(2)   show
+ 141.666666667 433.75 141.666666667 471.25 Ffermion 
+ 144.666666667  451.0 moveto 
+(s)   show
+ 275.0 370.0 208.333333333 396.25 Ffermion 
+ 243.666666667  386.125 moveto 
+(u~)   show
+ 283.0  366.85 moveto 
+(7)   show
+ 208.333333333 396.25 275.0 400.0 0 Fgluon 
+ 235.666666667  401.125 moveto 
+(g)   show
+ 283.0  400.45 moveto 
+(6)   show
+ 208.333333333 396.25 141.666666667 396.25 Ffermion 
+ 173.0  400.0 moveto 
+(u~)   show
+ 141.666666667 358.75 75 340 Ffermion 
+ 96.3333333333  355.375 moveto 
+(u~)   show
+ 67.0  340 moveto 
+(1)   show
+ 141.666666667 358.75 239.95388536 344.928359871 0 Fgluon 
+ 192.810276013  354.839179936 moveto 
+(g)   show
+ 247.95388536  343.803359871 moveto 
+(5)   show
+ 141.666666667 396.25 141.666666667 358.75 Ffermion 
+ 144.666666667  376.0 moveto 
+(u~)   show
+ 141.666666667 433.75 141.666666667 396.25 0 Fgluon 
+ 144.666666667  413.5 moveto 
+(g)   show
+ 241.596428238 430.939475456 141.666666667 433.75 Ffermion 
+ 193.631547452  435.344737728 moveto 
+(s~)   show
+ 249.596428238  430.714475456 moveto 
+(8)   show
+ 115.0  314.5 moveto 
+( diagram 15 )   show
+ 195.0  314.5 moveto 
+ (QCD=4, QED=2)   show
+ 550.0 460.0 500.0 475.0 Ffermion 
+ 527.0  470.5 moveto 
+(ve~)   show
+ 558.0  457.6 moveto 
+(4)   show
+ 500.0 475.0 550.0 490 Ffermion 
+ 513.0  488.5 moveto 
+(e-)   show
+ 558.0  492.4 moveto 
+(3)   show
+ 500.0 475.0 450.0 465.0 0 Fphoton 
+ 463.0  476.0 moveto 
+(w-)   show
+ 517.9637355 441.212692575 450.0 465.0 Ffermion 
+ 485.98186775  456.106346288 moveto 
+(s~)   show
+ 525.9637355  438.412692575 moveto 
+(8)   show
+ 450.0 465.0 400.0 465.0 Ffermion 
+ 423.0  468.75 moveto 
+(c~)   show
+ 514.311969428 386.059613757 450.0 415.0 Ffermion 
+ 484.155984714  403.529806879 moveto 
+(u~)   show
+ 522.311969428  382.459613757 moveto 
+(7)   show
+ 450.0 415.0 523.543550677 403.968467398 0 Fgluon 
+ 488.771775338  412.484233699 moveto 
+(g)   show
+ 531.543550677  402.768467398 moveto 
+(6)   show
+ 450.0 415.0 400.0 415.0 Ffermion 
+ 423.0  418.75 moveto 
+(u~)   show
+ 400.0 365.0 350 340 Ffermion 
+ 363.0  358.5 moveto 
+(u~)   show
+ 342.0  340 moveto 
+(1)   show
+ 400.0 365.0 473.214029514 352.797661748 0 Fgluon 
+ 438.607014757  361.898830874 moveto 
+(g)   show
+ 481.214029514  351.464328414 moveto 
+(5)   show
+ 400.0 415.0 400.0 365.0 Ffermion 
+ 403.0  388.5 moveto 
+(u~)   show
+ 400.0 465.0 400.0 415.0 0 Fgluon 
+ 403.0  438.5 moveto 
+(g)   show
+ 400.0 465.0 350 490 Ffermion 
+ 377.0  480.5 moveto 
+(c~)   show
+ 342.0  490 moveto 
+(2)   show
+ 390.0  314.5 moveto 
+( diagram 16 )   show
+ 470.0  314.5 moveto 
+ (QCD=4, QED=2)   show
+ 275.0 180.0 225.0 213.75 Ffermion 
+ 252.0  199.875 moveto 
+(s~)   show
+ 283.0  174.6 moveto 
+(8)   show
+ 225.0 213.75 275.0 210.0 0 Fgluon 
+ 252.0  214.875 moveto 
+(g)   show
+ 283.0  209.4 moveto 
+(6)   show
+ 225.0 213.75 175.0 245.0 Ffermion 
+ 202.0  232.375 moveto 
+(s~)   show
+ 275.0 240.0 225.0 251.25 Ffermion 
+ 252.0  248.625 moveto 
+(ve~)   show
+ 283.0  238.2 moveto 
+(4)   show
+ 225.0 251.25 275.0 270 Ffermion 
+ 238.0  266.625 moveto 
+(e-)   show
+ 283.0  273.0 moveto 
+(3)   show
+ 225.0 251.25 175.0 245.0 0 Fphoton 
+ 188.0  254.125 moveto 
+(w-)   show
+ 175.0 245.0 125.0 245.0 Ffermion 
+ 148.0  248.75 moveto 
+(c~)   show
+ 125.0 145.0 75 120 Ffermion 
+ 88.0  138.5 moveto 
+(u~)   show
+ 67.0  120 moveto 
+(1)   show
+ 125.0 145.0 198.214029514 132.797661748 0 Fgluon 
+ 163.607014757  141.898830874 moveto 
+(g)   show
+ 206.214029514  131.464328414 moveto 
+(5)   show
+ 125.0 195.0 125.0 145.0 Ffermion 
+ 128.0  168.5 moveto 
+(u~)   show
+ 194.635751816 174.109274455 125.0 195.0 Ffermion 
+ 161.817875908  187.554637228 moveto 
+(u~)   show
+ 202.635751816  171.709274455 moveto 
+(7)   show
+ 125.0 245.0 125.0 195.0 0 Fgluon 
+ 128.0  218.5 moveto 
+(g)   show
+ 125.0 245.0 75 270 Ffermion 
+ 102.0  260.5 moveto 
+(c~)   show
+ 67.0  270 moveto 
+(2)   show
+ 115.0  94.5 moveto 
+( diagram 17 )   show
+ 195.0  94.5 moveto 
+ (QCD=4, QED=2)   show
+ 550.0 180.0 483.333333333 213.75 Ffermion 
+ 518.666666667  199.875 moveto 
+(s~)   show
+ 558.0  175.95 moveto 
+(8)   show
+ 483.333333333 213.75 550.0 210.0 0 Fgluon 
+ 518.666666667  214.875 moveto 
+(g)   show
+ 558.0  209.55 moveto 
+(6)   show
+ 483.333333333 213.75 416.666666667 213.75 Ffermion 
+ 448.0  217.5 moveto 
+(s~)   show
+ 550.0 240.0 483.333333333 251.25 Ffermion 
+ 518.666666667  248.625 moveto 
+(ve~)   show
+ 558.0  238.65 moveto 
+(4)   show
+ 483.333333333 251.25 550.0 270 Ffermion 
+ 504.666666667  266.625 moveto 
+(e-)   show
+ 558.0  272.25 moveto 
+(3)   show
+ 483.333333333 251.25 416.666666667 251.25 0 Fphoton 
+ 448.0  255.0 moveto 
+(w-)   show
+ 416.666666667 251.25 350 270 Ffermion 
+ 385.333333333  263.625 moveto 
+(c~)   show
+ 342.0  270 moveto 
+(2)   show
+ 416.666666667 213.75 416.666666667 251.25 Ffermion 
+ 419.666666667  231.0 moveto 
+(s)   show
+ 416.666666667 138.75 350 120 Ffermion 
+ 371.333333333  135.375 moveto 
+(u~)   show
+ 342.0  120 moveto 
+(1)   show
+ 416.666666667 138.75 514.95388536 124.928359871 0 Fgluon 
+ 467.810276013  134.839179936 moveto 
+(g)   show
+ 522.95388536  123.803359871 moveto 
+(5)   show
+ 416.666666667 176.25 416.666666667 138.75 Ffermion 
+ 419.666666667  156.0 moveto 
+(u~)   show
+ 513.389763205 157.207640369 416.666666667 176.25 Ffermion 
+ 467.028214936  169.728820185 moveto 
+(u~)   show
+ 521.389763205  155.632640369 moveto 
+(7)   show
+ 416.666666667 213.75 416.666666667 176.25 0 Fgluon 
+ 419.666666667  193.5 moveto 
+(g)   show
+ 390.0  94.5 moveto 
+( diagram 18 )   show
+ 470.0  94.5 moveto 
+ (QCD=4, QED=2)   show
+showpage
+%%Page: 4 4 
+%%PageBoundingBox:-20 -20 600 800
+%%PageFonts: Helvetica
+/Helvetica findfont 9 scalefont setfont
+ 50         770  moveto
+ () show
+ 525         770  moveto
+ (page 4/10) show
+ 260         40  moveto
+ (Diagrams made by MadGraph5) show
+ 141.666666667 575.0 75 560 Ffermion 
+ 96.3333333333  573.5 moveto 
+(u~)   show
+ 67.0  560 moveto 
+(1)   show
+ 141.666666667 575.0 240.560301953 563.87446603 0 Fgluon 
+ 193.11348431  572.437233015 moveto 
+(g)   show
+ 248.560301953  562.97446603 moveto 
+(5)   show
+ 141.666666667 605.0 141.666666667 575.0 Ffermion 
+ 144.666666667  588.5 moveto 
+(u~)   show
+ 141.666666667 605.0 240.560301953 593.87446603 0 Fgluon 
+ 193.11348431  602.437233015 moveto 
+(g)   show
+ 248.560301953  592.97446603 moveto 
+(6)   show
+ 141.666666667 635.0 141.666666667 605.0 Ffermion 
+ 144.666666667  618.5 moveto 
+(u~)   show
+ 275.0 680.0 208.333333333 695.0 Ffermion 
+ 243.666666667  690.5 moveto 
+(ve~)   show
+ 283.0  678.2 moveto 
+(4)   show
+ 208.333333333 695.0 275.0 710 Ffermion 
+ 229.666666667  708.5 moveto 
+(e-)   show
+ 283.0  711.8 moveto 
+(3)   show
+ 208.333333333 695.0 141.666666667 695.0 0 Fphoton 
+ 173.0  698.75 moveto 
+(w-)   show
+ 141.666666667 695.0 75 710 Ffermion 
+ 110.333333333  705.5 moveto 
+(c~)   show
+ 67.0  710 moveto 
+(2)   show
+ 141.666666667 665.0 141.666666667 695.0 Ffermion 
+ 144.666666667  678.5 moveto 
+(s)   show
+ 240.560301953 653.87446603 141.666666667 665.0 Ffermion 
+ 193.11348431  662.437233015 moveto 
+(s~)   show
+ 248.560301953  652.97446603 moveto 
+(8)   show
+ 141.666666667 665.0 141.666666667 635.0 0 Fgluon 
+ 144.666666667  648.5 moveto 
+(g)   show
+ 240.560301953 623.87446603 141.666666667 635.0 Ffermion 
+ 193.11348431  632.437233015 moveto 
+(u~)   show
+ 248.560301953  622.97446603 moveto 
+(7)   show
+ 115.0  534.5 moveto 
+( diagram 19 )   show
+ 195.0  534.5 moveto 
+ (QCD=4, QED=2)   show
+ 550.0 680.0 483.333333333 695.0 Ffermion 
+ 518.666666667  690.5 moveto 
+(ve~)   show
+ 558.0  678.2 moveto 
+(4)   show
+ 483.333333333 695.0 550.0 710 Ffermion 
+ 504.666666667  708.5 moveto 
+(e-)   show
+ 558.0  711.8 moveto 
+(3)   show
+ 483.333333333 695.0 416.666666667 695.0 0 Fphoton 
+ 448.0  698.75 moveto 
+(w-)   show
+ 416.666666667 695.0 350 710 Ffermion 
+ 385.333333333  705.5 moveto 
+(c~)   show
+ 342.0  710 moveto 
+(2)   show
+ 416.666666667 665.0 416.666666667 695.0 Ffermion 
+ 419.666666667  678.5 moveto 
+(s)   show
+ 416.666666667 665.0 515.560301953 653.87446603 0 Fgluon 
+ 468.11348431  662.437233015 moveto 
+(g)   show
+ 523.560301953  652.97446603 moveto 
+(6)   show
+ 416.666666667 635.0 416.666666667 665.0 Ffermion 
+ 419.666666667  648.5 moveto 
+(s)   show
+ 416.666666667 575.0 350 560 Ffermion 
+ 371.333333333  573.5 moveto 
+(u~)   show
+ 342.0  560 moveto 
+(1)   show
+ 416.666666667 575.0 515.560301953 563.87446603 0 Fgluon 
+ 468.11348431  572.437233015 moveto 
+(g)   show
+ 523.560301953  562.97446603 moveto 
+(5)   show
+ 416.666666667 605.0 416.666666667 575.0 Ffermion 
+ 419.666666667  588.5 moveto 
+(u~)   show
+ 515.560301953 593.87446603 416.666666667 605.0 Ffermion 
+ 468.11348431  602.437233015 moveto 
+(u~)   show
+ 523.560301953  592.97446603 moveto 
+(7)   show
+ 416.666666667 635.0 416.666666667 605.0 0 Fgluon 
+ 419.666666667  618.5 moveto 
+(g)   show
+ 515.560301953 623.87446603 416.666666667 635.0 Ffermion 
+ 468.11348431  632.437233015 moveto 
+(s~)   show
+ 523.560301953  622.97446603 moveto 
+(8)   show
+ 390.0  534.5 moveto 
+( diagram 20 )   show
+ 470.0  534.5 moveto 
+ (QCD=4, QED=2)   show
+ 141.666666667 355.0 75 340 Ffermion 
+ 96.3333333333  353.5 moveto 
+(u~)   show
+ 67.0  340 moveto 
+(1)   show
+ 141.666666667 355.0 240.560301953 343.87446603 0 Fgluon 
+ 193.11348431  352.437233015 moveto 
+(g)   show
+ 248.560301953  342.97446603 moveto 
+(5)   show
+ 141.666666667 385.0 141.666666667 355.0 Ffermion 
+ 144.666666667  368.5 moveto 
+(u~)   show
+ 240.560301953 373.87446603 141.666666667 385.0 Ffermion 
+ 193.11348431  382.437233015 moveto 
+(u~)   show
+ 248.560301953  372.97446603 moveto 
+(7)   show
+ 141.666666667 415.0 141.666666667 385.0 0 Fgluon 
+ 144.666666667  398.5 moveto 
+(g)   show
+ 275.0 460.0 208.333333333 475.0 Ffermion 
+ 243.666666667  470.5 moveto 
+(ve~)   show
+ 283.0  458.2 moveto 
+(4)   show
+ 208.333333333 475.0 275.0 490 Ffermion 
+ 229.666666667  488.5 moveto 
+(e-)   show
+ 283.0  491.8 moveto 
+(3)   show
+ 208.333333333 475.0 141.666666667 475.0 0 Fphoton 
+ 173.0  478.75 moveto 
+(w-)   show
+ 141.666666667 475.0 75 490 Ffermion 
+ 110.333333333  485.5 moveto 
+(c~)   show
+ 67.0  490 moveto 
+(2)   show
+ 141.666666667 445.0 141.666666667 475.0 Ffermion 
+ 144.666666667  458.5 moveto 
+(s)   show
+ 240.560301953 433.87446603 141.666666667 445.0 Ffermion 
+ 193.11348431  442.437233015 moveto 
+(s~)   show
+ 248.560301953  432.97446603 moveto 
+(8)   show
+ 141.666666667 445.0 141.666666667 415.0 0 Fgluon 
+ 144.666666667  428.5 moveto 
+(g)   show
+ 141.666666667 415.0 240.560301953 403.87446603 0 Fgluon 
+ 193.11348431  412.437233015 moveto 
+(g)   show
+ 248.560301953  402.97446603 moveto 
+(6)   show
+ 115.0  314.5 moveto 
+( diagram 21 )   show
+ 195.0  314.5 moveto 
+ (QCD=4, QED=2)   show
+ 400.0 358.75 350 340 Ffermion 
+ 363.0  355.375 moveto 
+(u~)   show
+ 342.0  340 moveto 
+(1)   show
+ 400.0 358.75 473.979544287 349.502556964 0 Fgluon 
+ 438.989772144  357.126278482 moveto 
+(g)   show
+ 481.979544287  348.502556964 moveto 
+(5)   show
+ 400.0 396.25 400.0 358.75 Ffermion 
+ 403.0  376.0 moveto 
+(u~)   show
+ 400.0 396.25 473.038090731 383.468334122 0 Fgluon 
+ 438.519045365  392.859167061 moveto 
+(g)   show
+ 481.038090731  382.068334122 moveto 
+(6)   show
+ 400.0 433.75 400.0 396.25 Ffermion 
+ 403.0  413.5 moveto 
+(u~)   show
+ 550.0 460.0 500.0 475.0 Ffermion 
+ 527.0  470.5 moveto 
+(ve~)   show
+ 558.0  457.6 moveto 
+(4)   show
+ 500.0 475.0 550.0 490 Ffermion 
+ 513.0  488.5 moveto 
+(e-)   show
+ 558.0  492.4 moveto 
+(3)   show
+ 500.0 475.0 450.0 471.25 0 Fphoton 
+ 463.0  479.125 moveto 
+(w-)   show
+ 515.716193151 444.142070325 450.0 471.25 Ffermion 
+ 484.858096575  460.696035163 moveto 
+(s~)   show
+ 523.716193151  440.842070325 moveto 
+(8)   show
+ 450.0 471.25 400.0 471.25 Ffermion 
+ 423.0  475.0 moveto 
+(c~)   show
+ 400.0 471.25 350 490 Ffermion 
+ 377.0  483.625 moveto 
+(c~)   show
+ 342.0  490 moveto 
+(2)   show
+ 400.0 471.25 400.0 433.75 0 Fgluon 
+ 403.0  451.0 moveto 
+(g)   show
+ 471.836971392 417.586681437 400.0 433.75 Ffermion 
+ 437.918485696  428.668340718 moveto 
+(u~)   show
+ 479.836971392  415.786681437 moveto 
+(7)   show
+ 390.0  314.5 moveto 
+( diagram 22 )   show
+ 470.0  314.5 moveto 
+ (QCD=4, QED=2)   show
+ 275.0 210.0 235.0 225.0 Ffermion 
+ 257.0  220.5 moveto 
+(ve~)   show
+ 283.0  207.0 moveto 
+(4)   show
+ 235.0 225.0 275.0 240.0 Ffermion 
+ 243.0  238.5 moveto 
+(e-)   show
+ 283.0  243.0 moveto 
+(3)   show
+ 235.0 225.0 195.0 213.75 0 Fphoton 
+ 203.0  225.375 moveto 
+(w-)   show
+ 247.294532227 191.688244217 195.0 213.75 Ffermion 
+ 223.147266114  205.719122108 moveto 
+(s~)   show
+ 255.294532227  188.313244217 moveto 
+(8)   show
+ 195.0 213.75 155.0 245.0 Ffermion 
+ 177.0  232.375 moveto 
+(c~)   show
+ 155.0 245.0 212.811074578 257.04397387 0 Fgluon 
+ 177.905537289  254.021986935 moveto 
+(g)   show
+ 220.811074578  258.710640537 moveto 
+(6)   show
+ 155.0 245.0 115.0 245.0 Ffermion 
+ 133.0  248.75 moveto 
+(c~)   show
+ 115.0 145.0 75 120 Ffermion 
+ 83.0  138.5 moveto 
+(u~)   show
+ 67.0  120 moveto 
+(1)   show
+ 115.0 145.0 173.738825184 135.822058565 0 Fgluon 
+ 146.369412592  143.411029282 moveto 
+(g)   show
+ 181.738825184  134.572058565 moveto 
+(5)   show
+ 115.0 195.0 115.0 145.0 Ffermion 
+ 118.0  168.5 moveto 
+(u~)   show
+ 171.179750654 179.199445129 115.0 195.0 Ffermion 
+ 145.089875327  190.099722564 moveto 
+(u~)   show
+ 179.179750654  176.949445129 moveto 
+(7)   show
+ 115.0 245.0 115.0 195.0 0 Fgluon 
+ 118.0  218.5 moveto 
+(g)   show
+ 115.0 245.0 75 270 Ffermion 
+ 97.0  260.5 moveto 
+(c~)   show
+ 67.0  270 moveto 
+(2)   show
+ 115.0  94.5 moveto 
+( diagram 23 )   show
+ 195.0  94.5 moveto 
+ (QCD=4, QED=2)   show
+ 400.0 138.75 350 120 Ffermion 
+ 363.0  135.375 moveto 
+(u~)   show
+ 342.0  120 moveto 
+(1)   show
+ 400.0 138.75 473.979544287 129.502556964 0 Fgluon 
+ 438.989772144  137.126278482 moveto 
+(g)   show
+ 481.979544287  128.502556964 moveto 
+(5)   show
+ 400.0 176.25 400.0 138.75 Ffermion 
+ 403.0  156.0 moveto 
+(u~)   show
+ 473.038090731 163.468334122 400.0 176.25 Ffermion 
+ 438.519045365  172.859167061 moveto 
+(u~)   show
+ 481.038090731  162.068334122 moveto 
+(7)   show
+ 400.0 213.75 400.0 176.25 0 Fgluon 
+ 403.0  193.5 moveto 
+(g)   show
+ 550.0 240.0 500.0 255.0 Ffermion 
+ 527.0  250.5 moveto 
+(ve~)   show
+ 558.0  237.6 moveto 
+(4)   show
+ 500.0 255.0 550.0 270 Ffermion 
+ 513.0  268.5 moveto 
+(e-)   show
+ 558.0  272.4 moveto 
+(3)   show
+ 500.0 255.0 450.0 251.25 0 Fphoton 
+ 463.0  259.125 moveto 
+(w-)   show
+ 515.716193151 224.142070325 450.0 251.25 Ffermion 
+ 484.858096575  240.696035163 moveto 
+(s~)   show
+ 523.716193151  220.842070325 moveto 
+(8)   show
+ 450.0 251.25 400.0 251.25 Ffermion 
+ 423.0  255.0 moveto 
+(c~)   show
+ 400.0 251.25 350 270 Ffermion 
+ 377.0  263.625 moveto 
+(c~)   show
+ 342.0  270 moveto 
+(2)   show
+ 400.0 251.25 400.0 213.75 0 Fgluon 
+ 403.0  231.0 moveto 
+(g)   show
+ 400.0 213.75 471.836971392 197.586681437 0 Fgluon 
+ 437.918485696  208.668340718 moveto 
+(g)   show
+ 479.836971392  195.786681437 moveto 
+(6)   show
+ 390.0  94.5 moveto 
+( diagram 24 )   show
+ 470.0  94.5 moveto 
+ (QCD=4, QED=2)   show
+showpage
+%%Page: 5 5 
+%%PageBoundingBox:-20 -20 600 800
+%%PageFonts: Helvetica
+/Helvetica findfont 9 scalefont setfont
+ 50         770  moveto
+ () show
+ 525         770  moveto
+ (page 5/10) show
+ 260         40  moveto
+ (Diagrams made by MadGraph5) show
+ 141.666666667 695.0 75 710 Ffermion 
+ 110.333333333  705.5 moveto 
+(c~)   show
+ 67.0  710 moveto 
+(2)   show
+ 141.666666667 695.0 240.560301953 706.12553397 0 Fgluon 
+ 185.11348431  703.562766985 moveto 
+(g)   show
+ 248.560301953  707.02553397 moveto 
+(5)   show
+ 141.666666667 665.0 141.666666667 695.0 Ffermion 
+ 144.666666667  678.5 moveto 
+(c)   show
+ 275.0 650.0 208.333333333 665.0 Ffermion 
+ 243.666666667  660.5 moveto 
+(ve~)   show
+ 283.0  648.2 moveto 
+(4)   show
+ 208.333333333 665.0 275.0 680.0 Ffermion 
+ 229.666666667  678.5 moveto 
+(e-)   show
+ 283.0  681.8 moveto 
+(3)   show
+ 208.333333333 665.0 141.666666667 665.0 0 Fphoton 
+ 173.0  668.75 moveto 
+(w-)   show
+ 141.666666667 635.0 141.666666667 665.0 Ffermion 
+ 144.666666667  648.5 moveto 
+(s)   show
+ 141.666666667 575.0 75 560 Ffermion 
+ 96.3333333333  573.5 moveto 
+(u~)   show
+ 67.0  560 moveto 
+(1)   show
+ 141.666666667 575.0 240.560301953 563.87446603 0 Fgluon 
+ 193.11348431  572.437233015 moveto 
+(g)   show
+ 248.560301953  562.97446603 moveto 
+(6)   show
+ 141.666666667 605.0 141.666666667 575.0 Ffermion 
+ 144.666666667  588.5 moveto 
+(u~)   show
+ 240.560301953 593.87446603 141.666666667 605.0 Ffermion 
+ 193.11348431  602.437233015 moveto 
+(u~)   show
+ 248.560301953  592.97446603 moveto 
+(7)   show
+ 141.666666667 635.0 141.666666667 605.0 0 Fgluon 
+ 144.666666667  618.5 moveto 
+(g)   show
+ 240.560301953 623.87446603 141.666666667 635.0 Ffermion 
+ 193.11348431  632.437233015 moveto 
+(s~)   show
+ 248.560301953  622.97446603 moveto 
+(8)   show
+ 115.0  534.5 moveto 
+( diagram 25 )   show
+ 195.0  534.5 moveto 
+ (QCD=4, QED=2)   show
+ 400.0 578.75 350 560 Ffermion 
+ 363.0  575.375 moveto 
+(u~)   show
+ 342.0  560 moveto 
+(1)   show
+ 400.0 578.75 473.979544287 569.502556964 0 Fgluon 
+ 438.989772144  577.126278482 moveto 
+(g)   show
+ 481.979544287  568.502556964 moveto 
+(6)   show
+ 400.0 616.25 400.0 578.75 Ffermion 
+ 403.0  596.0 moveto 
+(u~)   show
+ 550.0 650.0 500.0 665.0 Ffermion 
+ 527.0  660.5 moveto 
+(ve~)   show
+ 558.0  647.6 moveto 
+(4)   show
+ 500.0 665.0 550.0 680.0 Ffermion 
+ 513.0  678.5 moveto 
+(e-)   show
+ 558.0  682.4 moveto 
+(3)   show
+ 500.0 665.0 450.0 653.75 0 Fphoton 
+ 463.0  665.375 moveto 
+(w-)   show
+ 518.394112888 630.6669869 450.0 653.75 Ffermion 
+ 486.197056444  645.20849345 moveto 
+(s~)   show
+ 526.394112888  627.9669869 moveto 
+(8)   show
+ 450.0 653.75 400.0 653.75 Ffermion 
+ 423.0  657.5 moveto 
+(c~)   show
+ 400.0 691.25 350 710 Ffermion 
+ 377.0  703.625 moveto 
+(c~)   show
+ 342.0  710 moveto 
+(2)   show
+ 400.0 691.25 473.979544287 700.497443036 0 Fgluon 
+ 430.989772144  698.873721518 moveto 
+(g)   show
+ 481.979544287  701.497443036 moveto 
+(5)   show
+ 400.0 653.75 400.0 691.25 Ffermion 
+ 403.0  671.0 moveto 
+(c)   show
+ 400.0 653.75 400.0 616.25 0 Fgluon 
+ 403.0  633.5 moveto 
+(g)   show
+ 473.038090731 603.468334122 400.0 616.25 Ffermion 
+ 438.519045365  612.859167061 moveto 
+(u~)   show
+ 481.038090731  602.068334122 moveto 
+(7)   show
+ 390.0  534.5 moveto 
+( diagram 26 )   show
+ 470.0  534.5 moveto 
+ (QCD=4, QED=2)   show
+ 141.666666667 471.25 75 490 Ffermion 
+ 110.333333333  483.625 moveto 
+(c~)   show
+ 67.0  490 moveto 
+(2)   show
+ 141.666666667 471.25 239.95388536 485.071640129 0 Fgluon 
+ 184.810276013  481.160820064 moveto 
+(g)   show
+ 247.95388536  486.196640129 moveto 
+(5)   show
+ 141.666666667 433.75 141.666666667 471.25 Ffermion 
+ 144.666666667  451.0 moveto 
+(c)   show
+ 275.0 430.0 208.333333333 433.75 Ffermion 
+ 243.666666667  434.875 moveto 
+(ve~)   show
+ 283.0  429.55 moveto 
+(4)   show
+ 208.333333333 433.75 275.0 460.0 Ffermion 
+ 229.666666667  452.875 moveto 
+(e-)   show
+ 283.0  463.15 moveto 
+(3)   show
+ 208.333333333 433.75 141.666666667 433.75 0 Fphoton 
+ 173.0  437.5 moveto 
+(w-)   show
+ 141.666666667 396.25 141.666666667 433.75 Ffermion 
+ 144.666666667  413.5 moveto 
+(s)   show
+ 275.0 340 208.333333333 358.75 Ffermion 
+ 243.666666667  352.375 moveto 
+(u~)   show
+ 283.0  337.75 moveto 
+(7)   show
+ 208.333333333 358.75 275.0 370.0 0 Fgluon 
+ 235.666666667  367.375 moveto 
+(g)   show
+ 283.0  371.35 moveto 
+(6)   show
+ 208.333333333 358.75 141.666666667 358.75 Ffermion 
+ 173.0  362.5 moveto 
+(u~)   show
+ 141.666666667 358.75 75 340 Ffermion 
+ 96.3333333333  355.375 moveto 
+(u~)   show
+ 67.0  340 moveto 
+(1)   show
+ 141.666666667 396.25 141.666666667 358.75 0 Fgluon 
+ 144.666666667  376.0 moveto 
+(g)   show
+ 241.596428238 399.060524544 141.666666667 396.25 Ffermion 
+ 179.631547452  403.655262272 moveto 
+(s~)   show
+ 249.596428238  399.285524544 moveto 
+(8)   show
+ 115.0  314.5 moveto 
+( diagram 27 )   show
+ 195.0  314.5 moveto 
+ (QCD=4, QED=2)   show
+ 521.151247354 347.212188162 450.0 365.0 Ffermion 
+ 487.575623677  359.106094081 moveto 
+(u~)   show
+ 529.151247354  345.212188162 moveto 
+(7)   show
+ 450.0 365.0 524.833886839 368.741694342 0 Fgluon 
+ 481.41694342  369.870847171 moveto 
+(g)   show
+ 532.833886839  369.141694342 moveto 
+(6)   show
+ 450.0 365.0 400.0 365.0 Ffermion 
+ 423.0  368.75 moveto 
+(u~)   show
+ 550.0 430.0 500.0 445.0 Ffermion 
+ 527.0  440.5 moveto 
+(ve~)   show
+ 558.0  427.6 moveto 
+(4)   show
+ 500.0 445.0 550.0 460.0 Ffermion 
+ 513.0  458.5 moveto 
+(e-)   show
+ 558.0  462.4 moveto 
+(3)   show
+ 500.0 445.0 450.0 415.0 0 Fphoton 
+ 463.0  436.0 moveto 
+(w-)   show
+ 523.543550677 403.968467398 450.0 415.0 Ffermion 
+ 488.771775338  412.484233699 moveto 
+(s~)   show
+ 531.543550677  402.768467398 moveto 
+(8)   show
+ 450.0 415.0 400.0 415.0 Ffermion 
+ 423.0  418.75 moveto 
+(c~)   show
+ 400.0 465.0 350 490 Ffermion 
+ 377.0  480.5 moveto 
+(c~)   show
+ 342.0  490 moveto 
+(2)   show
+ 400.0 465.0 473.214029514 477.202338252 0 Fgluon 
+ 430.607014757  474.101169126 moveto 
+(g)   show
+ 481.214029514  478.535671586 moveto 
+(5)   show
+ 400.0 415.0 400.0 465.0 Ffermion 
+ 403.0  438.5 moveto 
+(c)   show
+ 400.0 415.0 400.0 365.0 0 Fgluon 
+ 403.0  388.5 moveto 
+(g)   show
+ 400.0 365.0 350 340 Ffermion 
+ 363.0  358.5 moveto 
+(u~)   show
+ 342.0  340 moveto 
+(1)   show
+ 390.0  314.5 moveto 
+( diagram 28 )   show
+ 470.0  314.5 moveto 
+ (QCD=4, QED=2)   show
+ 275.0 150.0 208.333333333 176.25 Ffermion 
+ 243.666666667  166.125 moveto 
+(s~)   show
+ 283.0  146.85 moveto 
+(8)   show
+ 208.333333333 176.25 275.0 180.0 0 Fgluon 
+ 235.666666667  181.125 moveto 
+(g)   show
+ 283.0  180.45 moveto 
+(6)   show
+ 208.333333333 176.25 141.666666667 176.25 Ffermion 
+ 173.0  180.0 moveto 
+(s~)   show
+ 141.666666667 251.25 75 270 Ffermion 
+ 110.333333333  263.625 moveto 
+(c~)   show
+ 67.0  270 moveto 
+(2)   show
+ 141.666666667 251.25 239.95388536 265.071640129 0 Fgluon 
+ 184.810276013  261.160820064 moveto 
+(g)   show
+ 247.95388536  266.196640129 moveto 
+(5)   show
+ 141.666666667 213.75 141.666666667 251.25 Ffermion 
+ 144.666666667  231.0 moveto 
+(c)   show
+ 275.0 210.0 208.333333333 213.75 Ffermion 
+ 243.666666667  214.875 moveto 
+(ve~)   show
+ 283.0  209.55 moveto 
+(4)   show
+ 208.333333333 213.75 275.0 240.0 Ffermion 
+ 229.666666667  232.875 moveto 
+(e-)   show
+ 283.0  243.15 moveto 
+(3)   show
+ 208.333333333 213.75 141.666666667 213.75 0 Fphoton 
+ 173.0  217.5 moveto 
+(w-)   show
+ 141.666666667 176.25 141.666666667 213.75 Ffermion 
+ 144.666666667  193.5 moveto 
+(s)   show
+ 239.95388536 124.928359871 141.666666667 138.75 Ffermion 
+ 192.810276013  134.839179936 moveto 
+(u~)   show
+ 247.95388536  123.803359871 moveto 
+(7)   show
+ 141.666666667 138.75 75 120 Ffermion 
+ 96.3333333333  135.375 moveto 
+(u~)   show
+ 67.0  120 moveto 
+(1)   show
+ 141.666666667 176.25 141.666666667 138.75 0 Fgluon 
+ 144.666666667  156.0 moveto 
+(g)   show
+ 115.0  94.5 moveto 
+( diagram 29 )   show
+ 195.0  94.5 moveto 
+ (QCD=4, QED=2)   show
+ 550.0 150.0 500.0 176.25 Ffermion 
+ 527.0  166.125 moveto 
+(s~)   show
+ 558.0  145.8 moveto 
+(8)   show
+ 500.0 176.25 550.0 180.0 0 Fgluon 
+ 519.0  181.125 moveto 
+(g)   show
+ 558.0  180.6 moveto 
+(6)   show
+ 500.0 176.25 450.0 195.0 Ffermion 
+ 477.0  188.625 moveto 
+(s~)   show
+ 400.0 245.0 350 270 Ffermion 
+ 377.0  260.5 moveto 
+(c~)   show
+ 342.0  270 moveto 
+(2)   show
+ 400.0 245.0 473.214029514 257.202338252 0 Fgluon 
+ 430.607014757  254.101169126 moveto 
+(g)   show
+ 481.214029514  258.535671586 moveto 
+(5)   show
+ 400.0 195.0 400.0 245.0 Ffermion 
+ 403.0  218.5 moveto 
+(c)   show
+ 473.214029514 132.797661748 400.0 145.0 Ffermion 
+ 438.607014757  141.898830874 moveto 
+(u~)   show
+ 481.214029514  131.464328414 moveto 
+(7)   show
+ 400.0 145.0 350 120 Ffermion 
+ 363.0  138.5 moveto 
+(u~)   show
+ 342.0  120 moveto 
+(1)   show
+ 400.0 195.0 400.0 145.0 0 Fgluon 
+ 403.0  168.5 moveto 
+(g)   show
+ 450.0 195.0 400.0 195.0 Ffermion 
+ 423.0  198.75 moveto 
+(c~)   show
+ 550.0 210.0 500.0 213.75 Ffermion 
+ 527.0  214.875 moveto 
+(ve~)   show
+ 558.0  209.4 moveto 
+(4)   show
+ 500.0 213.75 550.0 240.0 Ffermion 
+ 513.0  232.875 moveto 
+(e-)   show
+ 558.0  244.2 moveto 
+(3)   show
+ 500.0 213.75 450.0 195.0 0 Fphoton 
+ 463.0  210.375 moveto 
+(w-)   show
+ 390.0  94.5 moveto 
+( diagram 30 )   show
+ 470.0  94.5 moveto 
+ (QCD=4, QED=2)   show
+showpage
+%%Page: 6 6 
+%%PageBoundingBox:-20 -20 600 800
+%%PageFonts: Helvetica
+/Helvetica findfont 6 scalefont setfont
+ 50         770  moveto
+ () show
+ 525         770  moveto
+ (page 6/10) show
+ 260         40  moveto
+ (Diagrams made by MadGraph5) show
+ 190.0 660.0 152.5 670.0 Ffermion 
+ 172.75  667.0 moveto 
+(ve~)   show
+ 196.0  658.4 moveto 
+(4)   show
+ 152.5 670.0 190.0 680.0 Ffermion 
+ 162.25  679.0 moveto 
+(e-)   show
+ 196.0  681.6 moveto 
+(3)   show
+ 152.5 670.0 115.0 657.5 0 Fphoton 
+ 124.75  667.75 moveto 
+(w-)   show
+ 168.092032546 645.111859073 115.0 657.5 Ffermion 
+ 143.046016273  653.305929536 moveto 
+(s~)   show
+ 174.092032546  643.711859073 moveto 
+(8)   show
+ 115.0 657.5 77.5 657.5 Ffermion 
+ 94.75  660.0 moveto 
+(c~)   show
+ 77.5 707.5 40 720 Ffermion 
+ 60.25  715.75 moveto 
+(c~)   show
+ 34.0  720 moveto 
+(2)   show
+ 77.5 707.5 132.984658216 713.664962024 0 Fgluon 
+ 100.742329108  712.582481012 moveto 
+(g)   show
+ 138.984658216  714.331628691 moveto 
+(5)   show
+ 77.5 682.5 77.5 707.5 Ffermion 
+ 79.75  694.0 moveto 
+(c)   show
+ 77.5 682.5 132.278568048 691.021110585 0 Fgluon 
+ 100.389284024  688.760555293 moveto 
+(g)   show
+ 138.278568048  691.954443919 moveto 
+(6)   show
+ 77.5 657.5 77.5 682.5 Ffermion 
+ 79.75  669.0 moveto 
+(c)   show
+ 132.984658216 626.335037976 77.5 632.5 Ffermion 
+ 106.742329108  631.417518988 moveto 
+(u~)   show
+ 138.984658216  625.668371309 moveto 
+(7)   show
+ 77.5 632.5 40 620 Ffermion 
+ 49.75  630.25 moveto 
+(u~)   show
+ 34.0  620 moveto 
+(1)   show
+ 77.5 657.5 77.5 632.5 0 Fgluon 
+ 79.75  644.0 moveto 
+(g)   show
+ 70.0  603.0 moveto 
+( diagram 31 )   show
+ 130.0  603.0 moveto 
+ (QCD=4, QED=2)   show
+ 324.984658216 626.335037976 269.5 632.5 Ffermion 
+ 298.742329108  631.417518988 moveto 
+(u~)   show
+ 330.984658216  625.668371309 moveto 
+(7)   show
+ 269.5 632.5 232 620 Ffermion 
+ 241.75  630.25 moveto 
+(u~)   show
+ 226.0  620 moveto 
+(1)   show
+ 269.5 657.5 269.5 632.5 0 Fgluon 
+ 271.75  644.0 moveto 
+(g)   show
+ 382.0 680.0 344.5 690.0 Ffermion 
+ 364.75  687.0 moveto 
+(ve~)   show
+ 388.0  678.4 moveto 
+(4)   show
+ 344.5 690.0 382.0 700.0 Ffermion 
+ 354.25  699.0 moveto 
+(e-)   show
+ 388.0  701.6 moveto 
+(3)   show
+ 344.5 690.0 307.0 682.5 0 Fphoton 
+ 316.75  690.25 moveto 
+(w-)   show
+ 358.295584666 667.1113246 307.0 682.5 Ffermion 
+ 334.147792333  676.8056623 moveto 
+(s~)   show
+ 364.295584666  665.3113246 moveto 
+(8)   show
+ 307.0 682.5 269.5 682.5 Ffermion 
+ 286.75  685.0 moveto 
+(c~)   show
+ 269.5 707.5 232 720 Ffermion 
+ 252.25  715.75 moveto 
+(c~)   show
+ 226.0  720 moveto 
+(2)   show
+ 269.5 707.5 324.984658216 713.664962024 0 Fgluon 
+ 292.742329108  712.582481012 moveto 
+(g)   show
+ 330.984658216  714.331628691 moveto 
+(5)   show
+ 269.5 682.5 269.5 707.5 Ffermion 
+ 271.75  694.0 moveto 
+(c)   show
+ 269.5 682.5 269.5 657.5 0 Fgluon 
+ 271.75  669.0 moveto 
+(g)   show
+ 269.5 657.5 324.278568048 648.978889415 0 Fgluon 
+ 298.389284024  655.239444707 moveto 
+(g)   show
+ 330.278568048  648.045556081 moveto 
+(6)   show
+ 262.0  603.0 moveto 
+( diagram 32 )   show
+ 322.0  603.0 moveto 
+ (QCD=4, QED=2)   show
+ 574.0 660.0 544.0 670.0 Ffermion 
+ 560.5  667.0 moveto 
+(ve~)   show
+ 580.0  658.0 moveto 
+(4)   show
+ 544.0 670.0 574.0 680.0 Ffermion 
+ 550.0  679.0 moveto 
+(e-)   show
+ 580.0  682.0 moveto 
+(3)   show
+ 544.0 670.0 514.0 657.5 0 Fphoton 
+ 520.0  667.75 moveto 
+(w-)   show
+ 555.227080071 645.475434979 514.0 657.5 Ffermion 
+ 536.113540035  653.48771749 moveto 
+(s~)   show
+ 561.227080071  643.725434979 moveto 
+(8)   show
+ 514.0 657.5 484.0 670.0 Ffermion 
+ 500.5  665.75 moveto 
+(c~)   show
+ 454.0 703.333333333 424 720 Ffermion 
+ 440.5  713.666666667 moveto 
+(c~)   show
+ 418.0  720 moveto 
+(2)   show
+ 454.0 703.333333333 498.054118888 709.451960957 0 Fgluon 
+ 471.527059444  708.392647145 moveto 
+(g)   show
+ 504.054118888  710.28529429 moveto 
+(5)   show
+ 454.0 670.0 454.0 703.333333333 Ffermion 
+ 456.25  685.666666667 moveto 
+(c)   show
+ 498.054118888 630.548039043 454.0 636.666666667 Ffermion 
+ 477.527059444  635.607352855 moveto 
+(u~)   show
+ 504.054118888  629.71470571 moveto 
+(7)   show
+ 454.0 636.666666667 424 620 Ffermion 
+ 430.0  632.333333333 moveto 
+(u~)   show
+ 418.0  620 moveto 
+(1)   show
+ 454.0 670.0 454.0 636.666666667 0 Fgluon 
+ 456.25  652.333333333 moveto 
+(g)   show
+ 484.0 670.0 454.0 670.0 Ffermion 
+ 467.5  672.5 moveto 
+(c~)   show
+ 484.0 670.0 524.249223595 683.416407865 0 Fgluon 
+ 499.624611797  678.708203932 moveto 
+(g)   show
+ 530.249223595  685.416407865 moveto 
+(6)   show
+ 454.0  603.0 moveto 
+( diagram 33 )   show
+ 514.0  603.0 moveto 
+ (QCD=4, QED=2)   show
+ 164.170226465 492.582977353 90.0 500.0 Ffermion 
+ 128.585113233  498.291488677 moveto 
+(u~)   show
+ 170.170226465  491.982977353 moveto 
+(7)   show
+ 90.0 500.0 40 490 Ffermion 
+ 56.0  499.0 moveto 
+(u~)   show
+ 34.0  490 moveto 
+(1)   show
+ 90.0 520.0 90.0 500.0 0 Fgluon 
+ 92.25  509.0 moveto 
+(g)   show
+ 164.170226465 512.582977353 90.0 520.0 Ffermion 
+ 128.585113233  518.291488677 moveto 
+(s~)   show
+ 170.170226465  511.982977353 moveto 
+(8)   show
+ 90.0 520.0 90.0 540.0 Ffermion 
+ 92.25  529.0 moveto 
+(s)   show
+ 90.0 580.0 40 590 Ffermion 
+ 66.5  587.0 moveto 
+(c~)   show
+ 34.0  590 moveto 
+(2)   show
+ 90.0 580.0 164.170226465 587.417022647 0 Fgluon 
+ 122.585113233  585.708511323 moveto 
+(g)   show
+ 170.170226465  588.017022647 moveto 
+(5)   show
+ 90.0 560.0 90.0 580.0 Ffermion 
+ 92.25  569.0 moveto 
+(c)   show
+ 90.0 560.0 164.170226465 567.417022647 0 Fgluon 
+ 122.585113233  565.708511323 moveto 
+(g)   show
+ 170.170226465  568.017022647 moveto 
+(6)   show
+ 90.0 540.0 90.0 560.0 Ffermion 
+ 92.25  549.0 moveto 
+(c)   show
+ 190.0 530.0 140.0 540.0 Ffermion 
+ 166.5  537.0 moveto 
+(ve~)   show
+ 196.0  528.8 moveto 
+(4)   show
+ 140.0 540.0 190.0 550.0 Ffermion 
+ 156.0  549.0 moveto 
+(e-)   show
+ 196.0  551.2 moveto 
+(3)   show
+ 140.0 540.0 90.0 540.0 0 Fphoton 
+ 113.5  542.5 moveto 
+(w-)   show
+ 70.0  473.0 moveto 
+( diagram 34 )   show
+ 130.0  473.0 moveto 
+ (QCD=4, QED=2)   show
+ 282.0 580.0 232 590 Ffermion 
+ 258.5  587.0 moveto 
+(c~)   show
+ 226.0  590 moveto 
+(2)   show
+ 282.0 580.0 356.170226465 587.417022647 0 Fgluon 
+ 314.585113233  585.708511323 moveto 
+(g)   show
+ 362.170226465  588.017022647 moveto 
+(5)   show
+ 282.0 560.0 282.0 580.0 Ffermion 
+ 284.25  569.0 moveto 
+(c)   show
+ 382.0 550.0 332.0 560.0 Ffermion 
+ 358.5  557.0 moveto 
+(ve~)   show
+ 388.0  548.8 moveto 
+(4)   show
+ 332.0 560.0 382.0 570.0 Ffermion 
+ 348.0  569.0 moveto 
+(e-)   show
+ 388.0  571.2 moveto 
+(3)   show
+ 332.0 560.0 282.0 560.0 0 Fphoton 
+ 305.5  562.5 moveto 
+(w-)   show
+ 282.0 540.0 282.0 560.0 Ffermion 
+ 284.25  549.0 moveto 
+(s)   show
+ 356.170226465 492.582977353 282.0 500.0 Ffermion 
+ 320.585113233  498.291488677 moveto 
+(u~)   show
+ 362.170226465  491.982977353 moveto 
+(7)   show
+ 282.0 500.0 232 490 Ffermion 
+ 248.0  499.0 moveto 
+(u~)   show
+ 226.0  490 moveto 
+(1)   show
+ 282.0 520.0 282.0 500.0 0 Fgluon 
+ 284.25  509.0 moveto 
+(g)   show
+ 282.0 520.0 356.170226465 512.582977353 0 Fgluon 
+ 320.585113233  518.291488677 moveto 
+(g)   show
+ 362.170226465  511.982977353 moveto 
+(6)   show
+ 282.0 540.0 282.0 520.0 0 Fgluon 
+ 284.25  529.0 moveto 
+(g)   show
+ 356.170226465 532.582977353 282.0 540.0 Ffermion 
+ 320.585113233  538.291488677 moveto 
+(s~)   show
+ 362.170226465  531.982977353 moveto 
+(8)   show
+ 262.0  473.0 moveto 
+( diagram 35 )   show
+ 322.0  473.0 moveto 
+ (QCD=4, QED=2)   show
+ 548.170226465 492.582977353 474.0 500.0 Ffermion 
+ 512.585113233  498.291488677 moveto 
+(u~)   show
+ 554.170226465  491.982977353 moveto 
+(7)   show
+ 474.0 500.0 424 490 Ffermion 
+ 440.0  499.0 moveto 
+(u~)   show
+ 418.0  490 moveto 
+(1)   show
+ 474.0 520.0 474.0 500.0 0 Fgluon 
+ 476.25  509.0 moveto 
+(g)   show
+ 548.170226465 512.582977353 474.0 520.0 Ffermion 
+ 512.585113233  518.291488677 moveto 
+(s~)   show
+ 554.170226465  511.982977353 moveto 
+(8)   show
+ 474.0 520.0 474.0 540.0 Ffermion 
+ 476.25  529.0 moveto 
+(s)   show
+ 474.0 580.0 424 590 Ffermion 
+ 450.5  587.0 moveto 
+(c~)   show
+ 418.0  590 moveto 
+(2)   show
+ 474.0 580.0 548.170226465 587.417022647 0 Fgluon 
+ 506.585113233  585.708511323 moveto 
+(g)   show
+ 554.170226465  588.017022647 moveto 
+(5)   show
+ 474.0 560.0 474.0 580.0 Ffermion 
+ 476.25  569.0 moveto 
+(c)   show
+ 574.0 550.0 524.0 560.0 Ffermion 
+ 550.5  557.0 moveto 
+(ve~)   show
+ 580.0  548.8 moveto 
+(4)   show
+ 524.0 560.0 574.0 570.0 Ffermion 
+ 540.0  569.0 moveto 
+(e-)   show
+ 580.0  571.2 moveto 
+(3)   show
+ 524.0 560.0 474.0 560.0 0 Fphoton 
+ 497.5  562.5 moveto 
+(w-)   show
+ 474.0 540.0 474.0 560.0 Ffermion 
+ 476.25  549.0 moveto 
+(s)   show
+ 474.0 540.0 548.170226465 532.582977353 0 Fgluon 
+ 512.585113233  538.291488677 moveto 
+(g)   show
+ 554.170226465  531.982977353 moveto 
+(6)   show
+ 454.0  473.0 moveto 
+( diagram 36 )   show
+ 514.0  473.0 moveto 
+ (QCD=4, QED=2)   show
+ 190.0 440.0 140.0 447.5 Ffermion 
+ 166.5  445.75 moveto 
+(ve~)   show
+ 196.0  439.1 moveto 
+(4)   show
+ 140.0 447.5 190.0 460 Ffermion 
+ 156.0  457.75 moveto 
+(e-)   show
+ 196.0  461.5 moveto 
+(3)   show
+ 140.0 447.5 90.0 447.5 0 Fphoton 
+ 113.5  450.0 moveto 
+(w-)   show
+ 90.0 447.5 40 460 Ffermion 
+ 66.5  455.75 moveto 
+(c~)   show
+ 34.0  460 moveto 
+(2)   show
+ 90.0 422.5 90.0 447.5 Ffermion 
+ 92.25  434.0 moveto 
+(s)   show
+ 190.0 380.0 140.0 397.5 Ffermion 
+ 166.5  390.75 moveto 
+(u~)   show
+ 196.0  377.9 moveto 
+(7)   show
+ 140.0 397.5 190.0 400.0 0 Fgluon 
+ 160.5  400.75 moveto 
+(g)   show
+ 196.0  400.3 moveto 
+(5)   show
+ 140.0 397.5 90.0 397.5 Ffermion 
+ 113.5  400.0 moveto 
+(u~)   show
+ 90.0 372.5 40 360 Ffermion 
+ 56.0  370.25 moveto 
+(u~)   show
+ 34.0  360 moveto 
+(1)   show
+ 90.0 372.5 163.71541402 363.285573247 0 Fgluon 
+ 128.35770701  369.892786624 moveto 
+(g)   show
+ 169.71541402  362.535573247 moveto 
+(6)   show
+ 90.0 397.5 90.0 372.5 Ffermion 
+ 92.25  384.0 moveto 
+(u~)   show
+ 90.0 422.5 90.0 397.5 0 Fgluon 
+ 92.25  409.0 moveto 
+(g)   show
+ 164.947321178 420.626316971 90.0 422.5 Ffermion 
+ 128.973660589  423.563158485 moveto 
+(s~)   show
+ 170.947321178  420.476316971 moveto 
+(8)   show
+ 70.0  343.0 moveto 
+( diagram 37 )   show
+ 130.0  343.0 moveto 
+ (QCD=4, QED=2)   show
+ 382.0 440.0 344.5 450.0 Ffermion 
+ 364.75  447.0 moveto 
+(ve~)   show
+ 388.0  438.4 moveto 
+(4)   show
+ 344.5 450.0 382.0 460 Ffermion 
+ 354.25  459.0 moveto 
+(e-)   show
+ 388.0  461.6 moveto 
+(3)   show
+ 344.5 450.0 307.0 443.333333333 0 Fphoton 
+ 316.75  450.666666667 moveto 
+(w-)   show
+ 357.972801625 427.475128383 307.0 443.333333333 Ffermion 
+ 333.986400812  437.404230858 moveto 
+(s~)   show
+ 363.972801625  425.608461717 moveto 
+(8)   show
+ 307.0 443.333333333 269.5 443.333333333 Ffermion 
+ 286.75  445.833333333 moveto 
+(c~)   show
+ 355.233977071 390.706409171 307.0 410.0 Ffermion 
+ 332.616988536  402.353204586 moveto 
+(u~)   show
+ 361.233977071  388.306409171 moveto 
+(7)   show
+ 307.0 410.0 362.157663008 402.645644932 0 Fgluon 
+ 336.078831504  408.322822466 moveto 
+(g)   show
+ 368.157663008  401.845644932 moveto 
+(5)   show
+ 307.0 410.0 269.5 410.0 Ffermion 
+ 286.75  412.5 moveto 
+(u~)   show
+ 269.5 376.666666667 232 360 Ffermion 
+ 241.75  372.333333333 moveto 
+(u~)   show
+ 226.0  360 moveto 
+(1)   show
+ 269.5 376.666666667 324.410522135 368.531774498 0 Fgluon 
+ 298.455261068  374.599220583 moveto 
+(g)   show
+ 330.410522135  367.64288561 moveto 
+(6)   show
+ 269.5 410.0 269.5 376.666666667 Ffermion 
+ 271.75  392.333333333 moveto 
+(u~)   show
+ 269.5 443.333333333 269.5 410.0 0 Fgluon 
+ 271.75  425.666666667 moveto 
+(g)   show
+ 269.5 443.333333333 232 460 Ffermion 
+ 252.25  453.666666667 moveto 
+(c~)   show
+ 226.0  460 moveto 
+(2)   show
+ 262.0  343.0 moveto 
+( diagram 38 )   show
+ 322.0  343.0 moveto 
+ (QCD=4, QED=2)   show
+ 474.0 447.5 424 460 Ffermion 
+ 450.5  455.75 moveto 
+(c~)   show
+ 418.0  460 moveto 
+(2)   show
+ 474.0 447.5 547.71541402 456.714426753 0 Fgluon 
+ 506.35770701  454.107213376 moveto 
+(g)   show
+ 553.71541402  457.464426753 moveto 
+(6)   show
+ 474.0 422.5 474.0 447.5 Ffermion 
+ 476.25  434.0 moveto 
+(c)   show
+ 574.0 420.0 524.0 422.5 Ffermion 
+ 550.5  423.25 moveto 
+(ve~)   show
+ 580.0  419.7 moveto 
+(4)   show
+ 524.0 422.5 574.0 440.0 Ffermion 
+ 540.0  435.25 moveto 
+(e-)   show
+ 580.0  442.1 moveto 
+(3)   show
+ 524.0 422.5 474.0 422.5 0 Fphoton 
+ 497.5  425.0 moveto 
+(w-)   show
+ 474.0 397.5 474.0 422.5 Ffermion 
+ 476.25  409.0 moveto 
+(s)   show
+ 574.0 360 524.0 372.5 Ffermion 
+ 550.5  368.25 moveto 
+(u~)   show
+ 580.0  358.5 moveto 
+(7)   show
+ 524.0 372.5 574.0 380.0 0 Fgluon 
+ 544.5  378.25 moveto 
+(g)   show
+ 580.0  380.9 moveto 
+(5)   show
+ 524.0 372.5 474.0 372.5 Ffermion 
+ 497.5  375.0 moveto 
+(u~)   show
+ 474.0 372.5 424 360 Ffermion 
+ 440.0  370.25 moveto 
+(u~)   show
+ 418.0  360 moveto 
+(1)   show
+ 474.0 397.5 474.0 372.5 0 Fgluon 
+ 476.25  384.0 moveto 
+(g)   show
+ 548.947321178 399.373683029 474.0 397.5 Ffermion 
+ 502.473660589  402.436841515 moveto 
+(s~)   show
+ 554.947321178  399.523683029 moveto 
+(8)   show
+ 454.0  343.0 moveto 
+( diagram 39 )   show
+ 514.0  343.0 moveto 
+ (QCD=4, QED=2)   show
+ 190.0 290.0 152.5 300.0 Ffermion 
+ 172.75  297.0 moveto 
+(ve~)   show
+ 196.0  288.4 moveto 
+(4)   show
+ 152.5 300.0 190.0 310.0 Ffermion 
+ 162.25  309.0 moveto 
+(e-)   show
+ 196.0  311.6 moveto 
+(3)   show
+ 152.5 300.0 115.0 280.0 0 Fphoton 
+ 124.75  294.0 moveto 
+(w-)   show
+ 170.157663008 272.645644932 115.0 280.0 Ffermion 
+ 144.078831504  278.322822466 moveto 
+(s~)   show
+ 176.157663008  271.845644932 moveto 
+(8)   show
+ 115.0 280.0 77.5 280.0 Ffermion 
+ 94.75  282.5 moveto 
+(c~)   show
+ 77.5 313.333333333 40 330 Ffermion 
+ 60.25  323.666666667 moveto 
+(c~)   show
+ 34.0  330 moveto 
+(2)   show
+ 77.5 313.333333333 132.410522135 321.468225502 0 Fgluon 
+ 100.455261068  319.400779417 moveto 
+(g)   show
+ 138.410522135  322.35711439 moveto 
+(6)   show
+ 77.5 280.0 77.5 313.333333333 Ffermion 
+ 79.75  295.666666667 moveto 
+(c)   show
+ 168.363435515 234.808125441 115.0 246.666666667 Ffermion 
+ 143.181717758  242.737396054 moveto 
+(u~)   show
+ 174.363435515  233.474792108 moveto 
+(7)   show
+ 115.0 246.666666667 171.125415129 249.161129561 0 Fgluon 
+ 138.562707565  249.913898114 moveto 
+(g)   show
+ 177.125415129  249.427796228 moveto 
+(5)   show
+ 115.0 246.666666667 77.5 246.666666667 Ffermion 
+ 94.75  249.166666667 moveto 
+(u~)   show
+ 77.5 246.666666667 40 230 Ffermion 
+ 49.75  242.333333333 moveto 
+(u~)   show
+ 34.0  230 moveto 
+(1)   show
+ 77.5 280.0 77.5 246.666666667 0 Fgluon 
+ 79.75  262.333333333 moveto 
+(g)   show
+ 70.0  213.0 moveto 
+( diagram 40 )   show
+ 130.0  213.0 moveto 
+ (QCD=4, QED=2)   show
+ 382.0 270.0 344.5 292.5 Ffermion 
+ 364.75  283.25 moveto 
+(s~)   show
+ 388.0  266.4 moveto 
+(8)   show
+ 344.5 292.5 382.0 290.0 0 Fgluon 
+ 364.75  293.25 moveto 
+(g)   show
+ 388.0  289.6 moveto 
+(6)   show
+ 344.5 292.5 307.0 305.0 Ffermion 
+ 327.25  300.75 moveto 
+(s~)   show
+ 382.0 310.0 344.5 317.5 Ffermion 
+ 364.75  315.75 moveto 
+(ve~)   show
+ 388.0  308.8 moveto 
+(4)   show
+ 344.5 317.5 382.0 330 Ffermion 
+ 354.25  327.75 moveto 
+(e-)   show
+ 388.0  332.0 moveto 
+(3)   show
+ 344.5 317.5 307.0 305.0 0 Fphoton 
+ 316.75  315.25 moveto 
+(w-)   show
+ 307.0 305.0 269.5 305.0 Ffermion 
+ 286.75  307.5 moveto 
+(c~)   show
+ 357.311529494 238.229490169 307.0 255.0 Ffermion 
+ 333.655764747  248.614745084 moveto 
+(u~)   show
+ 363.311529494  236.229490169 moveto 
+(7)   show
+ 307.0 255.0 362.970841949 251.268610537 0 Fgluon 
+ 336.485420975  255.134305268 moveto 
+(g)   show
+ 368.970841949  250.868610537 moveto 
+(5)   show
+ 307.0 255.0 269.5 255.0 Ffermion 
+ 286.75  257.5 moveto 
+(u~)   show
+ 269.5 255.0 232 230 Ffermion 
+ 241.75  246.5 moveto 
+(u~)   show
+ 226.0  230 moveto 
+(1)   show
+ 269.5 305.0 269.5 255.0 0 Fgluon 
+ 271.75  279.0 moveto 
+(g)   show
+ 269.5 305.0 232 330 Ffermion 
+ 252.25  319.5 moveto 
+(c~)   show
+ 226.0  330 moveto 
+(2)   show
+ 262.0  213.0 moveto 
+( diagram 41 )   show
+ 322.0  213.0 moveto 
+ (QCD=4, QED=2)   show
+ 574.0 270.0 524.0 280.0 Ffermion 
+ 550.5  277.0 moveto 
+(s~)   show
+ 580.0  268.8 moveto 
+(8)   show
+ 524.0 280.0 574.0 290.0 0 Fgluon 
+ 544.5  287.0 moveto 
+(g)   show
+ 580.0  291.2 moveto 
+(6)   show
+ 524.0 280.0 474.0 280.0 Ffermion 
+ 497.5  282.5 moveto 
+(s~)   show
+ 574.0 310.0 524.0 313.333333333 Ffermion 
+ 550.5  313.666666667 moveto 
+(ve~)   show
+ 580.0  309.6 moveto 
+(4)   show
+ 524.0 313.333333333 574.0 330 Ffermion 
+ 540.0  325.666666667 moveto 
+(e-)   show
+ 580.0  332.0 moveto 
+(3)   show
+ 524.0 313.333333333 474.0 313.333333333 0 Fphoton 
+ 497.5  315.833333333 moveto 
+(w-)   show
+ 474.0 313.333333333 424 330 Ffermion 
+ 450.5  323.666666667 moveto 
+(c~)   show
+ 418.0  330 moveto 
+(2)   show
+ 474.0 280.0 474.0 313.333333333 Ffermion 
+ 476.25  295.666666667 moveto 
+(s)   show
+ 574.0 230 524.0 246.666666667 Ffermion 
+ 550.5  240.333333333 moveto 
+(u~)   show
+ 580.0  228.0 moveto 
+(7)   show
+ 524.0 246.666666667 574.0 250.0 0 Fgluon 
+ 544.5  250.333333333 moveto 
+(g)   show
+ 580.0  250.4 moveto 
+(5)   show
+ 524.0 246.666666667 474.0 246.666666667 Ffermion 
+ 497.5  249.166666667 moveto 
+(u~)   show
+ 474.0 246.666666667 424 230 Ffermion 
+ 440.0  242.333333333 moveto 
+(u~)   show
+ 418.0  230 moveto 
+(1)   show
+ 474.0 280.0 474.0 246.666666667 0 Fgluon 
+ 476.25  262.333333333 moveto 
+(g)   show
+ 454.0  213.0 moveto 
+( diagram 42 )   show
+ 514.0  213.0 moveto 
+ (QCD=4, QED=2)   show
+ 190.0 100 152.5 110.0 Ffermion 
+ 172.75  107.0 moveto 
+(u~)   show
+ 196.0  98.4 moveto 
+(7)   show
+ 152.5 110.0 190.0 120.0 0 Fgluon 
+ 166.75  117.0 moveto 
+(g)   show
+ 196.0  121.6 moveto 
+(5)   show
+ 152.5 110.0 115.0 116.666666667 Ffermion 
+ 135.25  115.333333333 moveto 
+(u~)   show
+ 115.0 116.666666667 165.972801625 132.524871617 0 Fgluon 
+ 135.986400812  126.595769142 moveto 
+(g)   show
+ 171.972801625  134.391538283 moveto 
+(6)   show
+ 115.0 116.666666667 77.5 116.666666667 Ffermion 
+ 94.75  119.166666667 moveto 
+(u~)   show
+ 171.125415129 180.838870439 115.0 183.333333333 Ffermion 
+ 144.562707565  184.086101886 moveto 
+(ve~)   show
+ 177.125415129  180.572203772 moveto 
+(4)   show
+ 115.0 183.333333333 168.363435515 195.191874559 Ffermion 
+ 132.681717758  193.262603946 moveto 
+(e-)   show
+ 174.363435515  196.525207892 moveto 
+(3)   show
+ 115.0 183.333333333 77.5 183.333333333 0 Fphoton 
+ 94.75  185.833333333 moveto 
+(w-)   show
+ 77.5 183.333333333 40 200 Ffermion 
+ 60.25  193.666666667 moveto 
+(c~)   show
+ 34.0  200 moveto 
+(2)   show
+ 77.5 150.0 77.5 183.333333333 Ffermion 
+ 79.75  165.666666667 moveto 
+(s)   show
+ 133.256569413 154.956139503 77.5 150.0 Ffermion 
+ 96.3782847067  156.478069752 moveto 
+(s~)   show
+ 139.256569413  155.489472837 moveto 
+(8)   show
+ 77.5 150.0 77.5 116.666666667 0 Fgluon 
+ 79.75  132.333333333 moveto 
+(g)   show
+ 77.5 116.666666667 40 100 Ffermion 
+ 49.75  112.333333333 moveto 
+(u~)   show
+ 34.0  100 moveto 
+(1)   show
+ 70.0  83.0 moveto 
+( diagram 43 )   show
+ 130.0  83.0 moveto 
+ (QCD=4, QED=2)   show
+ 382.0 180.0 332.0 187.5 Ffermion 
+ 358.5  185.75 moveto 
+(ve~)   show
+ 388.0  179.1 moveto 
+(4)   show
+ 332.0 187.5 382.0 200 Ffermion 
+ 348.0  197.75 moveto 
+(e-)   show
+ 388.0  201.5 moveto 
+(3)   show
+ 332.0 187.5 282.0 187.5 0 Fphoton 
+ 305.5  190.0 moveto 
+(w-)   show
+ 282.0 187.5 232 200 Ffermion 
+ 258.5  195.75 moveto 
+(c~)   show
+ 226.0  200 moveto 
+(2)   show
+ 282.0 162.5 282.0 187.5 Ffermion 
+ 284.25  174.0 moveto 
+(s)   show
+ 282.0 162.5 356.947321178 160.626316971 0 Fgluon 
+ 320.973660589  163.563158485 moveto 
+(g)   show
+ 362.947321178  160.476316971 moveto 
+(6)   show
+ 282.0 137.5 282.0 162.5 Ffermion 
+ 284.25  149.0 moveto 
+(s)   show
+ 382.0 100 332.0 112.5 Ffermion 
+ 358.5  108.25 moveto 
+(u~)   show
+ 388.0  98.5 moveto 
+(7)   show
+ 332.0 112.5 382.0 120.0 0 Fgluon 
+ 352.5  118.25 moveto 
+(g)   show
+ 388.0  120.9 moveto 
+(5)   show
+ 332.0 112.5 282.0 112.5 Ffermion 
+ 305.5  115.0 moveto 
+(u~)   show
+ 282.0 112.5 232 100 Ffermion 
+ 248.0  110.25 moveto 
+(u~)   show
+ 226.0  100 moveto 
+(1)   show
+ 282.0 137.5 282.0 112.5 0 Fgluon 
+ 284.25  124.0 moveto 
+(g)   show
+ 356.947321178 139.373683029 282.0 137.5 Ffermion 
+ 310.473660589  142.436841515 moveto 
+(s~)   show
+ 362.947321178  139.523683029 moveto 
+(8)   show
+ 262.0  83.0 moveto 
+( diagram 44 )   show
+ 322.0  83.0 moveto 
+ (QCD=4, QED=2)   show
+ 574.0 100 524.0 112.5 Ffermion 
+ 550.5  108.25 moveto 
+(u~)   show
+ 580.0  98.5 moveto 
+(7)   show
+ 524.0 112.5 574.0 120.0 0 Fgluon 
+ 544.5  118.25 moveto 
+(g)   show
+ 580.0  120.9 moveto 
+(5)   show
+ 524.0 112.5 474.0 112.5 Ffermion 
+ 497.5  115.0 moveto 
+(u~)   show
+ 474.0 112.5 424 100 Ffermion 
+ 440.0  110.25 moveto 
+(u~)   show
+ 418.0  100 moveto 
+(1)   show
+ 474.0 137.5 474.0 112.5 0 Fgluon 
+ 476.25  124.0 moveto 
+(g)   show
+ 574.0 180.0 524.0 187.5 Ffermion 
+ 550.5  185.75 moveto 
+(ve~)   show
+ 580.0  179.1 moveto 
+(4)   show
+ 524.0 187.5 574.0 200 Ffermion 
+ 540.0  197.75 moveto 
+(e-)   show
+ 580.0  201.5 moveto 
+(3)   show
+ 524.0 187.5 474.0 187.5 0 Fphoton 
+ 497.5  190.0 moveto 
+(w-)   show
+ 474.0 187.5 424 200 Ffermion 
+ 450.5  195.75 moveto 
+(c~)   show
+ 418.0  200 moveto 
+(2)   show
+ 474.0 162.5 474.0 187.5 Ffermion 
+ 476.25  174.0 moveto 
+(s)   show
+ 548.947321178 160.626316971 474.0 162.5 Ffermion 
+ 512.973660589  163.563158485 moveto 
+(s~)   show
+ 554.947321178  160.476316971 moveto 
+(8)   show
+ 474.0 162.5 474.0 137.5 0 Fgluon 
+ 476.25  149.0 moveto 
+(g)   show
+ 474.0 137.5 548.947321178 139.373683029 0 Fgluon 
+ 506.973660589  140.436841515 moveto 
+(g)   show
+ 554.947321178  139.523683029 moveto 
+(6)   show
+ 454.0  83.0 moveto 
+( diagram 45 )   show
+ 514.0  83.0 moveto 
+ (QCD=4, QED=2)   show
+showpage
+%%Page: 7 7 
+%%PageBoundingBox:-20 -20 600 800
+%%PageFonts: Helvetica
+/Helvetica findfont 6 scalefont setfont
+ 50         770  moveto
+ () show
+ 525         770  moveto
+ (page 7/10) show
+ 260         40  moveto
+ (Diagrams made by MadGraph5) show
+ 190.0 620 152.5 632.5 Ffermion 
+ 172.75  628.25 moveto 
+(u~)   show
+ 196.0  618.0 moveto 
+(7)   show
+ 152.5 632.5 190.0 640.0 0 Fgluon 
+ 166.75  638.25 moveto 
+(g)   show
+ 196.0  641.2 moveto 
+(5)   show
+ 152.5 632.5 115.0 645.0 Ffermion 
+ 135.25  640.75 moveto 
+(u~)   show
+ 115.0 645.0 168.877728544 655.775545709 0 Fgluon 
+ 137.438864272  652.387772854 moveto 
+(g)   show
+ 174.877728544  656.975545709 moveto 
+(6)   show
+ 115.0 645.0 77.5 645.0 Ffermion 
+ 94.75  647.5 moveto 
+(u~)   show
+ 190.0 700.0 152.5 707.5 Ffermion 
+ 172.75  705.75 moveto 
+(ve~)   show
+ 196.0  698.8 moveto 
+(4)   show
+ 152.5 707.5 190.0 720 Ffermion 
+ 162.25  717.75 moveto 
+(e-)   show
+ 196.0  722.0 moveto 
+(3)   show
+ 152.5 707.5 115.0 695.0 0 Fphoton 
+ 124.75  705.25 moveto 
+(w-)   show
+ 168.877728544 684.224454291 115.0 695.0 Ffermion 
+ 143.438864272  691.612227146 moveto 
+(s~)   show
+ 174.877728544  683.024454291 moveto 
+(8)   show
+ 115.0 695.0 77.5 695.0 Ffermion 
+ 94.75  697.5 moveto 
+(c~)   show
+ 77.5 695.0 40 720 Ffermion 
+ 60.25  709.5 moveto 
+(c~)   show
+ 34.0  720 moveto 
+(2)   show
+ 77.5 695.0 77.5 645.0 0 Fgluon 
+ 79.75  669.0 moveto 
+(g)   show
+ 77.5 645.0 40 620 Ffermion 
+ 49.75  636.5 moveto 
+(u~)   show
+ 34.0  620 moveto 
+(1)   show
+ 70.0  603.0 moveto 
+( diagram 46 )   show
+ 130.0  603.0 moveto 
+ (QCD=4, QED=2)   show
+ 382.0 680.0 352.0 690.0 Ffermion 
+ 368.5  687.0 moveto 
+(ve~)   show
+ 388.0  678.0 moveto 
+(4)   show
+ 352.0 690.0 382.0 700.0 Ffermion 
+ 358.0  699.0 moveto 
+(e-)   show
+ 388.0  702.0 moveto 
+(3)   show
+ 352.0 690.0 322.0 682.5 0 Fphoton 
+ 328.0  690.25 moveto 
+(w-)   show
+ 361.220899171 667.792162811 322.0 682.5 Ffermion 
+ 343.110449585  677.146081406 moveto 
+(s~)   show
+ 367.220899171  665.542162811 moveto 
+(8)   show
+ 322.0 682.5 292.0 695.0 Ffermion 
+ 308.5  690.75 moveto 
+(c~)   show
+ 292.0 695.0 333.538461538 706.538461538 0 Fgluon 
+ 308.269230769  702.769230769 moveto 
+(g)   show
+ 339.538461538  708.205128205 moveto 
+(6)   show
+ 292.0 695.0 262.0 695.0 Ffermion 
+ 275.5  697.5 moveto 
+(c~)   show
+ 333.538461538 633.461538462 292.0 645.0 Ffermion 
+ 314.269230769  641.230769231 moveto 
+(u~)   show
+ 339.538461538  631.794871795 moveto 
+(7)   show
+ 292.0 645.0 336.844559121 642.508635604 0 Fgluon 
+ 315.922279561  645.754317802 moveto 
+(g)   show
+ 342.844559121  642.175302271 moveto 
+(5)   show
+ 292.0 645.0 262.0 645.0 Ffermion 
+ 275.5  647.5 moveto 
+(u~)   show
+ 262.0 645.0 232 620 Ffermion 
+ 238.0  636.5 moveto 
+(u~)   show
+ 226.0  620 moveto 
+(1)   show
+ 262.0 695.0 262.0 645.0 0 Fgluon 
+ 264.25  669.0 moveto 
+(g)   show
+ 262.0 695.0 232 720 Ffermion 
+ 248.5  709.5 moveto 
+(c~)   show
+ 226.0  720 moveto 
+(2)   show
+ 262.0  603.0 moveto 
+( diagram 47 )   show
+ 322.0  603.0 moveto 
+ (QCD=4, QED=2)   show
+ 552.363435515 624.808125441 499.0 636.666666667 Ffermion 
+ 527.181717758  632.737396054 moveto 
+(u~)   show
+ 558.363435515  623.474792108 moveto 
+(7)   show
+ 499.0 636.666666667 555.125415129 639.161129561 0 Fgluon 
+ 522.562707565  639.913898114 moveto 
+(g)   show
+ 561.125415129  639.427796228 moveto 
+(5)   show
+ 499.0 636.666666667 461.5 636.666666667 Ffermion 
+ 478.75  639.166666667 moveto 
+(u~)   show
+ 461.5 636.666666667 424 620 Ffermion 
+ 433.75  632.333333333 moveto 
+(u~)   show
+ 418.0  620 moveto 
+(1)   show
+ 461.5 670.0 461.5 636.666666667 0 Fgluon 
+ 463.75  652.333333333 moveto 
+(g)   show
+ 574.0 700.0 536.5 710.0 Ffermion 
+ 556.75  707.0 moveto 
+(ve~)   show
+ 580.0  698.4 moveto 
+(4)   show
+ 536.5 710.0 574.0 720 Ffermion 
+ 546.25  719.0 moveto 
+(e-)   show
+ 580.0  721.6 moveto 
+(3)   show
+ 536.5 710.0 499.0 703.333333333 0 Fphoton 
+ 508.75  710.666666667 moveto 
+(w-)   show
+ 549.972801625 687.475128383 499.0 703.333333333 Ffermion 
+ 525.986400812  697.404230858 moveto 
+(s~)   show
+ 555.972801625  685.608461717 moveto 
+(8)   show
+ 499.0 703.333333333 461.5 703.333333333 Ffermion 
+ 478.75  705.833333333 moveto 
+(c~)   show
+ 461.5 703.333333333 424 720 Ffermion 
+ 444.25  713.666666667 moveto 
+(c~)   show
+ 418.0  720 moveto 
+(2)   show
+ 461.5 703.333333333 461.5 670.0 0 Fgluon 
+ 463.75  685.666666667 moveto 
+(g)   show
+ 461.5 670.0 517.256569413 665.043860497 0 Fgluon 
+ 490.878284707  669.521930248 moveto 
+(g)   show
+ 523.256569413  664.510527163 moveto 
+(6)   show
+ 454.0  603.0 moveto 
+( diagram 48 )   show
+ 514.0  603.0 moveto 
+ (QCD=4, QED=2)   show
+ 190.0 530.0 152.5 552.5 Ffermion 
+ 172.75  543.25 moveto 
+(s~)   show
+ 196.0  526.4 moveto 
+(8)   show
+ 152.5 552.5 190.0 550.0 0 Fgluon 
+ 172.75  553.25 moveto 
+(g)   show
+ 196.0  549.6 moveto 
+(5)   show
+ 152.5 552.5 115.0 573.333333333 Ffermion 
+ 135.25  564.916666667 moveto 
+(s~)   show
+ 190.0 570.0 152.5 577.5 Ffermion 
+ 172.75  575.75 moveto 
+(ve~)   show
+ 196.0  568.8 moveto 
+(4)   show
+ 152.5 577.5 190.0 590 Ffermion 
+ 162.25  587.75 moveto 
+(e-)   show
+ 196.0  592.0 moveto 
+(3)   show
+ 152.5 577.5 115.0 573.333333333 0 Fphoton 
+ 124.75  579.416666667 moveto 
+(w-)   show
+ 115.0 573.333333333 77.5 573.333333333 Ffermion 
+ 94.75  575.833333333 moveto 
+(c~)   show
+ 77.5 506.666666667 40 490 Ffermion 
+ 49.75  502.333333333 moveto 
+(u~)   show
+ 34.0  490 moveto 
+(1)   show
+ 77.5 506.666666667 132.410522135 498.531774498 0 Fgluon 
+ 106.455261068  504.599220583 moveto 
+(g)   show
+ 138.410522135  497.64288561 moveto 
+(6)   show
+ 77.5 540.0 77.5 506.666666667 Ffermion 
+ 79.75  522.333333333 moveto 
+(u~)   show
+ 129.726813862 526.072849637 77.5 540.0 Ffermion 
+ 105.113406931  535.036424818 moveto 
+(u~)   show
+ 135.726813862  524.472849637 moveto 
+(7)   show
+ 77.5 573.333333333 77.5 540.0 0 Fgluon 
+ 79.75  555.666666667 moveto 
+(g)   show
+ 77.5 573.333333333 40 590 Ffermion 
+ 60.25  583.666666667 moveto 
+(c~)   show
+ 34.0  590 moveto 
+(2)   show
+ 70.0  473.0 moveto 
+( diagram 49 )   show
+ 130.0  473.0 moveto 
+ (QCD=4, QED=2)   show
+ 282.0 502.5 232 490 Ffermion 
+ 248.0  500.25 moveto 
+(u~)   show
+ 226.0  490 moveto 
+(1)   show
+ 282.0 502.5 355.71541402 493.285573247 0 Fgluon 
+ 320.35770701  499.892786624 moveto 
+(g)   show
+ 361.71541402  492.535573247 moveto 
+(6)   show
+ 282.0 527.5 282.0 502.5 Ffermion 
+ 284.25  514.0 moveto 
+(u~)   show
+ 382.0 530.0 332.0 552.5 Ffermion 
+ 358.5  543.25 moveto 
+(s~)   show
+ 388.0  527.3 moveto 
+(8)   show
+ 332.0 552.5 382.0 550.0 0 Fgluon 
+ 358.5  553.25 moveto 
+(g)   show
+ 388.0  549.7 moveto 
+(5)   show
+ 332.0 552.5 282.0 552.5 Ffermion 
+ 305.5  555.0 moveto 
+(s~)   show
+ 382.0 570.0 332.0 577.5 Ffermion 
+ 358.5  575.75 moveto 
+(ve~)   show
+ 388.0  569.1 moveto 
+(4)   show
+ 332.0 577.5 382.0 590 Ffermion 
+ 348.0  587.75 moveto 
+(e-)   show
+ 388.0  591.5 moveto 
+(3)   show
+ 332.0 577.5 282.0 577.5 0 Fphoton 
+ 305.5  580.0 moveto 
+(w-)   show
+ 282.0 577.5 232 590 Ffermion 
+ 258.5  585.75 moveto 
+(c~)   show
+ 226.0  590 moveto 
+(2)   show
+ 282.0 552.5 282.0 577.5 Ffermion 
+ 284.25  564.0 moveto 
+(s)   show
+ 282.0 552.5 282.0 527.5 0 Fgluon 
+ 284.25  539.0 moveto 
+(g)   show
+ 354.542322403 514.805093579 282.0 527.5 Ffermion 
+ 319.771161202  523.15254679 moveto 
+(u~)   show
+ 360.542322403  513.755093579 moveto 
+(7)   show
+ 262.0  473.0 moveto 
+( diagram 50 )   show
+ 322.0  473.0 moveto 
+ (QCD=4, QED=2)   show
+ 574.0 510.0 536.5 527.5 Ffermion 
+ 556.75  520.75 moveto 
+(s~)   show
+ 580.0  507.2 moveto 
+(8)   show
+ 536.5 527.5 574.0 530.0 0 Fgluon 
+ 550.75  530.75 moveto 
+(g)   show
+ 580.0  530.4 moveto 
+(5)   show
+ 536.5 527.5 499.0 540.0 Ffermion 
+ 519.25  535.75 moveto 
+(s~)   show
+ 574.0 550.0 536.5 552.5 Ffermion 
+ 556.75  553.25 moveto 
+(ve~)   show
+ 580.0  549.6 moveto 
+(4)   show
+ 536.5 552.5 574.0 570.0 Ffermion 
+ 546.25  565.25 moveto 
+(e-)   show
+ 580.0  572.8 moveto 
+(3)   show
+ 536.5 552.5 499.0 540.0 0 Fphoton 
+ 508.75  550.25 moveto 
+(w-)   show
+ 499.0 540.0 461.5 540.0 Ffermion 
+ 478.75  542.5 moveto 
+(c~)   show
+ 461.5 573.333333333 424 590 Ffermion 
+ 444.25  583.666666667 moveto 
+(c~)   show
+ 418.0  590 moveto 
+(2)   show
+ 461.5 573.333333333 516.410522135 581.468225502 0 Fgluon 
+ 484.455261068  579.400779417 moveto 
+(g)   show
+ 522.410522135  582.35711439 moveto 
+(6)   show
+ 461.5 540.0 461.5 573.333333333 Ffermion 
+ 463.75  555.666666667 moveto 
+(c)   show
+ 516.410522135 498.531774498 461.5 506.666666667 Ffermion 
+ 490.455261068  504.599220583 moveto 
+(u~)   show
+ 522.410522135  497.64288561 moveto 
+(7)   show
+ 461.5 506.666666667 424 490 Ffermion 
+ 433.75  502.333333333 moveto 
+(u~)   show
+ 418.0  490 moveto 
+(1)   show
+ 461.5 540.0 461.5 506.666666667 0 Fgluon 
+ 463.75  522.333333333 moveto 
+(g)   show
+ 454.0  473.0 moveto 
+( diagram 51 )   show
+ 514.0  473.0 moveto 
+ (QCD=4, QED=2)   show
+ 190.0 380.0 140.0 397.5 Ffermion 
+ 166.5  390.75 moveto 
+(s~)   show
+ 196.0  377.9 moveto 
+(8)   show
+ 140.0 397.5 190.0 400.0 0 Fgluon 
+ 160.5  400.75 moveto 
+(g)   show
+ 196.0  400.3 moveto 
+(5)   show
+ 140.0 397.5 90.0 397.5 Ffermion 
+ 113.5  400.0 moveto 
+(s~)   show
+ 163.71541402 363.285573247 90.0 372.5 Ffermion 
+ 128.35770701  369.892786624 moveto 
+(u~)   show
+ 169.71541402  362.535573247 moveto 
+(7)   show
+ 90.0 372.5 40 360 Ffermion 
+ 56.0  370.25 moveto 
+(u~)   show
+ 34.0  360 moveto 
+(1)   show
+ 90.0 397.5 90.0 372.5 0 Fgluon 
+ 92.25  384.0 moveto 
+(g)   show
+ 90.0 397.5 90.0 422.5 Ffermion 
+ 92.25  409.0 moveto 
+(s)   show
+ 90.0 447.5 40 460 Ffermion 
+ 66.5  455.75 moveto 
+(c~)   show
+ 34.0  460 moveto 
+(2)   show
+ 90.0 447.5 163.71541402 456.714426753 0 Fgluon 
+ 122.35770701  454.107213376 moveto 
+(g)   show
+ 169.71541402  457.464426753 moveto 
+(6)   show
+ 90.0 422.5 90.0 447.5 Ffermion 
+ 92.25  434.0 moveto 
+(c)   show
+ 190.0 420.0 140.0 422.5 Ffermion 
+ 166.5  423.25 moveto 
+(ve~)   show
+ 196.0  419.7 moveto 
+(4)   show
+ 140.0 422.5 190.0 440.0 Ffermion 
+ 156.0  435.25 moveto 
+(e-)   show
+ 196.0  442.1 moveto 
+(3)   show
+ 140.0 422.5 90.0 422.5 0 Fphoton 
+ 113.5  425.0 moveto 
+(w-)   show
+ 70.0  343.0 moveto 
+( diagram 52 )   show
+ 130.0  343.0 moveto 
+ (QCD=4, QED=2)   show
+ 382.0 400.0 344.5 422.5 Ffermion 
+ 364.75  413.25 moveto 
+(s~)   show
+ 388.0  396.4 moveto 
+(8)   show
+ 344.5 422.5 382.0 420.0 0 Fgluon 
+ 364.75  423.25 moveto 
+(g)   show
+ 388.0  419.6 moveto 
+(5)   show
+ 344.5 422.5 307.0 435.0 Ffermion 
+ 327.25  430.75 moveto 
+(s~)   show
+ 382.0 440.0 344.5 447.5 Ffermion 
+ 364.75  445.75 moveto 
+(ve~)   show
+ 388.0  438.8 moveto 
+(4)   show
+ 344.5 447.5 382.0 460 Ffermion 
+ 354.25  457.75 moveto 
+(e-)   show
+ 388.0  462.0 moveto 
+(3)   show
+ 344.5 447.5 307.0 435.0 0 Fphoton 
+ 316.75  445.25 moveto 
+(w-)   show
+ 307.0 435.0 269.5 435.0 Ffermion 
+ 286.75  437.5 moveto 
+(c~)   show
+ 357.311529494 368.229490169 307.0 385.0 Ffermion 
+ 333.655764747  378.614745084 moveto 
+(u~)   show
+ 363.311529494  366.229490169 moveto 
+(7)   show
+ 307.0 385.0 362.970841949 381.268610537 0 Fgluon 
+ 336.485420975  385.134305268 moveto 
+(g)   show
+ 368.970841949  380.868610537 moveto 
+(6)   show
+ 307.0 385.0 269.5 385.0 Ffermion 
+ 286.75  387.5 moveto 
+(u~)   show
+ 269.5 385.0 232 360 Ffermion 
+ 241.75  376.5 moveto 
+(u~)   show
+ 226.0  360 moveto 
+(1)   show
+ 269.5 435.0 269.5 385.0 0 Fgluon 
+ 271.75  409.0 moveto 
+(g)   show
+ 269.5 435.0 232 460 Ffermion 
+ 252.25  449.5 moveto 
+(c~)   show
+ 226.0  460 moveto 
+(2)   show
+ 262.0  343.0 moveto 
+( diagram 53 )   show
+ 322.0  343.0 moveto 
+ (QCD=4, QED=2)   show
+ 574.0 360 524.0 376.666666667 Ffermion 
+ 550.5  370.333333333 moveto 
+(u~)   show
+ 580.0  358.0 moveto 
+(7)   show
+ 524.0 376.666666667 574.0 380.0 0 Fgluon 
+ 544.5  380.333333333 moveto 
+(g)   show
+ 580.0  380.4 moveto 
+(6)   show
+ 524.0 376.666666667 474.0 376.666666667 Ffermion 
+ 497.5  379.166666667 moveto 
+(u~)   show
+ 574.0 400.0 524.0 410.0 Ffermion 
+ 550.5  407.0 moveto 
+(s~)   show
+ 580.0  398.8 moveto 
+(8)   show
+ 524.0 410.0 574.0 420.0 0 Fgluon 
+ 544.5  417.0 moveto 
+(g)   show
+ 580.0  421.2 moveto 
+(5)   show
+ 524.0 410.0 474.0 410.0 Ffermion 
+ 497.5  412.5 moveto 
+(s~)   show
+ 574.0 440.0 524.0 443.333333333 Ffermion 
+ 550.5  443.666666667 moveto 
+(ve~)   show
+ 580.0  439.6 moveto 
+(4)   show
+ 524.0 443.333333333 574.0 460 Ffermion 
+ 540.0  455.666666667 moveto 
+(e-)   show
+ 580.0  462.0 moveto 
+(3)   show
+ 524.0 443.333333333 474.0 443.333333333 0 Fphoton 
+ 497.5  445.833333333 moveto 
+(w-)   show
+ 474.0 443.333333333 424 460 Ffermion 
+ 450.5  453.666666667 moveto 
+(c~)   show
+ 418.0  460 moveto 
+(2)   show
+ 474.0 410.0 474.0 443.333333333 Ffermion 
+ 476.25  425.666666667 moveto 
+(s)   show
+ 474.0 410.0 474.0 376.666666667 0 Fgluon 
+ 476.25  392.333333333 moveto 
+(g)   show
+ 474.0 376.666666667 424 360 Ffermion 
+ 440.0  372.333333333 moveto 
+(u~)   show
+ 418.0  360 moveto 
+(1)   show
+ 454.0  343.0 moveto 
+( diagram 54 )   show
+ 514.0  343.0 moveto 
+ (QCD=4, QED=2)   show
+ 190.0 250.0 152.5 260.0 Ffermion 
+ 172.75  257.0 moveto 
+(s~)   show
+ 196.0  248.4 moveto 
+(8)   show
+ 152.5 260.0 190.0 270.0 0 Fgluon 
+ 166.75  267.0 moveto 
+(g)   show
+ 196.0  271.6 moveto 
+(5)   show
+ 152.5 260.0 115.0 280.0 Ffermion 
+ 135.25  272.0 moveto 
+(s~)   show
+ 115.0 280.0 170.157663008 287.354355068 0 Fgluon 
+ 138.078831504  285.677177534 moveto 
+(g)   show
+ 176.157663008  288.154355068 moveto 
+(6)   show
+ 115.0 280.0 77.5 280.0 Ffermion 
+ 94.75  282.5 moveto 
+(s~)   show
+ 171.125415129 310.838870439 115.0 313.333333333 Ffermion 
+ 144.562707565  314.086101886 moveto 
+(ve~)   show
+ 177.125415129  310.572203772 moveto 
+(4)   show
+ 115.0 313.333333333 168.363435515 325.191874559 Ffermion 
+ 132.681717758  323.262603946 moveto 
+(e-)   show
+ 174.363435515  326.525207892 moveto 
+(3)   show
+ 115.0 313.333333333 77.5 313.333333333 0 Fphoton 
+ 94.75  315.833333333 moveto 
+(w-)   show
+ 77.5 313.333333333 40 330 Ffermion 
+ 60.25  323.666666667 moveto 
+(c~)   show
+ 34.0  330 moveto 
+(2)   show
+ 77.5 280.0 77.5 313.333333333 Ffermion 
+ 79.75  295.666666667 moveto 
+(s)   show
+ 132.410522135 238.531774498 77.5 246.666666667 Ffermion 
+ 106.455261068  244.599220583 moveto 
+(u~)   show
+ 138.410522135  237.64288561 moveto 
+(7)   show
+ 77.5 246.666666667 40 230 Ffermion 
+ 49.75  242.333333333 moveto 
+(u~)   show
+ 34.0  230 moveto 
+(1)   show
+ 77.5 280.0 77.5 246.666666667 0 Fgluon 
+ 79.75  262.333333333 moveto 
+(g)   show
+ 70.0  213.0 moveto 
+( diagram 55 )   show
+ 130.0  213.0 moveto 
+ (QCD=4, QED=2)   show
+ 355.71541402 233.285573247 282.0 242.5 Ffermion 
+ 320.35770701  239.892786624 moveto 
+(u~)   show
+ 361.71541402  232.535573247 moveto 
+(7)   show
+ 282.0 242.5 232 230 Ffermion 
+ 248.0  240.25 moveto 
+(u~)   show
+ 226.0  230 moveto 
+(1)   show
+ 282.0 267.5 282.0 242.5 0 Fgluon 
+ 284.25  254.0 moveto 
+(g)   show
+ 382.0 270.0 332.0 292.5 Ffermion 
+ 358.5  283.25 moveto 
+(s~)   show
+ 388.0  267.3 moveto 
+(8)   show
+ 332.0 292.5 382.0 290.0 0 Fgluon 
+ 358.5  293.25 moveto 
+(g)   show
+ 388.0  289.7 moveto 
+(5)   show
+ 332.0 292.5 282.0 292.5 Ffermion 
+ 305.5  295.0 moveto 
+(s~)   show
+ 382.0 310.0 332.0 317.5 Ffermion 
+ 358.5  315.75 moveto 
+(ve~)   show
+ 388.0  309.1 moveto 
+(4)   show
+ 332.0 317.5 382.0 330 Ffermion 
+ 348.0  327.75 moveto 
+(e-)   show
+ 388.0  331.5 moveto 
+(3)   show
+ 332.0 317.5 282.0 317.5 0 Fphoton 
+ 305.5  320.0 moveto 
+(w-)   show
+ 282.0 317.5 232 330 Ffermion 
+ 258.5  325.75 moveto 
+(c~)   show
+ 226.0  330 moveto 
+(2)   show
+ 282.0 292.5 282.0 317.5 Ffermion 
+ 284.25  304.0 moveto 
+(s)   show
+ 282.0 292.5 282.0 267.5 0 Fgluon 
+ 284.25  279.0 moveto 
+(g)   show
+ 282.0 267.5 354.542322403 254.805093579 0 Fgluon 
+ 319.771161202  263.15254679 moveto 
+(g)   show
+ 360.542322403  253.755093579 moveto 
+(6)   show
+ 262.0  213.0 moveto 
+( diagram 56 )   show
+ 322.0  213.0 moveto 
+ (QCD=4, QED=2)   show
+ 574.0 250.0 524.0 267.5 Ffermion 
+ 550.5  260.75 moveto 
+(s~)   show
+ 580.0  247.9 moveto 
+(8)   show
+ 524.0 267.5 574.0 270.0 0 Fgluon 
+ 544.5  270.75 moveto 
+(g)   show
+ 580.0  270.3 moveto 
+(5)   show
+ 524.0 267.5 474.0 267.5 Ffermion 
+ 497.5  270.0 moveto 
+(s~)   show
+ 547.71541402 233.285573247 474.0 242.5 Ffermion 
+ 512.35770701  239.892786624 moveto 
+(u~)   show
+ 553.71541402  232.535573247 moveto 
+(7)   show
+ 474.0 242.5 424 230 Ffermion 
+ 440.0  240.25 moveto 
+(u~)   show
+ 418.0  230 moveto 
+(1)   show
+ 474.0 267.5 474.0 242.5 0 Fgluon 
+ 476.25  254.0 moveto 
+(g)   show
+ 474.0 267.5 474.0 292.5 Ffermion 
+ 476.25  279.0 moveto 
+(s)   show
+ 574.0 310.0 524.0 317.5 Ffermion 
+ 550.5  315.75 moveto 
+(ve~)   show
+ 580.0  309.1 moveto 
+(4)   show
+ 524.0 317.5 574.0 330 Ffermion 
+ 540.0  327.75 moveto 
+(e-)   show
+ 580.0  331.5 moveto 
+(3)   show
+ 524.0 317.5 474.0 317.5 0 Fphoton 
+ 497.5  320.0 moveto 
+(w-)   show
+ 474.0 317.5 424 330 Ffermion 
+ 450.5  325.75 moveto 
+(c~)   show
+ 418.0  330 moveto 
+(2)   show
+ 474.0 292.5 474.0 317.5 Ffermion 
+ 476.25  304.0 moveto 
+(s)   show
+ 474.0 292.5 548.947321178 290.626316971 0 Fgluon 
+ 512.973660589  293.563158485 moveto 
+(g)   show
+ 554.947321178  290.476316971 moveto 
+(6)   show
+ 454.0  213.0 moveto 
+( diagram 57 )   show
+ 514.0  213.0 moveto 
+ (QCD=4, QED=2)   show
+ 190.0 120.0 160.0 130.0 Ffermion 
+ 176.5  127.0 moveto 
+(s~)   show
+ 196.0  118.0 moveto 
+(8)   show
+ 160.0 130.0 190.0 140.0 0 Fgluon 
+ 170.5  137.0 moveto 
+(g)   show
+ 196.0  142.0 moveto 
+(5)   show
+ 160.0 130.0 130.0 150.0 Ffermion 
+ 146.5  142.0 moveto 
+(s~)   show
+ 130.0 150.0 173.656412507 157.276068751 0 Fgluon 
+ 147.328206253  155.638034376 moveto 
+(g)   show
+ 179.656412507  158.276068751 moveto 
+(6)   show
+ 130.0 150.0 100.0 175.0 Ffermion 
+ 116.5  164.5 moveto 
+(s~)   show
+ 112.951599012 116.051750206 70.0 125.0 Ffermion 
+ 92.9757995058  122.525875103 moveto 
+(u~)   show
+ 118.951599012  114.801750206 moveto 
+(7)   show
+ 70.0 125.0 40 100 Ffermion 
+ 46.0  116.5 moveto 
+(u~)   show
+ 34.0  100 moveto 
+(1)   show
+ 70.0 175.0 70.0 125.0 0 Fgluon 
+ 72.25  149.0 moveto 
+(g)   show
+ 70.0 175.0 40 200 Ffermion 
+ 56.5  189.5 moveto 
+(c~)   show
+ 34.0  200 moveto 
+(2)   show
+ 100.0 175.0 70.0 175.0 Ffermion 
+ 83.5  177.5 moveto 
+(c~)   show
+ 174.844559121 180.841968938 130.0 183.333333333 Ffermion 
+ 153.922279561  184.087651136 moveto 
+(ve~)   show
+ 180.844559121  180.508635604 moveto 
+(4)   show
+ 130.0 183.333333333 171.538461538 194.871794872 Ffermion 
+ 141.769230769  193.102564103 moveto 
+(e-)   show
+ 177.538461538  196.538461538 moveto 
+(3)   show
+ 130.0 183.333333333 100.0 175.0 0 Fphoton 
+ 106.0  183.166666667 moveto 
+(w-)   show
+ 70.0  83.0 moveto 
+( diagram 58 )   show
+ 130.0  83.0 moveto 
+ (QCD=4, QED=2)   show
+ 382.0 140.0 344.5 162.5 Ffermion 
+ 364.75  153.25 moveto 
+(s~)   show
+ 388.0  136.4 moveto 
+(8)   show
+ 344.5 162.5 382.0 160.0 0 Fgluon 
+ 364.75  163.25 moveto 
+(g)   show
+ 388.0  159.6 moveto 
+(5)   show
+ 344.5 162.5 307.0 183.333333333 Ffermion 
+ 327.25  174.916666667 moveto 
+(s~)   show
+ 382.0 180.0 344.5 187.5 Ffermion 
+ 364.75  185.75 moveto 
+(ve~)   show
+ 388.0  178.8 moveto 
+(4)   show
+ 344.5 187.5 382.0 200 Ffermion 
+ 354.25  197.75 moveto 
+(e-)   show
+ 388.0  202.0 moveto 
+(3)   show
+ 344.5 187.5 307.0 183.333333333 0 Fphoton 
+ 316.75  189.416666667 moveto 
+(w-)   show
+ 307.0 183.333333333 269.5 183.333333333 Ffermion 
+ 286.75  185.833333333 moveto 
+(c~)   show
+ 324.410522135 108.531774498 269.5 116.666666667 Ffermion 
+ 298.455261068  114.599220583 moveto 
+(u~)   show
+ 330.410522135  107.64288561 moveto 
+(7)   show
+ 269.5 116.666666667 232 100 Ffermion 
+ 241.75  112.333333333 moveto 
+(u~)   show
+ 226.0  100 moveto 
+(1)   show
+ 269.5 150.0 269.5 116.666666667 0 Fgluon 
+ 271.75  132.333333333 moveto 
+(g)   show
+ 269.5 150.0 321.726813862 136.072849637 0 Fgluon 
+ 297.113406931  145.036424818 moveto 
+(g)   show
+ 327.726813862  134.472849637 moveto 
+(6)   show
+ 269.5 183.333333333 269.5 150.0 0 Fgluon 
+ 271.75  165.666666667 moveto 
+(g)   show
+ 269.5 183.333333333 232 200 Ffermion 
+ 252.25  193.666666667 moveto 
+(c~)   show
+ 226.0  200 moveto 
+(2)   show
+ 262.0  83.0 moveto 
+( diagram 59 )   show
+ 322.0  83.0 moveto 
+ (QCD=4, QED=2)   show
+ 574.0 120.0 544.0 137.5 Ffermion 
+ 560.5  130.75 moveto 
+(s~)   show
+ 580.0  116.5 moveto 
+(8)   show
+ 544.0 137.5 574.0 140.0 0 Fgluon 
+ 554.5  140.75 moveto 
+(g)   show
+ 580.0  140.5 moveto 
+(5)   show
+ 544.0 137.5 514.0 150.0 Ffermion 
+ 530.5  145.75 moveto 
+(s~)   show
+ 574.0 160.0 544.0 162.5 Ffermion 
+ 560.5  163.25 moveto 
+(ve~)   show
+ 580.0  159.5 moveto 
+(4)   show
+ 544.0 162.5 574.0 180.0 Ffermion 
+ 550.0  175.25 moveto 
+(e-)   show
+ 580.0  183.5 moveto 
+(3)   show
+ 544.0 162.5 514.0 150.0 0 Fphoton 
+ 520.0  160.25 moveto 
+(w-)   show
+ 514.0 150.0 484.0 175.0 Ffermion 
+ 500.5  164.5 moveto 
+(c~)   show
+ 496.951599012 116.051750206 454.0 125.0 Ffermion 
+ 476.975799506  122.525875103 moveto 
+(u~)   show
+ 502.951599012  114.801750206 moveto 
+(7)   show
+ 454.0 125.0 424 100 Ffermion 
+ 430.0  116.5 moveto 
+(u~)   show
+ 418.0  100 moveto 
+(1)   show
+ 454.0 175.0 454.0 125.0 0 Fgluon 
+ 456.25  149.0 moveto 
+(g)   show
+ 454.0 175.0 424 200 Ffermion 
+ 440.5  189.5 moveto 
+(c~)   show
+ 418.0  200 moveto 
+(2)   show
+ 484.0 175.0 454.0 175.0 Ffermion 
+ 467.5  177.5 moveto 
+(c~)   show
+ 484.0 175.0 525.538461538 186.538461538 0 Fgluon 
+ 500.269230769  182.769230769 moveto 
+(g)   show
+ 531.538461538  188.205128205 moveto 
+(6)   show
+ 454.0  83.0 moveto 
+( diagram 60 )   show
+ 514.0  83.0 moveto 
+ (QCD=4, QED=2)   show
+showpage
+%%Page: 8 8 
+%%PageBoundingBox:-20 -20 600 800
+%%PageFonts: Helvetica
+/Helvetica findfont 6 scalefont setfont
+ 50         770  moveto
+ () show
+ 525         770  moveto
+ (page 8/10) show
+ 260         40  moveto
+ (Diagrams made by MadGraph5) show
+ 90.0 630.0 40 620 Ffermion 
+ 56.0  629.0 moveto 
+(u~)   show
+ 34.0  620 moveto 
+(1)   show
+ 90.0 630.0 164.170226465 622.582977353 0 Fgluon 
+ 128.585113233  628.291488677 moveto 
+(g)   show
+ 170.170226465  621.982977353 moveto 
+(6)   show
+ 90.0 650.0 90.0 630.0 Ffermion 
+ 92.25  639.0 moveto 
+(u~)   show
+ 90.0 650.0 164.170226465 642.582977353 0 Fgluon 
+ 128.585113233  648.291488677 moveto 
+(g)   show
+ 170.170226465  641.982977353 moveto 
+(5)   show
+ 90.0 670.0 90.0 650.0 Ffermion 
+ 92.25  659.0 moveto 
+(u~)   show
+ 190.0 700.0 140.0 710.0 Ffermion 
+ 166.5  707.0 moveto 
+(ve~)   show
+ 196.0  698.8 moveto 
+(4)   show
+ 140.0 710.0 190.0 720 Ffermion 
+ 156.0  719.0 moveto 
+(e-)   show
+ 196.0  721.2 moveto 
+(3)   show
+ 140.0 710.0 90.0 710.0 0 Fphoton 
+ 113.5  712.5 moveto 
+(w-)   show
+ 90.0 710.0 40 720 Ffermion 
+ 66.5  717.0 moveto 
+(c~)   show
+ 34.0  720 moveto 
+(2)   show
+ 90.0 690.0 90.0 710.0 Ffermion 
+ 92.25  699.0 moveto 
+(s)   show
+ 164.170226465 682.582977353 90.0 690.0 Ffermion 
+ 128.585113233  688.291488677 moveto 
+(s~)   show
+ 170.170226465  681.982977353 moveto 
+(8)   show
+ 90.0 690.0 90.0 670.0 0 Fgluon 
+ 92.25  679.0 moveto 
+(g)   show
+ 164.170226465 662.582977353 90.0 670.0 Ffermion 
+ 128.585113233  668.291488677 moveto 
+(u~)   show
+ 170.170226465  661.982977353 moveto 
+(7)   show
+ 70.0  603.0 moveto 
+( diagram 61 )   show
+ 130.0  603.0 moveto 
+ (QCD=4, QED=2)   show
+ 382.0 700.0 332.0 710.0 Ffermion 
+ 358.5  707.0 moveto 
+(ve~)   show
+ 388.0  698.8 moveto 
+(4)   show
+ 332.0 710.0 382.0 720 Ffermion 
+ 348.0  719.0 moveto 
+(e-)   show
+ 388.0  721.2 moveto 
+(3)   show
+ 332.0 710.0 282.0 710.0 0 Fphoton 
+ 305.5  712.5 moveto 
+(w-)   show
+ 282.0 710.0 232 720 Ffermion 
+ 258.5  717.0 moveto 
+(c~)   show
+ 226.0  720 moveto 
+(2)   show
+ 282.0 690.0 282.0 710.0 Ffermion 
+ 284.25  699.0 moveto 
+(s)   show
+ 282.0 690.0 356.170226465 682.582977353 0 Fgluon 
+ 320.585113233  688.291488677 moveto 
+(g)   show
+ 362.170226465  681.982977353 moveto 
+(5)   show
+ 282.0 670.0 282.0 690.0 Ffermion 
+ 284.25  679.0 moveto 
+(s)   show
+ 282.0 630.0 232 620 Ffermion 
+ 248.0  629.0 moveto 
+(u~)   show
+ 226.0  620 moveto 
+(1)   show
+ 282.0 630.0 356.170226465 622.582977353 0 Fgluon 
+ 320.585113233  628.291488677 moveto 
+(g)   show
+ 362.170226465  621.982977353 moveto 
+(6)   show
+ 282.0 650.0 282.0 630.0 Ffermion 
+ 284.25  639.0 moveto 
+(u~)   show
+ 356.170226465 642.582977353 282.0 650.0 Ffermion 
+ 320.585113233  648.291488677 moveto 
+(u~)   show
+ 362.170226465  641.982977353 moveto 
+(7)   show
+ 282.0 670.0 282.0 650.0 0 Fgluon 
+ 284.25  659.0 moveto 
+(g)   show
+ 356.170226465 662.582977353 282.0 670.0 Ffermion 
+ 320.585113233  668.291488677 moveto 
+(s~)   show
+ 362.170226465  661.982977353 moveto 
+(8)   show
+ 262.0  603.0 moveto 
+( diagram 62 )   show
+ 322.0  603.0 moveto 
+ (QCD=4, QED=2)   show
+ 474.0 630.0 424 620 Ffermion 
+ 440.0  629.0 moveto 
+(u~)   show
+ 418.0  620 moveto 
+(1)   show
+ 474.0 630.0 548.170226465 622.582977353 0 Fgluon 
+ 512.585113233  628.291488677 moveto 
+(g)   show
+ 554.170226465  621.982977353 moveto 
+(6)   show
+ 474.0 650.0 474.0 630.0 Ffermion 
+ 476.25  639.0 moveto 
+(u~)   show
+ 548.170226465 642.582977353 474.0 650.0 Ffermion 
+ 512.585113233  648.291488677 moveto 
+(u~)   show
+ 554.170226465  641.982977353 moveto 
+(7)   show
+ 474.0 670.0 474.0 650.0 0 Fgluon 
+ 476.25  659.0 moveto 
+(g)   show
+ 574.0 700.0 524.0 710.0 Ffermion 
+ 550.5  707.0 moveto 
+(ve~)   show
+ 580.0  698.8 moveto 
+(4)   show
+ 524.0 710.0 574.0 720 Ffermion 
+ 540.0  719.0 moveto 
+(e-)   show
+ 580.0  721.2 moveto 
+(3)   show
+ 524.0 710.0 474.0 710.0 0 Fphoton 
+ 497.5  712.5 moveto 
+(w-)   show
+ 474.0 710.0 424 720 Ffermion 
+ 450.5  717.0 moveto 
+(c~)   show
+ 418.0  720 moveto 
+(2)   show
+ 474.0 690.0 474.0 710.0 Ffermion 
+ 476.25  699.0 moveto 
+(s)   show
+ 548.170226465 682.582977353 474.0 690.0 Ffermion 
+ 512.585113233  688.291488677 moveto 
+(s~)   show
+ 554.170226465  681.982977353 moveto 
+(8)   show
+ 474.0 690.0 474.0 670.0 0 Fgluon 
+ 476.25  679.0 moveto 
+(g)   show
+ 474.0 670.0 548.170226465 662.582977353 0 Fgluon 
+ 512.585113233  668.291488677 moveto 
+(g)   show
+ 554.170226465  661.982977353 moveto 
+(5)   show
+ 454.0  603.0 moveto 
+( diagram 63 )   show
+ 514.0  603.0 moveto 
+ (QCD=4, QED=2)   show
+ 77.5 502.5 40 490 Ffermion 
+ 49.75  500.25 moveto 
+(u~)   show
+ 34.0  490 moveto 
+(1)   show
+ 77.5 502.5 132.984658216 496.335037976 0 Fgluon 
+ 106.742329108  501.417518988 moveto 
+(g)   show
+ 138.984658216  495.668371309 moveto 
+(6)   show
+ 77.5 527.5 77.5 502.5 Ffermion 
+ 79.75  514.0 moveto 
+(u~)   show
+ 77.5 527.5 132.278568048 518.978889415 0 Fgluon 
+ 106.389284024  525.239444707 moveto 
+(g)   show
+ 138.278568048  518.045556081 moveto 
+(5)   show
+ 77.5 552.5 77.5 527.5 Ffermion 
+ 79.75  539.0 moveto 
+(u~)   show
+ 190.0 570.0 152.5 580.0 Ffermion 
+ 172.75  577.0 moveto 
+(ve~)   show
+ 196.0  568.4 moveto 
+(4)   show
+ 152.5 580.0 190.0 590 Ffermion 
+ 162.25  589.0 moveto 
+(e-)   show
+ 196.0  591.6 moveto 
+(3)   show
+ 152.5 580.0 115.0 577.5 0 Fphoton 
+ 124.75  582.75 moveto 
+(w-)   show
+ 164.287144863 559.428046884 115.0 577.5 Ffermion 
+ 141.143572432  570.464023442 moveto 
+(s~)   show
+ 170.287144863  557.228046884 moveto 
+(8)   show
+ 115.0 577.5 77.5 577.5 Ffermion 
+ 94.75  580.0 moveto 
+(c~)   show
+ 77.5 577.5 40 590 Ffermion 
+ 60.25  585.75 moveto 
+(c~)   show
+ 34.0  590 moveto 
+(2)   show
+ 77.5 577.5 77.5 552.5 0 Fgluon 
+ 79.75  564.0 moveto 
+(g)   show
+ 131.377728544 541.724454291 77.5 552.5 Ffermion 
+ 105.938864272  549.112227146 moveto 
+(u~)   show
+ 137.377728544  540.524454291 moveto 
+(7)   show
+ 70.0  473.0 moveto 
+( diagram 64 )   show
+ 130.0  473.0 moveto 
+ (QCD=4, QED=2)   show
+ 382.0 550.0 352.0 560.0 Ffermion 
+ 368.5  557.0 moveto 
+(ve~)   show
+ 388.0  548.0 moveto 
+(4)   show
+ 352.0 560.0 382.0 570.0 Ffermion 
+ 358.0  569.0 moveto 
+(e-)   show
+ 388.0  572.0 moveto 
+(3)   show
+ 352.0 560.0 322.0 552.5 0 Fphoton 
+ 328.0  560.25 moveto 
+(w-)   show
+ 361.220899171 537.792162811 322.0 552.5 Ffermion 
+ 343.110449585  547.146081406 moveto 
+(s~)   show
+ 367.220899171  535.542162811 moveto 
+(8)   show
+ 322.0 552.5 292.0 573.333333333 Ffermion 
+ 308.5  564.916666667 moveto 
+(c~)   show
+ 292.0 573.333333333 335.358305933 581.362649247 0 Fgluon 
+ 309.179152967  579.34799129 moveto 
+(g)   show
+ 341.358305933  582.473760358 moveto 
+(5)   show
+ 292.0 573.333333333 262.0 573.333333333 Ffermion 
+ 275.5  575.833333333 moveto 
+(c~)   show
+ 262.0 506.666666667 232 490 Ffermion 
+ 238.0  502.333333333 moveto 
+(u~)   show
+ 226.0  490 moveto 
+(1)   show
+ 262.0 506.666666667 306.054118888 500.548039043 0 Fgluon 
+ 285.527059444  505.607352855 moveto 
+(g)   show
+ 312.054118888  499.71470571 moveto 
+(6)   show
+ 262.0 540.0 262.0 506.666666667 Ffermion 
+ 264.25  522.333333333 moveto 
+(u~)   show
+ 304.134812991 529.466296752 262.0 540.0 Ffermion 
+ 284.567406495  536.733148376 moveto 
+(u~)   show
+ 310.134812991  527.966296752 moveto 
+(7)   show
+ 262.0 573.333333333 262.0 540.0 0 Fgluon 
+ 264.25  555.666666667 moveto 
+(g)   show
+ 262.0 573.333333333 232 590 Ffermion 
+ 248.5  583.666666667 moveto 
+(c~)   show
+ 226.0  590 moveto 
+(2)   show
+ 262.0  473.0 moveto 
+( diagram 65 )   show
+ 322.0  473.0 moveto 
+ (QCD=4, QED=2)   show
+ 461.5 502.5 424 490 Ffermion 
+ 433.75  500.25 moveto 
+(u~)   show
+ 418.0  490 moveto 
+(1)   show
+ 461.5 502.5 516.984658216 496.335037976 0 Fgluon 
+ 490.742329108  501.417518988 moveto 
+(g)   show
+ 522.984658216  495.668371309 moveto 
+(6)   show
+ 461.5 527.5 461.5 502.5 Ffermion 
+ 463.75  514.0 moveto 
+(u~)   show
+ 516.278568048 518.978889415 461.5 527.5 Ffermion 
+ 490.389284024  525.239444707 moveto 
+(u~)   show
+ 522.278568048  518.045556081 moveto 
+(7)   show
+ 461.5 552.5 461.5 527.5 0 Fgluon 
+ 463.75  539.0 moveto 
+(g)   show
+ 574.0 570.0 536.5 580.0 Ffermion 
+ 556.75  577.0 moveto 
+(ve~)   show
+ 580.0  568.4 moveto 
+(4)   show
+ 536.5 580.0 574.0 590 Ffermion 
+ 546.25  589.0 moveto 
+(e-)   show
+ 580.0  591.6 moveto 
+(3)   show
+ 536.5 580.0 499.0 577.5 0 Fphoton 
+ 508.75  582.75 moveto 
+(w-)   show
+ 548.287144863 559.428046884 499.0 577.5 Ffermion 
+ 525.143572432  570.464023442 moveto 
+(s~)   show
+ 554.287144863  557.228046884 moveto 
+(8)   show
+ 499.0 577.5 461.5 577.5 Ffermion 
+ 478.75  580.0 moveto 
+(c~)   show
+ 461.5 577.5 424 590 Ffermion 
+ 444.25  585.75 moveto 
+(c~)   show
+ 418.0  590 moveto 
+(2)   show
+ 461.5 577.5 461.5 552.5 0 Fgluon 
+ 463.75  564.0 moveto 
+(g)   show
+ 461.5 552.5 515.377728544 541.724454291 0 Fgluon 
+ 489.938864272  549.112227146 moveto 
+(g)   show
+ 521.377728544  540.524454291 moveto 
+(5)   show
+ 454.0  473.0 moveto 
+( diagram 66 )   show
+ 514.0  473.0 moveto 
+ (QCD=4, QED=2)   show
+ 190.0 400.0 152.5 410.0 Ffermion 
+ 172.75  407.0 moveto 
+(ve~)   show
+ 196.0  398.4 moveto 
+(4)   show
+ 152.5 410.0 190.0 420.0 Ffermion 
+ 162.25  419.0 moveto 
+(e-)   show
+ 196.0  421.6 moveto 
+(3)   show
+ 152.5 410.0 115.0 397.5 0 Fphoton 
+ 124.75  407.75 moveto 
+(w-)   show
+ 168.092032546 385.111859073 115.0 397.5 Ffermion 
+ 143.046016273  393.305929536 moveto 
+(s~)   show
+ 174.092032546  383.711859073 moveto 
+(8)   show
+ 115.0 397.5 77.5 397.5 Ffermion 
+ 94.75  400.0 moveto 
+(c~)   show
+ 77.5 447.5 40 460 Ffermion 
+ 60.25  455.75 moveto 
+(c~)   show
+ 34.0  460 moveto 
+(2)   show
+ 77.5 447.5 132.984658216 453.664962024 0 Fgluon 
+ 100.742329108  452.582481012 moveto 
+(g)   show
+ 138.984658216  454.331628691 moveto 
+(6)   show
+ 77.5 422.5 77.5 447.5 Ffermion 
+ 79.75  434.0 moveto 
+(c)   show
+ 77.5 422.5 132.278568048 431.021110585 0 Fgluon 
+ 100.389284024  428.760555293 moveto 
+(g)   show
+ 138.278568048  431.954443919 moveto 
+(5)   show
+ 77.5 397.5 77.5 422.5 Ffermion 
+ 79.75  409.0 moveto 
+(c)   show
+ 132.984658216 366.335037976 77.5 372.5 Ffermion 
+ 106.742329108  371.417518988 moveto 
+(u~)   show
+ 138.984658216  365.668371309 moveto 
+(7)   show
+ 77.5 372.5 40 360 Ffermion 
+ 49.75  370.25 moveto 
+(u~)   show
+ 34.0  360 moveto 
+(1)   show
+ 77.5 397.5 77.5 372.5 0 Fgluon 
+ 79.75  384.0 moveto 
+(g)   show
+ 70.0  343.0 moveto 
+( diagram 67 )   show
+ 130.0  343.0 moveto 
+ (QCD=4, QED=2)   show
+ 382.0 400.0 352.0 410.0 Ffermion 
+ 368.5  407.0 moveto 
+(ve~)   show
+ 388.0  398.0 moveto 
+(4)   show
+ 352.0 410.0 382.0 420.0 Ffermion 
+ 358.0  419.0 moveto 
+(e-)   show
+ 388.0  422.0 moveto 
+(3)   show
+ 352.0 410.0 322.0 397.5 0 Fphoton 
+ 328.0  407.75 moveto 
+(w-)   show
+ 363.227080071 385.475434979 322.0 397.5 Ffermion 
+ 344.113540035  393.48771749 moveto 
+(s~)   show
+ 369.227080071  383.725434979 moveto 
+(8)   show
+ 322.0 397.5 292.0 410.0 Ffermion 
+ 308.5  405.75 moveto 
+(c~)   show
+ 292.0 410.0 332.249223595 423.416407865 0 Fgluon 
+ 307.624611797  418.708203932 moveto 
+(g)   show
+ 338.249223595  425.416407865 moveto 
+(5)   show
+ 292.0 410.0 262.0 410.0 Ffermion 
+ 275.5  412.5 moveto 
+(c~)   show
+ 262.0 443.333333333 232 460 Ffermion 
+ 248.5  453.666666667 moveto 
+(c~)   show
+ 226.0  460 moveto 
+(2)   show
+ 262.0 443.333333333 306.054118888 449.451960957 0 Fgluon 
+ 279.527059444  448.392647145 moveto 
+(g)   show
+ 312.054118888  450.28529429 moveto 
+(6)   show
+ 262.0 410.0 262.0 443.333333333 Ffermion 
+ 264.25  425.666666667 moveto 
+(c)   show
+ 306.054118888 370.548039043 262.0 376.666666667 Ffermion 
+ 285.527059444  375.607352855 moveto 
+(u~)   show
+ 312.054118888  369.71470571 moveto 
+(7)   show
+ 262.0 376.666666667 232 360 Ffermion 
+ 238.0  372.333333333 moveto 
+(u~)   show
+ 226.0  360 moveto 
+(1)   show
+ 262.0 410.0 262.0 376.666666667 0 Fgluon 
+ 264.25  392.333333333 moveto 
+(g)   show
+ 262.0  343.0 moveto 
+( diagram 68 )   show
+ 322.0  343.0 moveto 
+ (QCD=4, QED=2)   show
+ 574.0 420.0 536.5 430.0 Ffermion 
+ 556.75  427.0 moveto 
+(ve~)   show
+ 580.0  418.4 moveto 
+(4)   show
+ 536.5 430.0 574.0 440.0 Ffermion 
+ 546.25  439.0 moveto 
+(e-)   show
+ 580.0  441.6 moveto 
+(3)   show
+ 536.5 430.0 499.0 422.5 0 Fphoton 
+ 508.75  430.25 moveto 
+(w-)   show
+ 550.295584666 407.1113246 499.0 422.5 Ffermion 
+ 526.147792333  416.8056623 moveto 
+(s~)   show
+ 556.295584666  405.3113246 moveto 
+(8)   show
+ 499.0 422.5 461.5 422.5 Ffermion 
+ 478.75  425.0 moveto 
+(c~)   show
+ 461.5 447.5 424 460 Ffermion 
+ 444.25  455.75 moveto 
+(c~)   show
+ 418.0  460 moveto 
+(2)   show
+ 461.5 447.5 516.984658216 453.664962024 0 Fgluon 
+ 484.742329108  452.582481012 moveto 
+(g)   show
+ 522.984658216  454.331628691 moveto 
+(6)   show
+ 461.5 422.5 461.5 447.5 Ffermion 
+ 463.75  434.0 moveto 
+(c)   show
+ 516.984658216 366.335037976 461.5 372.5 Ffermion 
+ 490.742329108  371.417518988 moveto 
+(u~)   show
+ 522.984658216  365.668371309 moveto 
+(7)   show
+ 461.5 372.5 424 360 Ffermion 
+ 433.75  370.25 moveto 
+(u~)   show
+ 418.0  360 moveto 
+(1)   show
+ 461.5 397.5 461.5 372.5 0 Fgluon 
+ 463.75  384.0 moveto 
+(g)   show
+ 461.5 397.5 516.278568048 388.978889415 0 Fgluon 
+ 490.389284024  395.239444707 moveto 
+(g)   show
+ 522.278568048  388.045556081 moveto 
+(5)   show
+ 461.5 422.5 461.5 397.5 0 Fgluon 
+ 463.75  409.0 moveto 
+(g)   show
+ 454.0  343.0 moveto 
+( diagram 69 )   show
+ 514.0  343.0 moveto 
+ (QCD=4, QED=2)   show
+ 164.170226465 232.582977353 90.0 240.0 Ffermion 
+ 128.585113233  238.291488677 moveto 
+(u~)   show
+ 170.170226465  231.982977353 moveto 
+(7)   show
+ 90.0 240.0 40 230 Ffermion 
+ 56.0  239.0 moveto 
+(u~)   show
+ 34.0  230 moveto 
+(1)   show
+ 90.0 260.0 90.0 240.0 0 Fgluon 
+ 92.25  249.0 moveto 
+(g)   show
+ 164.170226465 252.582977353 90.0 260.0 Ffermion 
+ 128.585113233  258.291488677 moveto 
+(s~)   show
+ 170.170226465  251.982977353 moveto 
+(8)   show
+ 90.0 260.0 90.0 280.0 Ffermion 
+ 92.25  269.0 moveto 
+(s)   show
+ 90.0 320.0 40 330 Ffermion 
+ 66.5  327.0 moveto 
+(c~)   show
+ 34.0  330 moveto 
+(2)   show
+ 90.0 320.0 164.170226465 327.417022647 0 Fgluon 
+ 122.585113233  325.708511323 moveto 
+(g)   show
+ 170.170226465  328.017022647 moveto 
+(6)   show
+ 90.0 300.0 90.0 320.0 Ffermion 
+ 92.25  309.0 moveto 
+(c)   show
+ 90.0 300.0 164.170226465 307.417022647 0 Fgluon 
+ 122.585113233  305.708511323 moveto 
+(g)   show
+ 170.170226465  308.017022647 moveto 
+(5)   show
+ 90.0 280.0 90.0 300.0 Ffermion 
+ 92.25  289.0 moveto 
+(c)   show
+ 190.0 270.0 140.0 280.0 Ffermion 
+ 166.5  277.0 moveto 
+(ve~)   show
+ 196.0  268.8 moveto 
+(4)   show
+ 140.0 280.0 190.0 290.0 Ffermion 
+ 156.0  289.0 moveto 
+(e-)   show
+ 196.0  291.2 moveto 
+(3)   show
+ 140.0 280.0 90.0 280.0 0 Fphoton 
+ 113.5  282.5 moveto 
+(w-)   show
+ 70.0  213.0 moveto 
+( diagram 70 )   show
+ 130.0  213.0 moveto 
+ (QCD=4, QED=2)   show
+ 282.0 320.0 232 330 Ffermion 
+ 258.5  327.0 moveto 
+(c~)   show
+ 226.0  330 moveto 
+(2)   show
+ 282.0 320.0 356.170226465 327.417022647 0 Fgluon 
+ 314.585113233  325.708511323 moveto 
+(g)   show
+ 362.170226465  328.017022647 moveto 
+(6)   show
+ 282.0 300.0 282.0 320.0 Ffermion 
+ 284.25  309.0 moveto 
+(c)   show
+ 382.0 290.0 332.0 300.0 Ffermion 
+ 358.5  297.0 moveto 
+(ve~)   show
+ 388.0  288.8 moveto 
+(4)   show
+ 332.0 300.0 382.0 310.0 Ffermion 
+ 348.0  309.0 moveto 
+(e-)   show
+ 388.0  311.2 moveto 
+(3)   show
+ 332.0 300.0 282.0 300.0 0 Fphoton 
+ 305.5  302.5 moveto 
+(w-)   show
+ 282.0 280.0 282.0 300.0 Ffermion 
+ 284.25  289.0 moveto 
+(s)   show
+ 356.170226465 232.582977353 282.0 240.0 Ffermion 
+ 320.585113233  238.291488677 moveto 
+(u~)   show
+ 362.170226465  231.982977353 moveto 
+(7)   show
+ 282.0 240.0 232 230 Ffermion 
+ 248.0  239.0 moveto 
+(u~)   show
+ 226.0  230 moveto 
+(1)   show
+ 282.0 260.0 282.0 240.0 0 Fgluon 
+ 284.25  249.0 moveto 
+(g)   show
+ 282.0 260.0 356.170226465 252.582977353 0 Fgluon 
+ 320.585113233  258.291488677 moveto 
+(g)   show
+ 362.170226465  251.982977353 moveto 
+(5)   show
+ 282.0 280.0 282.0 260.0 0 Fgluon 
+ 284.25  269.0 moveto 
+(g)   show
+ 356.170226465 272.582977353 282.0 280.0 Ffermion 
+ 320.585113233  278.291488677 moveto 
+(s~)   show
+ 362.170226465  271.982977353 moveto 
+(8)   show
+ 262.0  213.0 moveto 
+( diagram 71 )   show
+ 322.0  213.0 moveto 
+ (QCD=4, QED=2)   show
+ 548.170226465 232.582977353 474.0 240.0 Ffermion 
+ 512.585113233  238.291488677 moveto 
+(u~)   show
+ 554.170226465  231.982977353 moveto 
+(7)   show
+ 474.0 240.0 424 230 Ffermion 
+ 440.0  239.0 moveto 
+(u~)   show
+ 418.0  230 moveto 
+(1)   show
+ 474.0 260.0 474.0 240.0 0 Fgluon 
+ 476.25  249.0 moveto 
+(g)   show
+ 548.170226465 252.582977353 474.0 260.0 Ffermion 
+ 512.585113233  258.291488677 moveto 
+(s~)   show
+ 554.170226465  251.982977353 moveto 
+(8)   show
+ 474.0 260.0 474.0 280.0 Ffermion 
+ 476.25  269.0 moveto 
+(s)   show
+ 474.0 320.0 424 330 Ffermion 
+ 450.5  327.0 moveto 
+(c~)   show
+ 418.0  330 moveto 
+(2)   show
+ 474.0 320.0 548.170226465 327.417022647 0 Fgluon 
+ 506.585113233  325.708511323 moveto 
+(g)   show
+ 554.170226465  328.017022647 moveto 
+(6)   show
+ 474.0 300.0 474.0 320.0 Ffermion 
+ 476.25  309.0 moveto 
+(c)   show
+ 574.0 290.0 524.0 300.0 Ffermion 
+ 550.5  297.0 moveto 
+(ve~)   show
+ 580.0  288.8 moveto 
+(4)   show
+ 524.0 300.0 574.0 310.0 Ffermion 
+ 540.0  309.0 moveto 
+(e-)   show
+ 580.0  311.2 moveto 
+(3)   show
+ 524.0 300.0 474.0 300.0 0 Fphoton 
+ 497.5  302.5 moveto 
+(w-)   show
+ 474.0 280.0 474.0 300.0 Ffermion 
+ 476.25  289.0 moveto 
+(s)   show
+ 474.0 280.0 548.170226465 272.582977353 0 Fgluon 
+ 512.585113233  278.291488677 moveto 
+(g)   show
+ 554.170226465  271.982977353 moveto 
+(5)   show
+ 454.0  213.0 moveto 
+( diagram 72 )   show
+ 514.0  213.0 moveto 
+ (QCD=4, QED=2)   show
+ 190.0 100 152.5 110.0 Ffermion 
+ 172.75  107.0 moveto 
+(u~)   show
+ 196.0  98.4 moveto 
+(7)   show
+ 152.5 110.0 190.0 120.0 0 Fgluon 
+ 166.75  117.0 moveto 
+(g)   show
+ 196.0  121.6 moveto 
+(6)   show
+ 152.5 110.0 115.0 116.666666667 Ffermion 
+ 135.25  115.333333333 moveto 
+(u~)   show
+ 115.0 116.666666667 165.972801625 132.524871617 0 Fgluon 
+ 135.986400812  126.595769142 moveto 
+(g)   show
+ 171.972801625  134.391538283 moveto 
+(5)   show
+ 115.0 116.666666667 77.5 116.666666667 Ffermion 
+ 94.75  119.166666667 moveto 
+(u~)   show
+ 171.125415129 180.838870439 115.0 183.333333333 Ffermion 
+ 144.562707565  184.086101886 moveto 
+(ve~)   show
+ 177.125415129  180.572203772 moveto 
+(4)   show
+ 115.0 183.333333333 168.363435515 195.191874559 Ffermion 
+ 132.681717758  193.262603946 moveto 
+(e-)   show
+ 174.363435515  196.525207892 moveto 
+(3)   show
+ 115.0 183.333333333 77.5 183.333333333 0 Fphoton 
+ 94.75  185.833333333 moveto 
+(w-)   show
+ 77.5 183.333333333 40 200 Ffermion 
+ 60.25  193.666666667 moveto 
+(c~)   show
+ 34.0  200 moveto 
+(2)   show
+ 77.5 150.0 77.5 183.333333333 Ffermion 
+ 79.75  165.666666667 moveto 
+(s)   show
+ 133.256569413 154.956139503 77.5 150.0 Ffermion 
+ 96.3782847067  156.478069752 moveto 
+(s~)   show
+ 139.256569413  155.489472837 moveto 
+(8)   show
+ 77.5 150.0 77.5 116.666666667 0 Fgluon 
+ 79.75  132.333333333 moveto 
+(g)   show
+ 77.5 116.666666667 40 100 Ffermion 
+ 49.75  112.333333333 moveto 
+(u~)   show
+ 34.0  100 moveto 
+(1)   show
+ 70.0  83.0 moveto 
+( diagram 73 )   show
+ 130.0  83.0 moveto 
+ (QCD=4, QED=2)   show
+ 382.0 180.0 332.0 187.5 Ffermion 
+ 358.5  185.75 moveto 
+(ve~)   show
+ 388.0  179.1 moveto 
+(4)   show
+ 332.0 187.5 382.0 200 Ffermion 
+ 348.0  197.75 moveto 
+(e-)   show
+ 388.0  201.5 moveto 
+(3)   show
+ 332.0 187.5 282.0 187.5 0 Fphoton 
+ 305.5  190.0 moveto 
+(w-)   show
+ 282.0 187.5 232 200 Ffermion 
+ 258.5  195.75 moveto 
+(c~)   show
+ 226.0  200 moveto 
+(2)   show
+ 282.0 162.5 282.0 187.5 Ffermion 
+ 284.25  174.0 moveto 
+(s)   show
+ 282.0 162.5 356.947321178 160.626316971 0 Fgluon 
+ 320.973660589  163.563158485 moveto 
+(g)   show
+ 362.947321178  160.476316971 moveto 
+(5)   show
+ 282.0 137.5 282.0 162.5 Ffermion 
+ 284.25  149.0 moveto 
+(s)   show
+ 382.0 100 332.0 112.5 Ffermion 
+ 358.5  108.25 moveto 
+(u~)   show
+ 388.0  98.5 moveto 
+(7)   show
+ 332.0 112.5 382.0 120.0 0 Fgluon 
+ 352.5  118.25 moveto 
+(g)   show
+ 388.0  120.9 moveto 
+(6)   show
+ 332.0 112.5 282.0 112.5 Ffermion 
+ 305.5  115.0 moveto 
+(u~)   show
+ 282.0 112.5 232 100 Ffermion 
+ 248.0  110.25 moveto 
+(u~)   show
+ 226.0  100 moveto 
+(1)   show
+ 282.0 137.5 282.0 112.5 0 Fgluon 
+ 284.25  124.0 moveto 
+(g)   show
+ 356.947321178 139.373683029 282.0 137.5 Ffermion 
+ 310.473660589  142.436841515 moveto 
+(s~)   show
+ 362.947321178  139.523683029 moveto 
+(8)   show
+ 262.0  83.0 moveto 
+( diagram 74 )   show
+ 322.0  83.0 moveto 
+ (QCD=4, QED=2)   show
+ 574.0 100 524.0 112.5 Ffermion 
+ 550.5  108.25 moveto 
+(u~)   show
+ 580.0  98.5 moveto 
+(7)   show
+ 524.0 112.5 574.0 120.0 0 Fgluon 
+ 544.5  118.25 moveto 
+(g)   show
+ 580.0  120.9 moveto 
+(6)   show
+ 524.0 112.5 474.0 112.5 Ffermion 
+ 497.5  115.0 moveto 
+(u~)   show
+ 474.0 112.5 424 100 Ffermion 
+ 440.0  110.25 moveto 
+(u~)   show
+ 418.0  100 moveto 
+(1)   show
+ 474.0 137.5 474.0 112.5 0 Fgluon 
+ 476.25  124.0 moveto 
+(g)   show
+ 574.0 180.0 524.0 187.5 Ffermion 
+ 550.5  185.75 moveto 
+(ve~)   show
+ 580.0  179.1 moveto 
+(4)   show
+ 524.0 187.5 574.0 200 Ffermion 
+ 540.0  197.75 moveto 
+(e-)   show
+ 580.0  201.5 moveto 
+(3)   show
+ 524.0 187.5 474.0 187.5 0 Fphoton 
+ 497.5  190.0 moveto 
+(w-)   show
+ 474.0 187.5 424 200 Ffermion 
+ 450.5  195.75 moveto 
+(c~)   show
+ 418.0  200 moveto 
+(2)   show
+ 474.0 162.5 474.0 187.5 Ffermion 
+ 476.25  174.0 moveto 
+(s)   show
+ 548.947321178 160.626316971 474.0 162.5 Ffermion 
+ 512.973660589  163.563158485 moveto 
+(s~)   show
+ 554.947321178  160.476316971 moveto 
+(8)   show
+ 474.0 162.5 474.0 137.5 0 Fgluon 
+ 476.25  149.0 moveto 
+(g)   show
+ 474.0 137.5 548.947321178 139.373683029 0 Fgluon 
+ 506.973660589  140.436841515 moveto 
+(g)   show
+ 554.947321178  139.523683029 moveto 
+(5)   show
+ 454.0  83.0 moveto 
+( diagram 75 )   show
+ 514.0  83.0 moveto 
+ (QCD=4, QED=2)   show
+showpage
+%%Page: 9 9 
+%%PageBoundingBox:-20 -20 600 800
+%%PageFonts: Helvetica
+/Helvetica findfont 6 scalefont setfont
+ 50         770  moveto
+ () show
+ 525         770  moveto
+ (page 9/10) show
+ 260         40  moveto
+ (Diagrams made by MadGraph5) show
+ 190.0 620 152.5 632.5 Ffermion 
+ 172.75  628.25 moveto 
+(u~)   show
+ 196.0  618.0 moveto 
+(7)   show
+ 152.5 632.5 190.0 640.0 0 Fgluon 
+ 166.75  638.25 moveto 
+(g)   show
+ 196.0  641.2 moveto 
+(6)   show
+ 152.5 632.5 115.0 645.0 Ffermion 
+ 135.25  640.75 moveto 
+(u~)   show
+ 115.0 645.0 168.877728544 655.775545709 0 Fgluon 
+ 137.438864272  652.387772854 moveto 
+(g)   show
+ 174.877728544  656.975545709 moveto 
+(5)   show
+ 115.0 645.0 77.5 645.0 Ffermion 
+ 94.75  647.5 moveto 
+(u~)   show
+ 190.0 700.0 152.5 707.5 Ffermion 
+ 172.75  705.75 moveto 
+(ve~)   show
+ 196.0  698.8 moveto 
+(4)   show
+ 152.5 707.5 190.0 720 Ffermion 
+ 162.25  717.75 moveto 
+(e-)   show
+ 196.0  722.0 moveto 
+(3)   show
+ 152.5 707.5 115.0 695.0 0 Fphoton 
+ 124.75  705.25 moveto 
+(w-)   show
+ 168.877728544 684.224454291 115.0 695.0 Ffermion 
+ 143.438864272  691.612227146 moveto 
+(s~)   show
+ 174.877728544  683.024454291 moveto 
+(8)   show
+ 115.0 695.0 77.5 695.0 Ffermion 
+ 94.75  697.5 moveto 
+(c~)   show
+ 77.5 695.0 40 720 Ffermion 
+ 60.25  709.5 moveto 
+(c~)   show
+ 34.0  720 moveto 
+(2)   show
+ 77.5 695.0 77.5 645.0 0 Fgluon 
+ 79.75  669.0 moveto 
+(g)   show
+ 77.5 645.0 40 620 Ffermion 
+ 49.75  636.5 moveto 
+(u~)   show
+ 34.0  620 moveto 
+(1)   show
+ 70.0  603.0 moveto 
+( diagram 76 )   show
+ 130.0  603.0 moveto 
+ (QCD=4, QED=2)   show
+ 382.0 680.0 352.0 690.0 Ffermion 
+ 368.5  687.0 moveto 
+(ve~)   show
+ 388.0  678.0 moveto 
+(4)   show
+ 352.0 690.0 382.0 700.0 Ffermion 
+ 358.0  699.0 moveto 
+(e-)   show
+ 388.0  702.0 moveto 
+(3)   show
+ 352.0 690.0 322.0 682.5 0 Fphoton 
+ 328.0  690.25 moveto 
+(w-)   show
+ 361.220899171 667.792162811 322.0 682.5 Ffermion 
+ 343.110449585  677.146081406 moveto 
+(s~)   show
+ 367.220899171  665.542162811 moveto 
+(8)   show
+ 322.0 682.5 292.0 695.0 Ffermion 
+ 308.5  690.75 moveto 
+(c~)   show
+ 292.0 695.0 333.538461538 706.538461538 0 Fgluon 
+ 308.269230769  702.769230769 moveto 
+(g)   show
+ 339.538461538  708.205128205 moveto 
+(5)   show
+ 292.0 695.0 262.0 695.0 Ffermion 
+ 275.5  697.5 moveto 
+(c~)   show
+ 333.538461538 633.461538462 292.0 645.0 Ffermion 
+ 314.269230769  641.230769231 moveto 
+(u~)   show
+ 339.538461538  631.794871795 moveto 
+(7)   show
+ 292.0 645.0 336.844559121 642.508635604 0 Fgluon 
+ 315.922279561  645.754317802 moveto 
+(g)   show
+ 342.844559121  642.175302271 moveto 
+(6)   show
+ 292.0 645.0 262.0 645.0 Ffermion 
+ 275.5  647.5 moveto 
+(u~)   show
+ 262.0 645.0 232 620 Ffermion 
+ 238.0  636.5 moveto 
+(u~)   show
+ 226.0  620 moveto 
+(1)   show
+ 262.0 695.0 262.0 645.0 0 Fgluon 
+ 264.25  669.0 moveto 
+(g)   show
+ 262.0 695.0 232 720 Ffermion 
+ 248.5  709.5 moveto 
+(c~)   show
+ 226.0  720 moveto 
+(2)   show
+ 262.0  603.0 moveto 
+( diagram 77 )   show
+ 322.0  603.0 moveto 
+ (QCD=4, QED=2)   show
+ 552.363435515 624.808125441 499.0 636.666666667 Ffermion 
+ 527.181717758  632.737396054 moveto 
+(u~)   show
+ 558.363435515  623.474792108 moveto 
+(7)   show
+ 499.0 636.666666667 555.125415129 639.161129561 0 Fgluon 
+ 522.562707565  639.913898114 moveto 
+(g)   show
+ 561.125415129  639.427796228 moveto 
+(6)   show
+ 499.0 636.666666667 461.5 636.666666667 Ffermion 
+ 478.75  639.166666667 moveto 
+(u~)   show
+ 461.5 636.666666667 424 620 Ffermion 
+ 433.75  632.333333333 moveto 
+(u~)   show
+ 418.0  620 moveto 
+(1)   show
+ 461.5 670.0 461.5 636.666666667 0 Fgluon 
+ 463.75  652.333333333 moveto 
+(g)   show
+ 574.0 700.0 536.5 710.0 Ffermion 
+ 556.75  707.0 moveto 
+(ve~)   show
+ 580.0  698.4 moveto 
+(4)   show
+ 536.5 710.0 574.0 720 Ffermion 
+ 546.25  719.0 moveto 
+(e-)   show
+ 580.0  721.6 moveto 
+(3)   show
+ 536.5 710.0 499.0 703.333333333 0 Fphoton 
+ 508.75  710.666666667 moveto 
+(w-)   show
+ 549.972801625 687.475128383 499.0 703.333333333 Ffermion 
+ 525.986400812  697.404230858 moveto 
+(s~)   show
+ 555.972801625  685.608461717 moveto 
+(8)   show
+ 499.0 703.333333333 461.5 703.333333333 Ffermion 
+ 478.75  705.833333333 moveto 
+(c~)   show
+ 461.5 703.333333333 424 720 Ffermion 
+ 444.25  713.666666667 moveto 
+(c~)   show
+ 418.0  720 moveto 
+(2)   show
+ 461.5 703.333333333 461.5 670.0 0 Fgluon 
+ 463.75  685.666666667 moveto 
+(g)   show
+ 461.5 670.0 517.256569413 665.043860497 0 Fgluon 
+ 490.878284707  669.521930248 moveto 
+(g)   show
+ 523.256569413  664.510527163 moveto 
+(5)   show
+ 454.0  603.0 moveto 
+( diagram 78 )   show
+ 514.0  603.0 moveto 
+ (QCD=4, QED=2)   show
+ 190.0 510.0 152.5 520.0 Ffermion 
+ 172.75  517.0 moveto 
+(s~)   show
+ 196.0  508.4 moveto 
+(8)   show
+ 152.5 520.0 190.0 530.0 0 Fgluon 
+ 166.75  527.0 moveto 
+(g)   show
+ 196.0  531.6 moveto 
+(6)   show
+ 152.5 520.0 115.0 540.0 Ffermion 
+ 135.25  532.0 moveto 
+(s~)   show
+ 115.0 540.0 170.157663008 547.354355068 0 Fgluon 
+ 138.078831504  545.677177534 moveto 
+(g)   show
+ 176.157663008  548.154355068 moveto 
+(5)   show
+ 115.0 540.0 77.5 540.0 Ffermion 
+ 94.75  542.5 moveto 
+(s~)   show
+ 171.125415129 570.838870439 115.0 573.333333333 Ffermion 
+ 144.562707565  574.086101886 moveto 
+(ve~)   show
+ 177.125415129  570.572203772 moveto 
+(4)   show
+ 115.0 573.333333333 168.363435515 585.191874559 Ffermion 
+ 132.681717758  583.262603946 moveto 
+(e-)   show
+ 174.363435515  586.525207892 moveto 
+(3)   show
+ 115.0 573.333333333 77.5 573.333333333 0 Fphoton 
+ 94.75  575.833333333 moveto 
+(w-)   show
+ 77.5 573.333333333 40 590 Ffermion 
+ 60.25  583.666666667 moveto 
+(c~)   show
+ 34.0  590 moveto 
+(2)   show
+ 77.5 540.0 77.5 573.333333333 Ffermion 
+ 79.75  555.666666667 moveto 
+(s)   show
+ 132.410522135 498.531774498 77.5 506.666666667 Ffermion 
+ 106.455261068  504.599220583 moveto 
+(u~)   show
+ 138.410522135  497.64288561 moveto 
+(7)   show
+ 77.5 506.666666667 40 490 Ffermion 
+ 49.75  502.333333333 moveto 
+(u~)   show
+ 34.0  490 moveto 
+(1)   show
+ 77.5 540.0 77.5 506.666666667 0 Fgluon 
+ 79.75  522.333333333 moveto 
+(g)   show
+ 70.0  473.0 moveto 
+( diagram 79 )   show
+ 130.0  473.0 moveto 
+ (QCD=4, QED=2)   show
+ 382.0 510.0 332.0 527.5 Ffermion 
+ 358.5  520.75 moveto 
+(s~)   show
+ 388.0  507.9 moveto 
+(8)   show
+ 332.0 527.5 382.0 530.0 0 Fgluon 
+ 352.5  530.75 moveto 
+(g)   show
+ 388.0  530.3 moveto 
+(6)   show
+ 332.0 527.5 282.0 527.5 Ffermion 
+ 305.5  530.0 moveto 
+(s~)   show
+ 382.0 570.0 332.0 577.5 Ffermion 
+ 358.5  575.75 moveto 
+(ve~)   show
+ 388.0  569.1 moveto 
+(4)   show
+ 332.0 577.5 382.0 590 Ffermion 
+ 348.0  587.75 moveto 
+(e-)   show
+ 388.0  591.5 moveto 
+(3)   show
+ 332.0 577.5 282.0 577.5 0 Fphoton 
+ 305.5  580.0 moveto 
+(w-)   show
+ 282.0 577.5 232 590 Ffermion 
+ 258.5  585.75 moveto 
+(c~)   show
+ 226.0  590 moveto 
+(2)   show
+ 282.0 552.5 282.0 577.5 Ffermion 
+ 284.25  564.0 moveto 
+(s)   show
+ 282.0 552.5 356.947321178 550.626316971 0 Fgluon 
+ 320.973660589  553.563158485 moveto 
+(g)   show
+ 362.947321178  550.476316971 moveto 
+(5)   show
+ 282.0 527.5 282.0 552.5 Ffermion 
+ 284.25  539.0 moveto 
+(s)   show
+ 355.71541402 493.285573247 282.0 502.5 Ffermion 
+ 320.35770701  499.892786624 moveto 
+(u~)   show
+ 361.71541402  492.535573247 moveto 
+(7)   show
+ 282.0 502.5 232 490 Ffermion 
+ 248.0  500.25 moveto 
+(u~)   show
+ 226.0  490 moveto 
+(1)   show
+ 282.0 527.5 282.0 502.5 0 Fgluon 
+ 284.25  514.0 moveto 
+(g)   show
+ 262.0  473.0 moveto 
+( diagram 80 )   show
+ 322.0  473.0 moveto 
+ (QCD=4, QED=2)   show
+ 574.0 530.0 524.0 552.5 Ffermion 
+ 550.5  543.25 moveto 
+(s~)   show
+ 580.0  527.3 moveto 
+(8)   show
+ 524.0 552.5 574.0 550.0 0 Fgluon 
+ 550.5  553.25 moveto 
+(g)   show
+ 580.0  549.7 moveto 
+(6)   show
+ 524.0 552.5 474.0 552.5 Ffermion 
+ 497.5  555.0 moveto 
+(s~)   show
+ 574.0 570.0 524.0 577.5 Ffermion 
+ 550.5  575.75 moveto 
+(ve~)   show
+ 580.0  569.1 moveto 
+(4)   show
+ 524.0 577.5 574.0 590 Ffermion 
+ 540.0  587.75 moveto 
+(e-)   show
+ 580.0  591.5 moveto 
+(3)   show
+ 524.0 577.5 474.0 577.5 0 Fphoton 
+ 497.5  580.0 moveto 
+(w-)   show
+ 474.0 577.5 424 590 Ffermion 
+ 450.5  585.75 moveto 
+(c~)   show
+ 418.0  590 moveto 
+(2)   show
+ 474.0 552.5 474.0 577.5 Ffermion 
+ 476.25  564.0 moveto 
+(s)   show
+ 547.71541402 493.285573247 474.0 502.5 Ffermion 
+ 512.35770701  499.892786624 moveto 
+(u~)   show
+ 553.71541402  492.535573247 moveto 
+(7)   show
+ 474.0 502.5 424 490 Ffermion 
+ 440.0  500.25 moveto 
+(u~)   show
+ 418.0  490 moveto 
+(1)   show
+ 474.0 527.5 474.0 502.5 0 Fgluon 
+ 476.25  514.0 moveto 
+(g)   show
+ 474.0 527.5 546.542322403 514.805093579 0 Fgluon 
+ 511.771161202  523.15254679 moveto 
+(g)   show
+ 552.542322403  513.755093579 moveto 
+(5)   show
+ 474.0 552.5 474.0 527.5 0 Fgluon 
+ 476.25  539.0 moveto 
+(g)   show
+ 454.0  473.0 moveto 
+( diagram 81 )   show
+ 514.0  473.0 moveto 
+ (QCD=4, QED=2)   show
+ 190.0 380.0 160.0 390.0 Ffermion 
+ 176.5  387.0 moveto 
+(s~)   show
+ 196.0  378.0 moveto 
+(8)   show
+ 160.0 390.0 190.0 400.0 0 Fgluon 
+ 170.5  397.0 moveto 
+(g)   show
+ 196.0  402.0 moveto 
+(6)   show
+ 160.0 390.0 130.0 410.0 Ffermion 
+ 146.5  402.0 moveto 
+(s~)   show
+ 130.0 410.0 173.656412507 417.276068751 0 Fgluon 
+ 147.328206253  415.638034376 moveto 
+(g)   show
+ 179.656412507  418.276068751 moveto 
+(5)   show
+ 130.0 410.0 100.0 435.0 Ffermion 
+ 116.5  424.5 moveto 
+(s~)   show
+ 112.951599012 376.051750206 70.0 385.0 Ffermion 
+ 92.9757995058  382.525875103 moveto 
+(u~)   show
+ 118.951599012  374.801750206 moveto 
+(7)   show
+ 70.0 385.0 40 360 Ffermion 
+ 46.0  376.5 moveto 
+(u~)   show
+ 34.0  360 moveto 
+(1)   show
+ 70.0 435.0 70.0 385.0 0 Fgluon 
+ 72.25  409.0 moveto 
+(g)   show
+ 70.0 435.0 40 460 Ffermion 
+ 56.5  449.5 moveto 
+(c~)   show
+ 34.0  460 moveto 
+(2)   show
+ 100.0 435.0 70.0 435.0 Ffermion 
+ 83.5  437.5 moveto 
+(c~)   show
+ 174.844559121 440.841968938 130.0 443.333333333 Ffermion 
+ 153.922279561  444.087651136 moveto 
+(ve~)   show
+ 180.844559121  440.508635604 moveto 
+(4)   show
+ 130.0 443.333333333 171.538461538 454.871794872 Ffermion 
+ 141.769230769  453.102564103 moveto 
+(e-)   show
+ 177.538461538  456.538461538 moveto 
+(3)   show
+ 130.0 443.333333333 100.0 435.0 0 Fphoton 
+ 106.0  443.166666667 moveto 
+(w-)   show
+ 70.0  343.0 moveto 
+( diagram 82 )   show
+ 130.0  343.0 moveto 
+ (QCD=4, QED=2)   show
+ 382.0 400.0 344.5 422.5 Ffermion 
+ 364.75  413.25 moveto 
+(s~)   show
+ 388.0  396.4 moveto 
+(8)   show
+ 344.5 422.5 382.0 420.0 0 Fgluon 
+ 364.75  423.25 moveto 
+(g)   show
+ 388.0  419.6 moveto 
+(6)   show
+ 344.5 422.5 307.0 443.333333333 Ffermion 
+ 327.25  434.916666667 moveto 
+(s~)   show
+ 382.0 440.0 344.5 447.5 Ffermion 
+ 364.75  445.75 moveto 
+(ve~)   show
+ 388.0  438.8 moveto 
+(4)   show
+ 344.5 447.5 382.0 460 Ffermion 
+ 354.25  457.75 moveto 
+(e-)   show
+ 388.0  462.0 moveto 
+(3)   show
+ 344.5 447.5 307.0 443.333333333 0 Fphoton 
+ 316.75  449.416666667 moveto 
+(w-)   show
+ 307.0 443.333333333 269.5 443.333333333 Ffermion 
+ 286.75  445.833333333 moveto 
+(c~)   show
+ 324.410522135 368.531774498 269.5 376.666666667 Ffermion 
+ 298.455261068  374.599220583 moveto 
+(u~)   show
+ 330.410522135  367.64288561 moveto 
+(7)   show
+ 269.5 376.666666667 232 360 Ffermion 
+ 241.75  372.333333333 moveto 
+(u~)   show
+ 226.0  360 moveto 
+(1)   show
+ 269.5 410.0 269.5 376.666666667 0 Fgluon 
+ 271.75  392.333333333 moveto 
+(g)   show
+ 269.5 410.0 321.726813862 396.072849637 0 Fgluon 
+ 297.113406931  405.036424818 moveto 
+(g)   show
+ 327.726813862  394.472849637 moveto 
+(5)   show
+ 269.5 443.333333333 269.5 410.0 0 Fgluon 
+ 271.75  425.666666667 moveto 
+(g)   show
+ 269.5 443.333333333 232 460 Ffermion 
+ 252.25  453.666666667 moveto 
+(c~)   show
+ 226.0  460 moveto 
+(2)   show
+ 262.0  343.0 moveto 
+( diagram 83 )   show
+ 322.0  343.0 moveto 
+ (QCD=4, QED=2)   show
+ 574.0 380.0 544.0 397.5 Ffermion 
+ 560.5  390.75 moveto 
+(s~)   show
+ 580.0  376.5 moveto 
+(8)   show
+ 544.0 397.5 574.0 400.0 0 Fgluon 
+ 554.5  400.75 moveto 
+(g)   show
+ 580.0  400.5 moveto 
+(6)   show
+ 544.0 397.5 514.0 410.0 Ffermion 
+ 530.5  405.75 moveto 
+(s~)   show
+ 574.0 420.0 544.0 422.5 Ffermion 
+ 560.5  423.25 moveto 
+(ve~)   show
+ 580.0  419.5 moveto 
+(4)   show
+ 544.0 422.5 574.0 440.0 Ffermion 
+ 550.0  435.25 moveto 
+(e-)   show
+ 580.0  443.5 moveto 
+(3)   show
+ 544.0 422.5 514.0 410.0 0 Fphoton 
+ 520.0  420.25 moveto 
+(w-)   show
+ 514.0 410.0 484.0 435.0 Ffermion 
+ 500.5  424.5 moveto 
+(c~)   show
+ 496.951599012 376.051750206 454.0 385.0 Ffermion 
+ 476.975799506  382.525875103 moveto 
+(u~)   show
+ 502.951599012  374.801750206 moveto 
+(7)   show
+ 454.0 385.0 424 360 Ffermion 
+ 430.0  376.5 moveto 
+(u~)   show
+ 418.0  360 moveto 
+(1)   show
+ 454.0 435.0 454.0 385.0 0 Fgluon 
+ 456.25  409.0 moveto 
+(g)   show
+ 454.0 435.0 424 460 Ffermion 
+ 440.5  449.5 moveto 
+(c~)   show
+ 418.0  460 moveto 
+(2)   show
+ 484.0 435.0 454.0 435.0 Ffermion 
+ 467.5  437.5 moveto 
+(c~)   show
+ 484.0 435.0 525.538461538 446.538461538 0 Fgluon 
+ 500.269230769  442.769230769 moveto 
+(g)   show
+ 531.538461538  448.205128205 moveto 
+(5)   show
+ 454.0  343.0 moveto 
+( diagram 84 )   show
+ 514.0  343.0 moveto 
+ (QCD=4, QED=2)   show
+ 190.0 310.0 140.0 320.0 Ffermion 
+ 166.5  317.0 moveto 
+(ve~)   show
+ 196.0  308.8 moveto 
+(4)   show
+ 140.0 320.0 190.0 330 Ffermion 
+ 156.0  329.0 moveto 
+(e-)   show
+ 196.0  331.2 moveto 
+(3)   show
+ 140.0 320.0 90.0 320.0 0 Fphoton 
+ 113.5  322.5 moveto 
+(w-)   show
+ 90.0 320.0 40 330 Ffermion 
+ 66.5  327.0 moveto 
+(c~)   show
+ 34.0  330 moveto 
+(2)   show
+ 90.0 300.0 90.0 320.0 Ffermion 
+ 92.25  309.0 moveto 
+(s)   show
+ 90.0 300.0 164.170226465 292.582977353 0 Fgluon 
+ 128.585113233  298.291488677 moveto 
+(g)   show
+ 170.170226465  291.982977353 moveto 
+(5)   show
+ 90.0 280.0 90.0 300.0 Ffermion 
+ 92.25  289.0 moveto 
+(s)   show
+ 164.170226465 232.582977353 90.0 240.0 Ffermion 
+ 128.585113233  238.291488677 moveto 
+(u~)   show
+ 170.170226465  231.982977353 moveto 
+(7)   show
+ 90.0 240.0 40 230 Ffermion 
+ 56.0  239.0 moveto 
+(u~)   show
+ 34.0  230 moveto 
+(1)   show
+ 90.0 260.0 90.0 240.0 0 Fgluon 
+ 92.25  249.0 moveto 
+(g)   show
+ 90.0 260.0 164.170226465 252.582977353 0 Fgluon 
+ 128.585113233  258.291488677 moveto 
+(g)   show
+ 170.170226465  251.982977353 moveto 
+(6)   show
+ 90.0 280.0 90.0 260.0 0 Fgluon 
+ 92.25  269.0 moveto 
+(g)   show
+ 164.170226465 272.582977353 90.0 280.0 Ffermion 
+ 128.585113233  278.291488677 moveto 
+(s~)   show
+ 170.170226465  271.982977353 moveto 
+(8)   show
+ 70.0  213.0 moveto 
+( diagram 85 )   show
+ 130.0  213.0 moveto 
+ (QCD=4, QED=2)   show
+ 356.170226465 232.582977353 282.0 240.0 Ffermion 
+ 320.585113233  238.291488677 moveto 
+(u~)   show
+ 362.170226465  231.982977353 moveto 
+(7)   show
+ 282.0 240.0 232 230 Ffermion 
+ 248.0  239.0 moveto 
+(u~)   show
+ 226.0  230 moveto 
+(1)   show
+ 282.0 260.0 282.0 240.0 0 Fgluon 
+ 284.25  249.0 moveto 
+(g)   show
+ 356.170226465 252.582977353 282.0 260.0 Ffermion 
+ 320.585113233  258.291488677 moveto 
+(s~)   show
+ 362.170226465  251.982977353 moveto 
+(8)   show
+ 282.0 260.0 282.0 280.0 Ffermion 
+ 284.25  269.0 moveto 
+(s)   show
+ 382.0 310.0 332.0 320.0 Ffermion 
+ 358.5  317.0 moveto 
+(ve~)   show
+ 388.0  308.8 moveto 
+(4)   show
+ 332.0 320.0 382.0 330 Ffermion 
+ 348.0  329.0 moveto 
+(e-)   show
+ 388.0  331.2 moveto 
+(3)   show
+ 332.0 320.0 282.0 320.0 0 Fphoton 
+ 305.5  322.5 moveto 
+(w-)   show
+ 282.0 320.0 232 330 Ffermion 
+ 258.5  327.0 moveto 
+(c~)   show
+ 226.0  330 moveto 
+(2)   show
+ 282.0 300.0 282.0 320.0 Ffermion 
+ 284.25  309.0 moveto 
+(s)   show
+ 282.0 300.0 356.170226465 292.582977353 0 Fgluon 
+ 320.585113233  298.291488677 moveto 
+(g)   show
+ 362.170226465  291.982977353 moveto 
+(5)   show
+ 282.0 280.0 282.0 300.0 Ffermion 
+ 284.25  289.0 moveto 
+(s)   show
+ 282.0 280.0 356.170226465 272.582977353 0 Fgluon 
+ 320.585113233  278.291488677 moveto 
+(g)   show
+ 362.170226465  271.982977353 moveto 
+(6)   show
+ 262.0  213.0 moveto 
+( diagram 86 )   show
+ 322.0  213.0 moveto 
+ (QCD=4, QED=2)   show
+ 574.0 310.0 524.0 320.0 Ffermion 
+ 550.5  317.0 moveto 
+(ve~)   show
+ 580.0  308.8 moveto 
+(4)   show
+ 524.0 320.0 574.0 330 Ffermion 
+ 540.0  329.0 moveto 
+(e-)   show
+ 580.0  331.2 moveto 
+(3)   show
+ 524.0 320.0 474.0 320.0 0 Fphoton 
+ 497.5  322.5 moveto 
+(w-)   show
+ 474.0 320.0 424 330 Ffermion 
+ 450.5  327.0 moveto 
+(c~)   show
+ 418.0  330 moveto 
+(2)   show
+ 474.0 300.0 474.0 320.0 Ffermion 
+ 476.25  309.0 moveto 
+(s)   show
+ 474.0 300.0 548.170226465 292.582977353 0 Fgluon 
+ 512.585113233  298.291488677 moveto 
+(g)   show
+ 554.170226465  291.982977353 moveto 
+(6)   show
+ 474.0 280.0 474.0 300.0 Ffermion 
+ 476.25  289.0 moveto 
+(s)   show
+ 548.170226465 232.582977353 474.0 240.0 Ffermion 
+ 512.585113233  238.291488677 moveto 
+(u~)   show
+ 554.170226465  231.982977353 moveto 
+(7)   show
+ 474.0 240.0 424 230 Ffermion 
+ 440.0  239.0 moveto 
+(u~)   show
+ 418.0  230 moveto 
+(1)   show
+ 474.0 260.0 474.0 240.0 0 Fgluon 
+ 476.25  249.0 moveto 
+(g)   show
+ 474.0 260.0 548.170226465 252.582977353 0 Fgluon 
+ 512.585113233  258.291488677 moveto 
+(g)   show
+ 554.170226465  251.982977353 moveto 
+(5)   show
+ 474.0 280.0 474.0 260.0 0 Fgluon 
+ 476.25  269.0 moveto 
+(g)   show
+ 548.170226465 272.582977353 474.0 280.0 Ffermion 
+ 512.585113233  278.291488677 moveto 
+(s~)   show
+ 554.170226465  271.982977353 moveto 
+(8)   show
+ 454.0  213.0 moveto 
+( diagram 87 )   show
+ 514.0  213.0 moveto 
+ (QCD=4, QED=2)   show
+ 164.170226465 102.582977353 90.0 110.0 Ffermion 
+ 128.585113233  108.291488677 moveto 
+(u~)   show
+ 170.170226465  101.982977353 moveto 
+(7)   show
+ 90.0 110.0 40 100 Ffermion 
+ 56.0  109.0 moveto 
+(u~)   show
+ 34.0  100 moveto 
+(1)   show
+ 90.0 130.0 90.0 110.0 0 Fgluon 
+ 92.25  119.0 moveto 
+(g)   show
+ 90.0 130.0 164.170226465 122.582977353 0 Fgluon 
+ 128.585113233  128.291488677 moveto 
+(g)   show
+ 170.170226465  121.982977353 moveto 
+(5)   show
+ 90.0 150.0 90.0 130.0 0 Fgluon 
+ 92.25  139.0 moveto 
+(g)   show
+ 190.0 180.0 140.0 190.0 Ffermion 
+ 166.5  187.0 moveto 
+(ve~)   show
+ 196.0  178.8 moveto 
+(4)   show
+ 140.0 190.0 190.0 200 Ffermion 
+ 156.0  199.0 moveto 
+(e-)   show
+ 196.0  201.2 moveto 
+(3)   show
+ 140.0 190.0 90.0 190.0 0 Fphoton 
+ 113.5  192.5 moveto 
+(w-)   show
+ 90.0 190.0 40 200 Ffermion 
+ 66.5  197.0 moveto 
+(c~)   show
+ 34.0  200 moveto 
+(2)   show
+ 90.0 170.0 90.0 190.0 Ffermion 
+ 92.25  179.0 moveto 
+(s)   show
+ 164.170226465 162.582977353 90.0 170.0 Ffermion 
+ 128.585113233  168.291488677 moveto 
+(s~)   show
+ 170.170226465  161.982977353 moveto 
+(8)   show
+ 90.0 170.0 90.0 150.0 0 Fgluon 
+ 92.25  159.0 moveto 
+(g)   show
+ 90.0 150.0 164.170226465 142.582977353 0 Fgluon 
+ 128.585113233  148.291488677 moveto 
+(g)   show
+ 170.170226465  141.982977353 moveto 
+(6)   show
+ 70.0  83.0 moveto 
+( diagram 88 )   show
+ 130.0  83.0 moveto 
+ (QCD=4, QED=2)   show
+ 356.170226465 102.582977353 282.0 110.0 Ffermion 
+ 320.585113233  108.291488677 moveto 
+(u~)   show
+ 362.170226465  101.982977353 moveto 
+(7)   show
+ 282.0 110.0 232 100 Ffermion 
+ 248.0  109.0 moveto 
+(u~)   show
+ 226.0  100 moveto 
+(1)   show
+ 282.0 130.0 282.0 110.0 0 Fgluon 
+ 284.25  119.0 moveto 
+(g)   show
+ 356.170226465 122.582977353 282.0 130.0 Ffermion 
+ 320.585113233  128.291488677 moveto 
+(s~)   show
+ 362.170226465  121.982977353 moveto 
+(8)   show
+ 282.0 130.0 282.0 150.0 Ffermion 
+ 284.25  139.0 moveto 
+(s)   show
+ 382.0 180.0 332.0 190.0 Ffermion 
+ 358.5  187.0 moveto 
+(ve~)   show
+ 388.0  178.8 moveto 
+(4)   show
+ 332.0 190.0 382.0 200 Ffermion 
+ 348.0  199.0 moveto 
+(e-)   show
+ 388.0  201.2 moveto 
+(3)   show
+ 332.0 190.0 282.0 190.0 0 Fphoton 
+ 305.5  192.5 moveto 
+(w-)   show
+ 282.0 190.0 232 200 Ffermion 
+ 258.5  197.0 moveto 
+(c~)   show
+ 226.0  200 moveto 
+(2)   show
+ 282.0 170.0 282.0 190.0 Ffermion 
+ 284.25  179.0 moveto 
+(s)   show
+ 282.0 170.0 356.170226465 162.582977353 0 Fgluon 
+ 320.585113233  168.291488677 moveto 
+(g)   show
+ 362.170226465  161.982977353 moveto 
+(6)   show
+ 282.0 150.0 282.0 170.0 Ffermion 
+ 284.25  159.0 moveto 
+(s)   show
+ 282.0 150.0 356.170226465 142.582977353 0 Fgluon 
+ 320.585113233  148.291488677 moveto 
+(g)   show
+ 362.170226465  141.982977353 moveto 
+(5)   show
+ 262.0  83.0 moveto 
+( diagram 89 )   show
+ 322.0  83.0 moveto 
+ (QCD=4, QED=2)   show
+ 548.170226465 102.582977353 474.0 110.0 Ffermion 
+ 512.585113233  108.291488677 moveto 
+(u~)   show
+ 554.170226465  101.982977353 moveto 
+(7)   show
+ 474.0 110.0 424 100 Ffermion 
+ 440.0  109.0 moveto 
+(u~)   show
+ 418.0  100 moveto 
+(1)   show
+ 474.0 130.0 474.0 110.0 0 Fgluon 
+ 476.25  119.0 moveto 
+(g)   show
+ 474.0 130.0 548.170226465 122.582977353 0 Fgluon 
+ 512.585113233  128.291488677 moveto 
+(g)   show
+ 554.170226465  121.982977353 moveto 
+(6)   show
+ 474.0 150.0 474.0 130.0 0 Fgluon 
+ 476.25  139.0 moveto 
+(g)   show
+ 574.0 180.0 524.0 190.0 Ffermion 
+ 550.5  187.0 moveto 
+(ve~)   show
+ 580.0  178.8 moveto 
+(4)   show
+ 524.0 190.0 574.0 200 Ffermion 
+ 540.0  199.0 moveto 
+(e-)   show
+ 580.0  201.2 moveto 
+(3)   show
+ 524.0 190.0 474.0 190.0 0 Fphoton 
+ 497.5  192.5 moveto 
+(w-)   show
+ 474.0 190.0 424 200 Ffermion 
+ 450.5  197.0 moveto 
+(c~)   show
+ 418.0  200 moveto 
+(2)   show
+ 474.0 170.0 474.0 190.0 Ffermion 
+ 476.25  179.0 moveto 
+(s)   show
+ 548.170226465 162.582977353 474.0 170.0 Ffermion 
+ 512.585113233  168.291488677 moveto 
+(s~)   show
+ 554.170226465  161.982977353 moveto 
+(8)   show
+ 474.0 170.0 474.0 150.0 0 Fgluon 
+ 476.25  159.0 moveto 
+(g)   show
+ 474.0 150.0 548.170226465 142.582977353 0 Fgluon 
+ 512.585113233  148.291488677 moveto 
+(g)   show
+ 554.170226465  141.982977353 moveto 
+(5)   show
+ 454.0  83.0 moveto 
+( diagram 90 )   show
+ 514.0  83.0 moveto 
+ (QCD=4, QED=2)   show
+showpage
+%%Page: 10 10 
+%%PageBoundingBox:-20 -20 600 800
+%%PageFonts: Helvetica
+/Helvetica findfont 6 scalefont setfont
+ 50         770  moveto
+ () show
+ 525         770  moveto
+ (page 10/10) show
+ 260         40  moveto
+ (Diagrams made by MadGraph5) show
+ 190.0 700.0 140.0 710.0 Ffermion 
+ 166.5  707.0 moveto 
+(ve~)   show
+ 196.0  698.8 moveto 
+(4)   show
+ 140.0 710.0 190.0 720 Ffermion 
+ 156.0  719.0 moveto 
+(e-)   show
+ 196.0  721.2 moveto 
+(3)   show
+ 140.0 710.0 90.0 707.5 0 Fphoton 
+ 106.0  712.75 moveto 
+(w-)   show
+ 90.0 707.5 40 720 Ffermion 
+ 66.5  715.75 moveto 
+(c~)   show
+ 34.0  720 moveto 
+(2)   show
+ 90.0 682.5 90.0 707.5 Ffermion 
+ 92.25  694.0 moveto 
+(s)   show
+ 163.71541402 623.285573247 90.0 632.5 Ffermion 
+ 128.35770701  629.892786624 moveto 
+(u~)   show
+ 169.71541402  622.535573247 moveto 
+(7)   show
+ 90.0 632.5 40 620 Ffermion 
+ 56.0  630.25 moveto 
+(u~)   show
+ 34.0  620 moveto 
+(1)   show
+ 90.0 657.5 90.0 632.5 0 Fgluon 
+ 92.25  644.0 moveto 
+(g)   show
+ 90.0 657.5 162.542322403 644.805093579 0 Fgluon 
+ 127.771161202  653.15254679 moveto 
+(g)   show
+ 168.542322403  643.755093579 moveto 
+(5)   show
+ 90.0 657.5 164.947321178 659.373683029 0 Fgluon 
+ 122.973660589  660.436841515 moveto 
+(g)   show
+ 170.947321178  659.523683029 moveto 
+(6)   show
+ 90.0 682.5 90.0 657.5 0 Fgluon 
+ 92.25  669.0 moveto 
+(g)   show
+ 164.947321178 680.626316971 90.0 682.5 Ffermion 
+ 128.973660589  683.563158485 moveto 
+(s~)   show
+ 170.947321178  680.476316971 moveto 
+(8)   show
+ 70.0  603.0 moveto 
+( diagram 91 )   show
+ 130.0  603.0 moveto 
+ (QCD=4, QED=2)   show
+ 382.0 680.0 352.0 690.0 Ffermion 
+ 368.5  687.0 moveto 
+(ve~)   show
+ 388.0  678.0 moveto 
+(4)   show
+ 352.0 690.0 382.0 700.0 Ffermion 
+ 358.0  699.0 moveto 
+(e-)   show
+ 388.0  702.0 moveto 
+(3)   show
+ 352.0 690.0 322.0 682.5 0 Fphoton 
+ 328.0  690.25 moveto 
+(w-)   show
+ 361.220899171 667.792162811 322.0 682.5 Ffermion 
+ 343.110449585  677.146081406 moveto 
+(s~)   show
+ 367.220899171  665.542162811 moveto 
+(8)   show
+ 322.0 682.5 292.0 703.333333333 Ffermion 
+ 308.5  694.916666667 moveto 
+(c~)   show
+ 292.0 703.333333333 335.358305933 711.362649247 0 Fgluon 
+ 309.179152967  709.34799129 moveto 
+(g)   show
+ 341.358305933  712.473760358 moveto 
+(5)   show
+ 292.0 703.333333333 262.0 703.333333333 Ffermion 
+ 275.5  705.833333333 moveto 
+(c~)   show
+ 306.054118888 630.548039043 262.0 636.666666667 Ffermion 
+ 285.527059444  635.607352855 moveto 
+(u~)   show
+ 312.054118888  629.71470571 moveto 
+(7)   show
+ 262.0 636.666666667 232 620 Ffermion 
+ 238.0  632.333333333 moveto 
+(u~)   show
+ 226.0  620 moveto 
+(1)   show
+ 262.0 670.0 262.0 636.666666667 0 Fgluon 
+ 264.25  652.333333333 moveto 
+(g)   show
+ 262.0 670.0 304.134812991 659.466296752 0 Fgluon 
+ 284.567406495  666.733148376 moveto 
+(g)   show
+ 310.134812991  657.966296752 moveto 
+(6)   show
+ 262.0 703.333333333 262.0 670.0 0 Fgluon 
+ 264.25  685.666666667 moveto 
+(g)   show
+ 262.0 703.333333333 232 720 Ffermion 
+ 248.5  713.666666667 moveto 
+(c~)   show
+ 226.0  720 moveto 
+(2)   show
+ 262.0  603.0 moveto 
+( diagram 92 )   show
+ 322.0  603.0 moveto 
+ (QCD=4, QED=2)   show
+ 574.0 660.0 549.0 670.0 Ffermion 
+ 563.0  667.0 moveto 
+(ve~)   show
+ 580.0  657.6 moveto 
+(4)   show
+ 549.0 670.0 574.0 680.0 Ffermion 
+ 552.5  679.0 moveto 
+(e-)   show
+ 580.0  682.4 moveto 
+(3)   show
+ 549.0 670.0 524.0 657.5 0 Fphoton 
+ 527.5  667.75 moveto 
+(w-)   show
+ 557.202421356 645.879152525 524.0 657.5 Ffermion 
+ 542.101210678  653.689576263 moveto 
+(s~)   show
+ 563.202421356  643.779152525 moveto 
+(8)   show
+ 524.0 657.5 499.0 670.0 Ffermion 
+ 513.0  665.75 moveto 
+(c~)   show
+ 499.0 670.0 531.155984714 682.862393886 0 Fgluon 
+ 510.577992357  678.431196943 moveto 
+(g)   show
+ 537.155984714  685.262393886 moveto 
+(5)   show
+ 499.0 670.0 474.0 695.0 Ffermion 
+ 488.0  684.5 moveto 
+(c~)   show
+ 484.918485696 637.816302861 449.0 645.0 Ffermion 
+ 468.459242848  643.40815143 moveto 
+(u~)   show
+ 490.918485696  636.616302861 moveto 
+(7)   show
+ 449.0 645.0 424 620 Ffermion 
+ 427.5  636.5 moveto 
+(u~)   show
+ 418.0  620 moveto 
+(1)   show
+ 449.0 695.0 449.0 645.0 0 Fgluon 
+ 451.25  669.0 moveto 
+(g)   show
+ 449.0 695.0 424 720 Ffermion 
+ 438.0  709.5 moveto 
+(c~)   show
+ 418.0  720 moveto 
+(2)   show
+ 474.0 695.0 449.0 695.0 Ffermion 
+ 460.0  697.5 moveto 
+(c~)   show
+ 474.0 695.0 509.112344159 703.77808604 0 Fgluon 
+ 487.056172079  701.38904302 moveto 
+(g)   show
+ 515.112344159  705.27808604 moveto 
+(6)   show
+ 454.0  603.0 moveto 
+( diagram 93 )   show
+ 514.0  603.0 moveto 
+ (QCD=4, QED=2)   show
+ 190.0 550.0 160.0 560.0 Ffermion 
+ 176.5  557.0 moveto 
+(ve~)   show
+ 196.0  548.0 moveto 
+(4)   show
+ 160.0 560.0 190.0 570.0 Ffermion 
+ 166.0  569.0 moveto 
+(e-)   show
+ 196.0  572.0 moveto 
+(3)   show
+ 160.0 560.0 130.0 552.5 0 Fphoton 
+ 136.0  560.25 moveto 
+(w-)   show
+ 169.220899171 537.792162811 130.0 552.5 Ffermion 
+ 151.110449585  547.146081406 moveto 
+(s~)   show
+ 175.220899171  535.542162811 moveto 
+(8)   show
+ 130.0 552.5 100.0 573.333333333 Ffermion 
+ 116.5  564.916666667 moveto 
+(c~)   show
+ 100.0 573.333333333 143.358305933 581.362649247 0 Fgluon 
+ 117.179152967  579.34799129 moveto 
+(g)   show
+ 149.358305933  582.473760358 moveto 
+(6)   show
+ 100.0 573.333333333 70.0 573.333333333 Ffermion 
+ 83.5  575.833333333 moveto 
+(c~)   show
+ 114.054118888 500.548039043 70.0 506.666666667 Ffermion 
+ 93.5270594441  505.607352855 moveto 
+(u~)   show
+ 120.054118888  499.71470571 moveto 
+(7)   show
+ 70.0 506.666666667 40 490 Ffermion 
+ 46.0  502.333333333 moveto 
+(u~)   show
+ 34.0  490 moveto 
+(1)   show
+ 70.0 540.0 70.0 506.666666667 0 Fgluon 
+ 72.25  522.333333333 moveto 
+(g)   show
+ 70.0 540.0 112.134812991 529.466296752 0 Fgluon 
+ 92.5674064953  536.733148376 moveto 
+(g)   show
+ 118.134812991  527.966296752 moveto 
+(5)   show
+ 70.0 573.333333333 70.0 540.0 0 Fgluon 
+ 72.25  555.666666667 moveto 
+(g)   show
+ 70.0 573.333333333 40 590 Ffermion 
+ 56.5  583.666666667 moveto 
+(c~)   show
+ 34.0  590 moveto 
+(2)   show
+ 70.0  473.0 moveto 
+( diagram 94 )   show
+ 130.0  473.0 moveto 
+ (QCD=4, QED=2)   show
+ 324.984658216 496.335037976 269.5 502.5 Ffermion 
+ 298.742329108  501.417518988 moveto 
+(u~)   show
+ 330.984658216  495.668371309 moveto 
+(7)   show
+ 269.5 502.5 232 490 Ffermion 
+ 241.75  500.25 moveto 
+(u~)   show
+ 226.0  490 moveto 
+(1)   show
+ 269.5 527.5 269.5 502.5 0 Fgluon 
+ 271.75  514.0 moveto 
+(g)   show
+ 269.5 527.5 324.278568048 518.978889415 0 Fgluon 
+ 298.389284024  525.239444707 moveto 
+(g)   show
+ 330.278568048  518.045556081 moveto 
+(5)   show
+ 269.5 552.5 269.5 527.5 0 Fgluon 
+ 271.75  539.0 moveto 
+(g)   show
+ 382.0 570.0 344.5 580.0 Ffermion 
+ 364.75  577.0 moveto 
+(ve~)   show
+ 388.0  568.4 moveto 
+(4)   show
+ 344.5 580.0 382.0 590 Ffermion 
+ 354.25  589.0 moveto 
+(e-)   show
+ 388.0  591.6 moveto 
+(3)   show
+ 344.5 580.0 307.0 577.5 0 Fphoton 
+ 316.75  582.75 moveto 
+(w-)   show
+ 356.287144863 559.428046884 307.0 577.5 Ffermion 
+ 333.143572432  570.464023442 moveto 
+(s~)   show
+ 362.287144863  557.228046884 moveto 
+(8)   show
+ 307.0 577.5 269.5 577.5 Ffermion 
+ 286.75  580.0 moveto 
+(c~)   show
+ 269.5 577.5 232 590 Ffermion 
+ 252.25  585.75 moveto 
+(c~)   show
+ 226.0  590 moveto 
+(2)   show
+ 269.5 577.5 269.5 552.5 0 Fgluon 
+ 271.75  564.0 moveto 
+(g)   show
+ 269.5 552.5 323.377728544 541.724454291 0 Fgluon 
+ 297.938864272  549.112227146 moveto 
+(g)   show
+ 329.377728544  540.524454291 moveto 
+(6)   show
+ 262.0  473.0 moveto 
+( diagram 95 )   show
+ 322.0  473.0 moveto 
+ (QCD=4, QED=2)   show
+ 574.0 530.0 549.0 540.0 Ffermion 
+ 563.0  537.0 moveto 
+(ve~)   show
+ 580.0  527.6 moveto 
+(4)   show
+ 549.0 540.0 574.0 550.0 Ffermion 
+ 552.5  549.0 moveto 
+(e-)   show
+ 580.0  552.4 moveto 
+(3)   show
+ 549.0 540.0 524.0 527.5 0 Fphoton 
+ 527.5  537.75 moveto 
+(w-)   show
+ 557.202421356 515.879152525 524.0 527.5 Ffermion 
+ 542.101210678  523.689576263 moveto 
+(s~)   show
+ 563.202421356  513.779152525 moveto 
+(8)   show
+ 524.0 527.5 499.0 540.0 Ffermion 
+ 513.0  535.75 moveto 
+(c~)   show
+ 499.0 540.0 531.155984714 552.862393886 0 Fgluon 
+ 510.577992357  548.431196943 moveto 
+(g)   show
+ 537.155984714  555.262393886 moveto 
+(6)   show
+ 499.0 540.0 474.0 565.0 Ffermion 
+ 488.0  554.5 moveto 
+(c~)   show
+ 484.918485696 507.816302861 449.0 515.0 Ffermion 
+ 468.459242848  513.40815143 moveto 
+(u~)   show
+ 490.918485696  506.616302861 moveto 
+(7)   show
+ 449.0 515.0 424 490 Ffermion 
+ 427.5  506.5 moveto 
+(u~)   show
+ 418.0  490 moveto 
+(1)   show
+ 449.0 565.0 449.0 515.0 0 Fgluon 
+ 451.25  539.0 moveto 
+(g)   show
+ 449.0 565.0 424 590 Ffermion 
+ 438.0  579.5 moveto 
+(c~)   show
+ 418.0  590 moveto 
+(2)   show
+ 474.0 565.0 449.0 565.0 Ffermion 
+ 460.0  567.5 moveto 
+(c~)   show
+ 474.0 565.0 509.112344159 573.77808604 0 Fgluon 
+ 487.056172079  571.38904302 moveto 
+(g)   show
+ 515.112344159  575.27808604 moveto 
+(5)   show
+ 454.0  473.0 moveto 
+( diagram 96 )   show
+ 514.0  473.0 moveto 
+ (QCD=4, QED=2)   show
+ 132.984658216 366.335037976 77.5 372.5 Ffermion 
+ 106.742329108  371.417518988 moveto 
+(u~)   show
+ 138.984658216  365.668371309 moveto 
+(7)   show
+ 77.5 372.5 40 360 Ffermion 
+ 49.75  370.25 moveto 
+(u~)   show
+ 34.0  360 moveto 
+(1)   show
+ 77.5 397.5 77.5 372.5 0 Fgluon 
+ 79.75  384.0 moveto 
+(g)   show
+ 77.5 397.5 132.278568048 388.978889415 0 Fgluon 
+ 106.389284024  395.239444707 moveto 
+(g)   show
+ 138.278568048  388.045556081 moveto 
+(6)   show
+ 77.5 422.5 77.5 397.5 0 Fgluon 
+ 79.75  409.0 moveto 
+(g)   show
+ 190.0 440.0 152.5 450.0 Ffermion 
+ 172.75  447.0 moveto 
+(ve~)   show
+ 196.0  438.4 moveto 
+(4)   show
+ 152.5 450.0 190.0 460 Ffermion 
+ 162.25  459.0 moveto 
+(e-)   show
+ 196.0  461.6 moveto 
+(3)   show
+ 152.5 450.0 115.0 447.5 0 Fphoton 
+ 124.75  452.75 moveto 
+(w-)   show
+ 164.287144863 429.428046884 115.0 447.5 Ffermion 
+ 141.143572432  440.464023442 moveto 
+(s~)   show
+ 170.287144863  427.228046884 moveto 
+(8)   show
+ 115.0 447.5 77.5 447.5 Ffermion 
+ 94.75  450.0 moveto 
+(c~)   show
+ 77.5 447.5 40 460 Ffermion 
+ 60.25  455.75 moveto 
+(c~)   show
+ 34.0  460 moveto 
+(2)   show
+ 77.5 447.5 77.5 422.5 0 Fgluon 
+ 79.75  434.0 moveto 
+(g)   show
+ 77.5 422.5 131.377728544 411.724454291 0 Fgluon 
+ 105.938864272  419.112227146 moveto 
+(g)   show
+ 137.377728544  410.524454291 moveto 
+(5)   show
+ 70.0  343.0 moveto 
+( diagram 97 )   show
+ 130.0  343.0 moveto 
+ (QCD=4, QED=2)   show
+ 382.0 440.0 344.5 450.0 Ffermion 
+ 364.75  447.0 moveto 
+(ve~)   show
+ 388.0  438.4 moveto 
+(4)   show
+ 344.5 450.0 382.0 460 Ffermion 
+ 354.25  459.0 moveto 
+(e-)   show
+ 388.0  461.6 moveto 
+(3)   show
+ 344.5 450.0 307.0 447.5 0 Fphoton 
+ 316.75  452.75 moveto 
+(w-)   show
+ 356.287144863 429.428046884 307.0 447.5 Ffermion 
+ 333.143572432  440.464023442 moveto 
+(s~)   show
+ 362.287144863  427.228046884 moveto 
+(8)   show
+ 307.0 447.5 269.5 443.333333333 Ffermion 
+ 279.25  449.416666667 moveto 
+(c~)   show
+ 324.410522135 368.531774498 269.5 376.666666667 Ffermion 
+ 298.455261068  374.599220583 moveto 
+(u~)   show
+ 330.410522135  367.64288561 moveto 
+(7)   show
+ 269.5 376.666666667 232 360 Ffermion 
+ 241.75  372.333333333 moveto 
+(u~)   show
+ 226.0  360 moveto 
+(1)   show
+ 269.5 410.0 269.5 376.666666667 0 Fgluon 
+ 271.75  392.333333333 moveto 
+(g)   show
+ 269.5 410.0 321.726813862 396.072849637 0 Fgluon 
+ 297.113406931  405.036424818 moveto 
+(g)   show
+ 327.726813862  394.472849637 moveto 
+(5)   show
+ 269.5 410.0 325.256569413 405.043860497 0 Fgluon 
+ 298.878284707  409.521930248 moveto 
+(g)   show
+ 331.256569413  404.510527163 moveto 
+(6)   show
+ 269.5 443.333333333 269.5 410.0 0 Fgluon 
+ 271.75  425.666666667 moveto 
+(g)   show
+ 269.5 443.333333333 232 460 Ffermion 
+ 252.25  453.666666667 moveto 
+(c~)   show
+ 226.0  460 moveto 
+(2)   show
+ 262.0  343.0 moveto 
+( diagram 98 )   show
+ 322.0  343.0 moveto 
+ (QCD=4, QED=2)   show
+showpage
+%%trailer

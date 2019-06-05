@@ -1,0 +1,82 @@
+namespace npstat {
+    template <typename Numeric>
+    const HistoND<double>& AbsMarginalSmootherBase::smooth(
+        const unsigned long uniqueId, const unsigned dimNumber,
+        const std::vector<Numeric>& data,
+        const double minValue, const double maxValue,
+        double* bandwidthUsed)
+    {
+        HistoND<double>& histo = this->clearHisto(minValue, maxValue);
+        double bw = 0.0;
+        const unsigned long datasize = data.size();
+        if (datasize)
+        {
+            const Numeric* pdat = &data[0];
+            for (unsigned long i=0; i<datasize; ++i)
+                histo.fill(static_cast<double>(pdat[i]), 1.0);
+            this->storeHisto(uniqueId, dimNumber, bw);
+
+            const double n = histo.nFillsInRange();
+            if (n > 0.0)
+            {
+                this->smoothHisto(histo, n, &bw, false);
+                assert(bw > 0.0);
+            }
+            else
+            {
+                histo.clear();
+                bw = 1.0;
+            }
+            this->storeHisto(uniqueId, dimNumber, bw);
+        }
+        if (bandwidthUsed)
+            *bandwidthUsed = bw;
+        return histo;
+    }
+
+    template <typename Numeric>
+    const HistoND<double>& AbsMarginalSmootherBase::weightedSmooth(
+        const unsigned long uniqueId, const unsigned dim,
+        const std::vector<std::pair<Numeric,double> >& data,
+        const double minValue, const double maxValue,
+        double* bandwidthUsed)
+    {
+        HistoND<double>& histo = this->clearHisto(minValue, maxValue);
+        double bw = 0.0;
+        const unsigned long datasize = data.size();
+        if (datasize)
+        {
+            const double xmin = this->xMin();
+            const double xmax = this->xMax();
+            const std::pair<Numeric,double>* pdat = &data[0];
+            long double wsum = 0.0L, wsumsq = 0.0L;
+            for (unsigned long i=0; i<datasize; ++i, ++pdat)
+            {
+                const double x = static_cast<double>(pdat->first);
+                if (x >= xmin && x < xmax)
+                {
+                    const double w = pdat->second;
+                    wsum += w;
+                    wsumsq += w*w;
+                    histo.fillC(x, w);
+                }
+            }
+            this->storeHisto(uniqueId, dim, bw);
+
+            if (wsum > 0.0L && histo.nFillsInRange() > 0UL)
+            {
+                this->smoothHisto(histo, wsum*wsum/wsumsq, &bw, true);
+                assert(bw > 0.0);
+            }
+            else
+            {
+                histo.clear();
+                bw = 1.0;
+            }
+            this->storeHisto(uniqueId, dim, bw);
+        }
+        if (bandwidthUsed)
+            *bandwidthUsed = bw;
+        return histo;
+    }
+}

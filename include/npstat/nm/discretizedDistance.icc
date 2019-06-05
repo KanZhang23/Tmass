@@ -1,0 +1,85 @@
+#include <cmath>
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    namespace Private {
+        template<typename Numeric>
+        inline long double calculateDensNorm(const Numeric* a1,
+                                             const unsigned long length1,
+                                             const double cellSize)
+        {
+            long double sum = 0.0L;
+            for (unsigned long i=0; i<length1; ++i)
+                sum += static_cast<long double>(a1[i]);
+            if (sum <= 0.0L)
+                throw std::invalid_argument(
+                    "In npstat::Private::calculateDensNorm: "
+                    "array sum is not positive");
+            return 1.0L/sum/cellSize;
+        }
+
+        template<typename Numeric>
+        inline void calculateDiscrNorms(const Numeric* a1,
+                                        const unsigned long length1,
+                                        const Numeric* a2,
+                                        const unsigned long length2,
+                                        const double cellSize,
+                                        const bool normalizeAsDensity,
+                                        long double* n1, long double* n2)
+        {
+            if (length1 != length2)
+                throw std::invalid_argument(
+                    "In npstat::Private::calculateDiscrNorms: "
+                    "incompatible array length");
+            if (length1)
+            {
+                if (cellSize <= 0.0)
+                    throw std::invalid_argument(
+                        "In npstat::Private::calculateDiscrNorms: "
+                        "cell size must be positive");
+                assert(a1);
+                assert(a2);
+                if (normalizeAsDensity)
+                {
+                    *n1 = calculateDensNorm(a1, length1, cellSize);
+                    *n2 = calculateDensNorm(a2, length2, cellSize);
+                }
+            }
+        }
+    }
+
+    template<typename Numeric>
+    inline double discretizedL1(const Numeric* a1, const unsigned long length1,
+                                const Numeric* a2, const unsigned long length2,
+                                const double cellSize, const bool normalize)
+    {
+        long double n1 = 1.0L, n2 = 1.0L;
+        Private::calculateDiscrNorms(a1, length1, a2, length2, cellSize,
+                                     normalize, &n1, &n2);
+        long double sum = 0.0L;
+        for (unsigned long i=0; i<length1; ++i)
+        {
+            const long double d = n1*a1[i] - n2*a2[i];
+            sum += std::abs(d);
+        }
+        return sum*cellSize;
+    }
+
+    template<typename Numeric>
+    inline double discretizedL2(const Numeric* a1, const unsigned long length1,
+                                const Numeric* a2, const unsigned long length2,
+                                const double cellSize, const bool normalize)
+    {
+        long double n1 = 1.0L, n2 = 1.0L;
+        Private::calculateDiscrNorms(a1, length1, a2, length2, cellSize,
+                                     normalize, &n1, &n2);
+        long double sum = 0.0L;
+        for (unsigned long i=0; i<length1; ++i)
+        {
+            const long double d = n1*a1[i] - n2*a2[i];
+            sum += d*d;
+        }
+        return sum*cellSize;
+    }
+}

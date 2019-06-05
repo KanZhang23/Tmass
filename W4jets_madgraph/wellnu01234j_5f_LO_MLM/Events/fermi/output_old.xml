@@ -1,0 +1,461 @@
+<madweight>
+<banner>
+<proc_card_mg5>
+#************************************************************
+#*                     MadGraph5_aMC@NLO                    *
+#*                                                          *
+#*                *                       *                 *
+#*                  *        * *        *                   *
+#*                    * * * * 5 * * * *                     *
+#*                  *        * *        *                   *
+#*                *                       *                 *
+#*                                                          *
+#*                                                          *
+#*         VERSION 2.2.2                 2014-11-06         *
+#*                                                          *
+#*    The MadGraph5_aMC@NLO Development Team - Find us at   *
+#*    https://server06.fynu.ucl.ac.be/projects/madgraph     *
+#*                                                          *
+#************************************************************
+#*                                                          *
+#*               Command File for MadGraph5_aMC@NLO         *
+#*                                                          *
+#*     run as ./bin/mg5_aMC  filename                       *
+#*                                                          *
+#************************************************************
+set group_subprocesses Auto
+set ignore_six_quark_processes False
+set loop_optimized_output True
+set complex_mass_scheme False
+import model sm-no_b_mass
+define p = g u c d s u~ c~ d~ s~
+define j = g u c d s u~ c~ d~ s~
+define l+ = e+ mu+
+define l- = e- mu-
+define vl = ve vm vt
+define vl~ = ve~ vm~ vt~
+define j = j b b~
+define ell+ = e+
+define ell- = e-
+generate p p > w+ j j j j, w+ > e+ ve  @0
+add process p p > w- j j j j, w- > e- ve~  @1
+output madweight wellnu01234j_5f_LO_MLM -nojpeg
+</proc_card_mg5>
+<MadWeight_card>
+##########################################################################
+##                                                                      ##
+##                             MadWeigth                                ##
+##                             =============                            ##
+##                                                                      ##
+##                              Run control                             ##
+##                              -----------                             ##
+##                                                                      ##
+##                                                                      ##
+##    Author: Mattelaer Olivier (UCL-CP3)                               ##
+##            Artoisenet Pierre (UCL-CP3)                               ##
+##                                                                      ##
+##    Version:     5.0.0                                                ##
+##    Last change: 01/10/14                                             ##
+##                                                                      ##
+##########################################################################
+##                                                                      ##
+##  This Card defines all specific parameters of Madweight              ## 
+##                                                                      ##
+##########################################################################
+#*************************************************************************
+##                      select run options                              ##  
+#*************************************************************************
+Block MW_Run 
+#   TAG                 VALUE                    UTILITY
+     name                fermi    # name for the run  
+     nb_exp_events        2       # number of experimental events to consider
+     MW_int_points        1000    # number of points (by permutation) in MadWeight integration for survey 
+     MW_int_refine        1000    # number of points (by permutation) in MadWeight integration for refine 
+     precision            0.005   # stops computation if precision is reached.
+     nb_event_by_node     1       # one job submission compute the weight for N events
+     log_level            weight  # from low level of log to extensive log: 
+                                  # weight, permutation, channel, full
+     use_cut              F       # use the cut defined in run_card.dat
+     bw_cut               F       # use the BW cut 
+     nwa                  0.1     # width below narrow width approximation is used.
+     isr                  0       # isr=0 : ignore ISR effect (except if all FS particles are visible)
+                                  # isr=1 : correct kinematic based on reconstructed Pt(isr)
+     inputfile          './Events/input.lhco' # path to the input file (in lhco format)
+                                  
+                                  
+#*************************************************************************
+##                  define the different param_card's                   ##  
+#*************************************************************************
+Block MW_parameter         
+#   TAG      VALUE                     UTILITY
+    mode         1         #    type of input 
+                           #    0 : inputs are read from the cards: param_card_1.dat, param_card_2.dat,...
+                           #    1 : redefines some values from param_card.dat according to the form below
+                           #    2 : same but the value for different parameters are modified simultaneously
+#                             
+#                             # first parameter #
+      11       mass          # Block of the parameter to change  
+      12       24            # id of the parameter to change 
+      13       78           # here you can enter the different values:
+      13       82           #         add a new line with tag 13 to introduce a new value        
+#
+#                            #  second parameter #
+#                            !DELETE ALL THE FOLLOWING TAG IF YOU WANT TO RUN WITH ONLY ONE PARAM!
+#     21       MGCKM          # Block of the parameter to change  
+#     22       1              # id of the paramter to change 
+#     22       2              # id2 of the paramter to change
+#     23       1.5E-02        # here you can enter the different values:
+#     23       1.8E-02        #        add a new line with tag 23 to introduce a new value
+#
+#  use same syntax for parameters 3,4,...
+#*************************************************************************
+##                                Permutations                          ##  
+#*************************************************************************
+Block MW_perm
+#   TAG           VALUE                    UTILITY
+     permutation  T         # make permutation
+     bjet_is_jet  T         # consider permutation between b-jets and light jets
+     montecarlo   T         # Monte-Carlo over permutation (Huge speed up if many permutation)
+     preselect    'default' # How to pre-select the correct permutation set. 
+                            # put 'None' if no pre-selection to perform.
+                            # You can set the path to a fortran file defining the require function
+                            # See file SubProcesses/permutation_weight_default.dat for
+                            # instructions.
+     min_perm_cut 5e-4      # Cut for discarding permutation on the preselected method
+#*************************************************************************
+##                       Phase-Space Integration mapping                ##
+#*************************************************************************
+Block MW_gen
+    force_nwa     2         # Only consider the change of variable alligning particles 
+                            # with width smaller than this value. This speed up the code
+                            # but can lead to zero weight for background event where the
+                            # kinematic doesn't agree with the associated mass.
+                            # if "mw_run nwa" parameter is bigger than this value, that
+                            # value is used for this parameter automatically.
+</MadWeight_card>
+<transfer_card>
+#+-----------------------------------------------------------------------+
+#|                         TRANSFER_CARD.DAT                             |
+#|                                                                       |
+#|     Author: Pierre Artoisenet (UCL-CP3)                               |
+#|             Olivier Mattelaer (UCL-CP3)                               |
+#+-----------------------------------------------------------------------+
+#|     This file is generated automaticly by MADWEIGHT                   |
+#|     card generation version: 2.0.0                                    |
+#+-----------------------------------------------------------------------+
+#|                                                                       |
+#|    To change the transfer function run ./bin/change_tf.py             |
+#|    Current parametrization :all_delta                                 |
+#|                                                                       |
+#+-----------------------------------------------------------------------+
+
+</transfer_card>
+<param_card>
+######################################################################
+## PARAM_CARD AUTOMATICALY GENERATED BY MG5 FOLLOWING UFO MODEL   ####
+######################################################################
+##                                                                  ##
+##  Width set on Auto will be computed following the information    ##
+##        present in the decay.py files of the model.               ##
+##        See  arXiv:1402.1178 for more details.                    ##
+##                                                                  ##
+######################################################################
+
+###################################
+## INFORMATION FOR MASS
+###################################
+Block mass 
+    6 1.730000e+02 # MT 
+   15 1.777000e+00 # MTA 
+   23 9.118800e+01 # MZ 
+   25 1.250000e+02 # MH 
+## Dependent parameters, given by model restrictions.
+## Those values should be edited following the 
+## analytical expression. MG5 ignores those values 
+## but they are important for interfacing the output of MG5
+## to external program such as Pythia.
+  1 0.000000 # d : 0.0 
+  2 0.000000 # u : 0.0 
+  3 0.000000 # s : 0.0 
+  4 0.000000 # c : 0.0 
+  5 0.000000 # b : 0.0 
+  11 0.000000 # e- : 0.0 
+  12 0.000000 # ve : 0.0 
+  13 0.000000 # mu- : 0.0 
+  14 0.000000 # vm : 0.0 
+  16 0.000000 # vt : 0.0 
+  21 0.000000 # g : 0.0 
+  22 0.000000 # a : 0.0 
+  24 80.419002 # w+ : cmath.sqrt(MZ__exp__2/2. + cmath.sqrt(MZ__exp__4/4. - (aEW*cmath.pi*MZ__exp__2)/(Gf*sqrt__2))) 
+
+###################################
+## INFORMATION FOR SMINPUTS
+###################################
+Block sminputs 
+    1 1.325070e+02 # aEWM1 
+    2 1.166390e-05 # Gf 
+    3 1.180000e-01 # aS 
+
+###################################
+## INFORMATION FOR YUKAWA
+###################################
+Block yukawa 
+    6 1.730000e+02 # ymt 
+   15 1.777000e+00 # ymtau 
+
+###################################
+## INFORMATION FOR DECAY
+###################################
+DECAY   6 1.491500e+00 # WT 
+DECAY  23 2.441404e+00 # WZ 
+DECAY  24 2.047600e+00 # WW 
+DECAY  25 6.382339e-03 # WH 
+## Dependent parameters, given by model restrictions.
+## Those values should be edited following the 
+## analytical expression. MG5 ignores those values 
+## but they are important for interfacing the output of MG5
+## to external program such as Pythia.
+DECAY  1 0.000000 # d : 0.0 
+DECAY  2 0.000000 # u : 0.0 
+DECAY  3 0.000000 # s : 0.0 
+DECAY  4 0.000000 # c : 0.0 
+DECAY  5 0.000000 # b : 0.0 
+DECAY  11 0.000000 # e- : 0.0 
+DECAY  12 0.000000 # ve : 0.0 
+DECAY  13 0.000000 # mu- : 0.0 
+DECAY  14 0.000000 # vm : 0.0 
+DECAY  15 0.000000 # ta- : 0.0 
+DECAY  16 0.000000 # vt : 0.0 
+DECAY  21 0.000000 # g : 0.0 
+DECAY  22 0.000000 # a : 0.0 
+</param_card>
+<run_card>
+#*********************************************************************
+#                       MadGraph/MadEvent                            *
+#                  http://madgraph.hep.uiuc.edu                      *
+#                                                                    *
+#                        run_card.dat                                *
+#                                                                    *
+#  This file is used to set the parameters of the run.               *
+#                                                                    *
+#  Some notation/conventions:                                        *
+#                                                                    *
+#   Lines starting with a '# ' are info or comments                  *
+#                                                                    *
+#   mind the format:   value    = variable     ! comment             *
+#*********************************************************************
+#
+#*******************                                                 
+# Running parameters
+#*******************                                                 
+#                                                                    
+#*********************************************************************
+# Tag name for the run (one word)                                    *
+#*********************************************************************
+  ''     = run_tag ! name of the run. overwritten by the MW card 
+#*********************************************************************
+# Run to generate the grid pack                                      *
+#*********************************************************************
+  .false.     = gridpack  !True = setting up the grid pack
+#*********************************************************************
+# Number of events and rnd seed                                      *
+#*********************************************************************
+      0       = iseed   ! rnd seed 
+#*********************************************************************
+# Collider type and energy                                           *
+#*********************************************************************
+        1     = lpp1  ! beam 1 type (0=NO PDF)
+       -1     = lpp2  ! beam 2 type (0=NO PDF)
+      980     = ebeam1  ! beam 1 energy in GeV
+      980     = ebeam2  ! beam 2 energy in GeV
+#*********************************************************************
+# Beam polarization from -100 (left-handed) to 100 (right-handed)    *
+#*********************************************************************
+        0     = polbeam1 ! beam polarization for beam 1
+        0     = polbeam2 ! beam polarization for beam 2
+#*********************************************************************
+# PDF CHOICE: this automatically fixes also alpha_s and its evol.    *
+#*********************************************************************
+ 'cteq6l1'    = pdlabel     ! PDF set                                     
+#*********************************************************************
+# Renormalization and factorization scales                           *
+#*********************************************************************
+ T        = fixed_ren_scale  ! if .true. use fixed ren scale (false is beta)
+ T        = fixed_fac_scale  ! if .true. use fixed fac scale (false is beta)
+ 91.1880  = scale            ! fixed ren scale
+ 91.1880  = dsqrt_q2fact1    ! fixed fact scale for pdf1
+ 91.1880  = dsqrt_q2fact2    ! fixed fact scale for pdf2
+ 1        = scalefact        ! scale factor for event-by-event scales
+#*********************************************************************
+# Matching - Warning! ickkw > 1 is still beta
+#*********************************************************************
+ 0        = ickkw            ! 0 no matching, 1 MLM, 2 CKKW matching
+ 1        = highestmult      ! for ickkw=2, highest mult group
+ 1        = ktscheme         ! for ickkw=1, 1 Durham kT, 2 Pythia pTE
+ 1        = alpsfact         ! scale factor for QCD emission vx
+ F        = chcluster        ! cluster only according to channel diag
+ F        = pdfwgt           ! for ickkw=1, perform pdf reweighting
+#*********************************************************************
+#                                                                    
+#**********************************
+# BW cutoff (M+/-bwcutoff*Gamma)
+#**********************************
+  40  = bwcutoff    ! desactivate by default in the MadWeight_card
+#*******************                                                 
+# Standard Cuts    ! desactivate by default in the MadWeight_card
+#*******************                                                 
+#                                                                    
+#*********************************************************************
+# Minimum and maximum pt's                                           *
+#*********************************************************************
+  0  = ptj       ! minimum pt for the jets 
+  0  = ptb       ! minimum pt for the b 
+  0  = pta       ! minimum pt for the photons 
+  0  = ptl       ! minimum pt for the charged leptons 
+  0  = misset    ! minimum missing Et (sum of neutrino's momenta)
+  0  = ptheavy   ! minimum pt for one heavy final state
+ 1.0 = ptonium   ! minimum pt for the quarkonium states
+ 1d5 = ptjmax    ! maximum pt for the jets
+ 1d5 = ptbmax    ! maximum pt for the b
+ 1d5 = ptamax    ! maximum pt for the photons
+ 1d5 = ptlmax    ! maximum pt for the charged leptons
+ 1d5 = missetmax ! maximum missing Et (sum of neutrino's momenta)
+#*********************************************************************
+# Minimum and maximum E's (in the lab frame)                         *
+#*********************************************************************
+  0  = ej     ! minimum E for the jets 
+  0  = eb     ! minimum E for the b 
+  0  = ea     ! minimum E for the photons 
+  0  = el     ! minimum E for the charged leptons 
+ 1d5  = ejmax ! maximum E for the jets
+ 1d5  = ebmax ! maximum E for the b
+ 1d5  = eamax ! maximum E for the photons
+ 1d5  = elmax ! maximum E for the charged leptons
+#*********************************************************************
+# Maximum and minimum rapidity                                       *
+#*********************************************************************
+ 1d2  = etaj    ! max rap for the jets 
+ 1d2  = etab    ! max rap for the b 
+ 1d2  = etaa    ! max rap for the photons 
+ 1d2  = etal    ! max rap for the charged leptons 
+ 1d2  = etaonium ! max rap for the quarkonium states
+ 0d0  = etajmin ! min rap for the jets
+ 0d0  = etabmin ! min rap for the b
+ 0d0  = etaamin ! min rap for the photons
+ 0d0  = etalmin ! main rap for the charged leptons
+#*********************************************************************
+# Minimum and maximum DeltaR distance                                *
+#*********************************************************************
+ 0.  = drjj    ! min distance between jets 
+ 0   = drbb    ! min distance between b's 
+ 0.  = drll    ! min distance between leptons 
+ 0.  = draa    ! min distance between gammas 
+ 0   = drbj    ! min distance between b and jet 
+ 0.  = draj    ! min distance between gamma and jet 
+ 0.  = drjl    ! min distance between jet and lepton 
+ 0   = drab    ! min distance between gamma and b 
+ 0   = drbl    ! min distance between b and lepton 
+ 0.  = dral    ! min distance between gamma and lepton 
+ 1d2 = drjjmax ! max distance between jets
+ 1d2 = drbbmax ! max distance between b's
+ 1d2 = drllmax ! max distance between leptons
+ 1d2 = draamax ! max distance between gammas
+ 1d2 = drbjmax ! max distance between b and jet
+ 1d2 = drajmax ! max distance between gamma and jet
+ 1d2 = drjlmax ! max distance between jet and lepton
+ 1d2 = drabmax ! max distance between gamma and b
+ 1d2 = drblmax ! max distance between b and lepton
+ 1d2 = dralmax ! maxdistance between gamma and lepton
+#*********************************************************************
+# Minimum and maximum invariant mass for pairs                       *
+#*********************************************************************
+ 0   = mmjj    ! min invariant mass of a jet pair 
+ 0   = mmbb    ! min invariant mass of a b pair 
+ 0   = mmaa    ! min invariant mass of gamma gamma pair
+ 0   = mmll    ! min invariant mass of l+l- (same flavour) lepton pair
+ 1d5 = mmjjmax ! max invariant mass of a jet pair
+ 1d5 = mmbbmax ! max invariant mass of a b pair
+ 1d5 = mmaamax ! max invariant mass of gamma gamma pair
+ 1d5 = mmllmax ! max invariant mass of l+l- (same flavour) lepton pair
+#*********************************************************************
+# Minimum and maximum invariant mass for all letpons                 *
+#*********************************************************************
+ 0   = mmnl    ! min invariant mass for all letpons (l+- and vl) 
+ 1d5 = mmnlmax ! max invariant mass for all letpons (l+- and vl) 
+#*********************************************************************
+# Inclusive cuts                                                     *
+#*********************************************************************
+ 0  = xptj ! minimum pt for at least one jet  
+ 0  = xptb ! minimum pt for at least one b 
+ 0  = xpta ! minimum pt for at least one photon 
+ 0  = xptl ! minimum pt for at least one charged lepton 
+#*********************************************************************
+# Control the pt's of the jets sorted by pt                          *
+#*********************************************************************
+ 0   = ptj1min ! minimum pt for the leading jet in pt
+ 0   = ptj2min ! minimum pt for the second jet in pt
+ 0   = ptj3min ! minimum pt for the third jet in pt
+ 0   = ptj4min ! minimum pt for the fourth jet in pt
+ 1d5 = ptj1max ! maximum pt for the leading jet in pt 
+ 1d5 = ptj2max ! maximum pt for the second jet in pt
+ 1d5 = ptj3max ! maximum pt for the third jet in pt
+ 1d5 = ptj4max ! maximum pt for the fourth jet in pt
+ 0   = cutuse  ! reject event if fails any (0) / all (1) jet pt cuts
+#*********************************************************************
+# Control the Ht(k)=Sum of k leading jets                            *
+#*********************************************************************
+ 0   = htjmin ! minimum jet HT=Sum(jet pt)
+ 1d5 = htjmax ! maximum jet HT=Sum(jet pt)
+ 0   = ht2min ! minimum Ht for the two leading jets
+ 0   = ht3min ! minimum Ht for the three leading jets
+ 0   = ht4min ! minimum Ht for the four leading jets
+ 1d5 = ht2max ! maximum Ht for the two leading jets
+ 1d5 = ht3max ! maximum Ht for the three leading jets
+ 1d5 = ht4max ! maximum Ht for the four leading jets
+#*********************************************************************
+# WBF cuts                                                           *
+#*********************************************************************
+ 0   = xetamin ! minimum rapidity for two jets in the WBF case  
+ 0   = deltaeta ! minimum rapidity for two jets in the WBF case 
+#*********************************************************************
+# maximal pdg code for quark to be considered as a jet               *
+# otherwise b cuts are applied                                       *
+#*********************************************************************
+ 4 = maxjetflavor
+#*********************************************************************
+# Jet measure cuts                                                   *
+#*********************************************************************
+ 0   = xqcut   ! minimum kt jet measure between partons
+#*********************************************************************
+</run_card>
+</banner>
+<subprocess id='P0_gg_wpggqq_wp_epve'>
+<card id='1'>
+<event id='1' value='0' error='0'>
+</event>
+</card><card id='2'>
+<event id='1' value='0' error='0'>
+</event>
+</card><card id='1'>
+<event id='0' value='0' error='0'>
+</event>
+</card><card id='2'>
+<event id='0' value='0' error='0'>
+</event>
+</card></subprocess>
+<subprocess id='P1_gg_wmggqq_wm_emvex'>
+<card id='1'>
+<event id='3' value='0' error='0'>
+</event>
+</card><card id='2'>
+<event id='3' value='0' error='0'>
+</event>
+</card><card id='1'>
+<event id='2' value='0' error='0'>
+</event>
+</card><card id='2'>
+<event id='2' value='0' error='0'>
+</event>
+</card></subprocess>
+
+</madweight>

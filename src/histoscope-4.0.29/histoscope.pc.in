@@ -1,0 +1,10 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: histoscope
+Description: Histo-Scope Widget Set and Browser GUI
+Version: @VERSION@
+Libs: -L${libdir} -lCHisto
+Cflags: -I${includedir}

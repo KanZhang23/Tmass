@@ -1,0 +1,6 @@
+#ifndef SINGLE_PARTON_EFFICIENCY_H_
+#define SINGLE_PARTON_EFFICIENCY_H_
+
+#include "tfs_2015.h"
+
+#endif /* SINGLE_PARTON_EFFICIENCY_H_ */

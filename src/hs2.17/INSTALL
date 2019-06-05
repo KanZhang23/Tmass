@@ -1,0 +1,22 @@
+
+Before installing this package, make sure that tcl, tk, Histo-Scope,
+LAPACK, and BLAS have already been installed on your system.
+
+Installation Steps
+------------------
+
+1. Edit the Makefile. You only need to change a few definitions at the
+   top of the Makefile: HISTO_LIB_DIR, TCL_CONFIG_FILE, TCL_INCLUDE_DIR
+   and, possibly, CC, FC, and FLIBS. You may have to do more extensive
+   editing if you are not on a Linux box.
+
+2. Type "make".
+
+3. Type "make install". This step may require superuser privileges.
+
+4. Start "wish" and type "source examples/hs_example.tcl" in it.
+   If the installation was successful then this script will display
+   a bunch of histograms on your screen.
+
+5. Optionally, run tests by typing "make test".
+

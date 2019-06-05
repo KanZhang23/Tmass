@@ -1,0 +1,58 @@
+
+Generic Function Minimization with Minuit
+-----------------------------------------
+
+It is possible to supply an arbitrary function for Minuit to minimize
+using the Tcl/C fit API. The function must have the following prototype:
+
+int fcn_to_minimize(void *clientData, Tcl_Interp *interp,
+                    int objc, Tcl_Obj *CONST objv[],
+                    const double *xval, int npar, int iflag,
+                    double *fval, double *grad);
+
+TCL_OK should be returned if everything is fine, and TCL_ERROR should
+be returned (and corresponding message left in the interp result) if
+an error is encountered.
+
+This function has the same convention with regard to "iflag" argument
+as the original Fortran FCN. That is, it will be called with iflag value
+of 1 at the beginning of the fit, and with iflag value of 3 at the end.
+Note that it is not necessary to do anything special in this function
+to save parameter values/errors at the end of the fit because this is
+taken care of by the Tcl interface.
+
+The way to instruct the Tcl interface to minimize an arbitrary function
+is a bit rough at the moment. Helper functions are given in file
+"generic_minimization.tcl" and example C function template is in file
+"generic_minimization_template.c". Here is a typical sequence of calls
+needed:
+
+# Source the necessary utils
+source generic_minimization.tcl
+
+# Create the fit.
+# If the code needed in the fit has already been compiled and loaded by
+# other means, use the procedure "generic_minimizer_use_dll" instead of
+# "generic_minimizer".
+set fit [generic_minimizer "generic_minimization_template.c" "my_fit"]
+
+# Add all necessary parameters
+$fit parameter add p0 -value 0 -step 0.1
+$fit parameter add p1 -value 1 -step 0.1
+
+# Pass tcl arguments to the function which will be minimized.
+# It will be up to the function how and when to parse them.
+$fit setargs arg1 arg2 whatever ...
+
+# Perform the minimization
+$fit fit
+
+# Read back parameter values
+foreach {value state parabolic_error bounds} [$fit parameter p0 set] {}
+
+# Obtain additional info if needed
+myfit::interface getthat ...
+
+# Delete the fit
+$fit del
+

@@ -1,0 +1,19 @@
+test pack_ntuple_row-1.1 {rudimentary test of ntuple row packing} {} {
+    set id1 [hs::create_ntuple [next_uid] "Ntuple" "Tmp" {x y z t}]
+    hs::fill_ntuple $id1 [list 1 2 3 4 5 6 7 8]
+    set id2 [hs::duplicate_ntuple_header $id1 [next_uid] [hs::title $id1] "Tmp"]
+    set nrows [hs::num_entries $id1]
+    for {set row 0} {$row < $nrows} {incr row} {
+        hs::unpack_ntuple_row $id2 [hs::pack_ntuple_row $id1 $row]
+    }
+    verify_similarity $id1 $id2 0
+} {}
+
+catch {unset id1}
+catch {unset id2}
+catch {unset row}
+catch {unset nrows}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

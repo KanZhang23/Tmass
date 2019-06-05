@@ -1,0 +1,93 @@
+#include <cfloat>
+
+#include "npstat/stat/BandwidthCVPseudoLogli1D.hh"
+#include "npstat/stat/CompositeDistros1D.hh"
+
+#include "npstat/interfaces/minuitFitJohnsonCurves.hh"
+
+namespace npsi {
+    template<typename InputData, typename OutputData>
+    void fitCompositeJohnson(
+        const InputData* input, const unsigned long nIn,
+        const unsigned nbins, const double xmin, const double xmax,
+        const double qmin, const double qmax, const double minlog,
+        const npstat::LocalPolyFilter1D* const* filters,
+        const unsigned nFilters,
+        OutputData* smoothedCurve, const unsigned lenCurve,
+        bool* intitialFitConverged, unsigned* filterUsed)
+    {
+        // Check that the input arguments are sensible
+        assert(input);
+        assert(nIn);
+        assert(nbins);
+        assert(xmin < xmax);
+        assert(filters);
+        assert(nFilters);
+        assert(smoothedCurve);
+        assert(lenCurve);
+
+        // Histogram input data
+        npstat::HistoND<unsigned long> histo(
+            npstat::HistoAxis(nbins, xmin, xmax));
+        for (unsigned long i=0; i<nIn; ++i)
+            histo.fill(input[i], 1UL);
+
+        // Initial Johnson curve fit
+        JohnsonFit fit(histo, qmin, qmax, minlog);
+
+        // The fitted curve
+        npstat::JohnsonSystem curve(fit.mean(), fit.sigma(),
+                                    fit.skewness(), fit.kurtosis());
+
+        // Histogram transformed data
+        npstat::HistoND<unsigned long> trans(
+            npstat::HistoAxis(nbins, 0.0, 1.0));
+        for (unsigned long i=0; i<nIn; ++i)
+            trans.fill(curve.cdf(input[i]), 1UL);
+
+        // Memory for estimated transformed densities
+        npstat::ArrayND<double> density(npstat::makeShape(nbins));
+        double* densData = const_cast<double*>(density.data());
+
+        // Smooth transformed data with the provided filters and
+        // check which one is best according to the leaving-one-out
+        // cross-validation pseudo-likelihood
+        double bestLogli = -DBL_MAX;
+        unsigned bestFilt = 0;
+        npstat::BandwidthCVPseudoLogli1D<unsigned long,double> lcalc;
+        for (unsigned ifilt=0; ifilt<nFilters; ++ifilt)
+        {
+            filters[ifilt]->filter(trans.binContents().data(),nbins,densData);
+            const double norm = nbins/density.template sum<long double>();
+            density *= norm;
+            const double logli = lcalc(trans, densData, density.length(),
+                                       *filters[ifilt]);
+            if (logli >= bestLogli)
+            {
+                bestLogli = logli;
+                bestFilt = ifilt;
+            }
+        }
+
+        // Smooth transformed data again with the best filter and form
+        // the composite Johnson distribution
+        filters[bestFilt]->filter(trans.binContents().data(), nbins, densData);
+        npstat::BinnedCompositeJohnson cj(fit.mean(), fit.sigma(),
+                              fit.skewness(), fit.kurtosis(), densData, nbins);
+
+        // Scan the composite Johnson distribution into the output curve
+        const double step = (xmax - xmin)/lenCurve;
+        for (unsigned i=0; i<lenCurve; ++i)
+        {
+            const double x = xmin + (i + 0.5)*step;
+            smoothedCurve[i] = cj.density(x);
+        }
+
+        // It is useful to know (although not critical)
+        // whether the original Johnson curve fit has converged
+        if (intitialFitConverged)
+            *intitialFitConverged = fit.converged();
+        if (filterUsed)
+            *filterUsed = bestFilt;
+    }
+}

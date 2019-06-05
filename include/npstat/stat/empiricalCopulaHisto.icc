@@ -1,0 +1,50 @@
+#include <cassert>
+#include <algorithm>
+#include <stdexcept>
+
+#include "npstat/nm/CompareByIndex.hh"
+#include "npstat/nm/PointDimensionality.hh"
+
+namespace npstat {
+    template <class Point, class Real>
+    void empiricalCopulaHisto(std::vector<OrderedPointND<Point> >& sdat,
+                              HistoND<Real>* result, const bool useFillC)
+    {
+        assert(result);
+
+        const unsigned dim_size = result->dim();
+        if (PointDimensionality<Point>::dim_size < dim_size)
+            throw std::invalid_argument(
+                "In npstat::empiricalCopulaHisto: point "
+                "dimensionality is smaller than the histogram dimensionality");
+
+        result->clear();
+
+        const unsigned long npoints = sdat.size();
+        if (npoints)
+        {
+            OrderedPointND<Point>* ptr = &sdat[0];
+            for (unsigned idim=0; idim<dim_size; ++idim)
+            {
+                std::sort(sdat.begin(), sdat.end(),
+                          LessByIndex<OrderedPointND<Point> >(idim));
+                for (unsigned long ipt=0; ipt<npoints; ++ipt)
+                    ptr[ipt].setNumber(idim, ipt);
+            }
+
+            const Real one = static_cast<Real>(1);
+            double coords[dim_size];
+            for (unsigned long ipt=0; ipt<npoints; ++ipt)
+            {
+                for (unsigned idim=0; idim<dim_size; ++idim)
+                    coords[idim] = (ptr[ipt].getNumber(idim)+0.5)/npoints;
+
+                // Using "fillC" reduces aliasing problems
+                if (useFillC)
+                    result->fillC(coords, dim_size, one);
+                else
+                    result->fill(coords, dim_size, one);
+            }
+        }
+    }
+}

@@ -1,0 +1,260 @@
+#include <cassert>
+#include "geners/GenericIO.hh"
+
+namespace npstat {
+    template <typename Numeric>
+    const char* InMemoryNtuple<Numeric>::classname()
+    {
+        static const std::string myClass(gs::template_class_name<Numeric>(
+                                             "npstat::InMemoryNtuple"));
+        return myClass.c_str();
+    }
+
+    template <typename Numeric>
+    void InMemoryNtuple<Numeric>::fill(
+        const Numeric* values, const unsigned long lenValues)
+    {
+        if (lenValues)
+        {
+            assert(values);
+            if (lenValues % ncols_)
+                throw std::invalid_argument(
+                    "In npstat::InMemoryNtuple::fill: incompatible data size");
+            for (unsigned long i=0; i<lenValues; ++i)
+                data_.push_back(values[i]);
+        }
+    }
+
+    template <typename Numeric>
+    void InMemoryNtuple<Numeric>::fill(const Numeric& v0)
+    {
+        const unsigned nExpected = 1U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument(
+                "In npstat::InMemoryNtuple::fill: wrong number of arguments");
+        data_.push_back(v0);
+    }
+
+    template <typename Numeric>
+    void InMemoryNtuple<Numeric>::fill(const Numeric& v0, const Numeric& v1)
+    {
+        const unsigned nExpected = 2U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument(
+                "In npstat::InMemoryNtuple::fill: wrong number of arguments");
+        data_.push_back(v0);
+        data_.push_back(v1);
+    }
+
+    template <typename Numeric>
+    void InMemoryNtuple<Numeric>::fill(const Numeric& v0, const Numeric& v1,
+                                       const Numeric& v2)
+    {
+        const unsigned nExpected = 3U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument(
+                "In npstat::InMemoryNtuple::fill: wrong number of arguments");
+        data_.push_back(v0);
+        data_.push_back(v1);
+        data_.push_back(v2);
+    }
+
+    template <typename Numeric>
+    void InMemoryNtuple<Numeric>::fill(const Numeric& v0, const Numeric& v1,
+                                       const Numeric& v2, const Numeric& v3)
+    {
+        const unsigned nExpected = 4U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument(
+                "In npstat::InMemoryNtuple::fill: wrong number of arguments");
+        data_.push_back(v0);
+        data_.push_back(v1);
+        data_.push_back(v2);
+        data_.push_back(v3);
+    }
+
+    template <typename Numeric>
+    void InMemoryNtuple<Numeric>::fill(const Numeric& v0, const Numeric& v1,
+                                       const Numeric& v2, const Numeric& v3,
+                                       const Numeric& v4)
+    {
+        const unsigned nExpected = 5U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument(
+                "In npstat::InMemoryNtuple::fill: wrong number of arguments");
+        data_.push_back(v0);
+        data_.push_back(v1);
+        data_.push_back(v2);
+        data_.push_back(v3);
+        data_.push_back(v4);
+    }
+
+    template <typename Numeric>
+    void InMemoryNtuple<Numeric>::fill(const Numeric& v0, const Numeric& v1,
+                                       const Numeric& v2, const Numeric& v3,
+                                       const Numeric& v4, const Numeric& v5)
+    {
+        const unsigned nExpected = 6U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument(
+                "In npstat::InMemoryNtuple::fill: wrong number of arguments");
+        data_.push_back(v0);
+        data_.push_back(v1);
+        data_.push_back(v2);
+        data_.push_back(v3);
+        data_.push_back(v4);
+        data_.push_back(v5);
+    }
+
+    template <typename Numeric>
+    void InMemoryNtuple<Numeric>::fill(const Numeric& v0, const Numeric& v1,
+                                       const Numeric& v2, const Numeric& v3,
+                                       const Numeric& v4, const Numeric& v5,
+                                       const Numeric& v6)
+    {
+        const unsigned nExpected = 7U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument(
+                "In npstat::InMemoryNtuple::fill: wrong number of arguments");
+        data_.push_back(v0);
+        data_.push_back(v1);
+        data_.push_back(v2);
+        data_.push_back(v3);
+        data_.push_back(v4);
+        data_.push_back(v5);
+        data_.push_back(v6);
+    }
+
+    template <typename Numeric>
+    void InMemoryNtuple<Numeric>::fill(const Numeric& v0, const Numeric& v1,
+                                       const Numeric& v2, const Numeric& v3,
+                                       const Numeric& v4, const Numeric& v5,
+                                       const Numeric& v6, const Numeric& v7)
+    {
+        const unsigned nExpected = 8U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument(
+                "In npstat::InMemoryNtuple::fill: wrong number of arguments");
+        data_.push_back(v0);
+        data_.push_back(v1);
+        data_.push_back(v2);
+        data_.push_back(v3);
+        data_.push_back(v4);
+        data_.push_back(v5);
+        data_.push_back(v6);
+        data_.push_back(v7);
+    }
+
+    template <typename Numeric>
+    void InMemoryNtuple<Numeric>::fill(const Numeric& v0, const Numeric& v1,
+                                       const Numeric& v2, const Numeric& v3,
+                                       const Numeric& v4, const Numeric& v5,
+                                       const Numeric& v6, const Numeric& v7,
+                                       const Numeric& v8)
+    {
+        const unsigned nExpected = 9U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument(
+                "In npstat::InMemoryNtuple::fill: wrong number of arguments");
+        data_.push_back(v0);
+        data_.push_back(v1);
+        data_.push_back(v2);
+        data_.push_back(v3);
+        data_.push_back(v4);
+        data_.push_back(v5);
+        data_.push_back(v6);
+        data_.push_back(v7);
+        data_.push_back(v8);
+    }
+
+    template <typename Numeric>
+    void InMemoryNtuple<Numeric>::fill(const Numeric& v0, const Numeric& v1,
+                                       const Numeric& v2, const Numeric& v3,
+                                       const Numeric& v4, const Numeric& v5,
+                                       const Numeric& v6, const Numeric& v7,
+                                       const Numeric& v8, const Numeric& v9)
+    {
+        const unsigned nExpected = 10U;
+        if (nExpected != ncols_)
+            throw std::invalid_argument(
+                "In npstat::InMemoryNtuple::fill: wrong number of arguments");
+        data_.push_back(v0);
+        data_.push_back(v1);
+        data_.push_back(v2);
+        data_.push_back(v3);
+        data_.push_back(v4);
+        data_.push_back(v5);
+        data_.push_back(v6);
+        data_.push_back(v7);
+        data_.push_back(v8);
+        data_.push_back(v9);
+    }
+
+    template <typename T>
+    void InMemoryNtuple<T>::rowContents(
+        const unsigned long row, T* buf, const unsigned long lenBuf) const
+    {
+        if (row >= data_.size()/ncols_)
+            throw std::out_of_range(
+                "In npstat::InMemoryNtuple::rowContents:"
+                " row number is out of range");
+        assert(buf);
+        if (lenBuf < ncols_)
+            throw std::invalid_argument(
+                "In npstat::InMemoryNtuple::rowContents:"
+                " buffer is too small");
+        const T* local = &data_[0] + row*ncols_;
+        for (unsigned long i=0; i<ncols_; ++i)
+            buf[i] = local[i];
+    }
+
+    template <typename T>
+    void InMemoryNtuple<T>::columnContents(
+        const Column& c, T* buf, const unsigned long lenBuf) const
+    {
+        if (!c.isValid(*this))
+            throw std::invalid_argument(
+                "In npstat::InMemoryNtuple::columnContents:"
+                " invalid column");
+        const unsigned long col = c(*this);
+        const unsigned long nr = data_.size()/ncols_;
+        if (nr)
+        {
+            assert(buf);
+            if (lenBuf < nr) throw std::invalid_argument(
+                "In npstat::InMemoryNtuple::columnContents: "
+                "buffer is too small");
+            const T* local = &data_[0] + col;
+            for (unsigned long i=0; i<nr; ++i)
+                buf[i] = local[ncols_*i];
+        }
+    }
+
+    template <typename Numeric>
+    bool InMemoryNtuple<Numeric>::write(std::ostream& of) const
+    {
+        gs::write_pod_vector(of, this->columnNames());
+        gs::write_pod(of, this->title());
+        return !of.fail() && gs::write_item(of, data_, false);
+    }
+
+    template <typename Numeric>
+    InMemoryNtuple<Numeric>* InMemoryNtuple<Numeric>::read(
+        const gs::ClassId& id, std::istream& in)
+    {
+        static const gs::ClassId current(
+            gs::ClassId::makeId<InMemoryNtuple<Numeric> >());
+        current.ensureSameId(id);
+
+        std::vector<std::string> varnames;
+        gs::read_pod_vector(in, &varnames);
+        std::string titl;
+        gs::read_pod(in, &titl);
+        if (in.fail()) throw gs::IOReadFailure(
+            "In npstat::InMemoryNtuple::read: input sream failure");
+        CPP11_auto_ptr<InMemoryNtuple> nt(new InMemoryNtuple(
+                                             varnames, titl.c_str()));
+        gs::restore_item(in, &nt->data_, false);
+        return nt.release();
+    }
+}

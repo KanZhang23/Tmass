@@ -1,0 +1,252 @@
+#include <cstdio>
+#include <cmath>
+#include <iostream>
+
+#include "Minuit2/MnUserParameters.h"
+#include "Minuit2/MnMigrad.h"
+#include "Minuit2/FunctionMinimum.h"
+
+#include "npstat/nm/BoxNDScanner.hh"
+#include "npstat/nm/timestamp.hh"
+
+#include "npstat/interfaces/MinuitLocalLogisticFcn.hh"
+
+namespace {
+    template <class Numeric, typename Num2, unsigned StackL2, unsigned StackD2>
+    bool localLogisticRegressionAtAPoint(
+        npstat::LogisticRegressionBase<Numeric>& reg,
+        ROOT::Minuit2::MnMigrad& migrad,
+        npsi::MinuitLocalLogisticFcn<Numeric>& minuFcn,
+        std::vector<double>& coeffs,
+        const unsigned maxdeg, const unsigned long idx,
+        const double* weightCenter, npstat::ArrayND<Num2,StackL2,StackD2>* result)
+    {
+        const unsigned dim = reg.dim();
+
+        // Fix all fit parameters
+        for (unsigned i=0; i<minuFcn.nParameters(); ++i)
+        {
+            migrad.SetValue(i, 0.0);
+            migrad.SetError(i, 0.1);
+            migrad.Fix(i);
+        }
+
+        // First, fit 0th degree polynomial, then (if requested)
+        // linear and quadratic
+        bool converged = false;
+        unsigned oldNpars = 0;
+        for (unsigned ideg = 0; ideg <= maxdeg; ++ideg)
+        {
+            minuFcn.setMaxDeg(ideg);
+            for (unsigned i=oldNpars; i<minuFcn.nParameters(); ++i)
+                migrad.Release(i);
+            oldNpars = minuFcn.nParameters();
+            ROOT::Minuit2::FunctionMinimum min(migrad());
+            if (min.IsValid())
+            {
+                converged = true;
+
+                // Get the fitted coefficients
+                for (unsigned i=0; i<minuFcn.nParameters(); ++i)
+                    coeffs[i] = migrad.Value(i);
+
+                // Calculate the fitted efficiency at the center
+                const double fit = reg.getPoly().series(
+                    weightCenter, dim, &coeffs[0], minuFcn.nParameters());
+                const Num2 eff = static_cast<Num2>(1.0/(1.0 + exp(-fit)));
+
+                // Fill out the result
+                result->linearValue(idx) = eff;
+            }
+        }
+        return converged;
+    }
+}
+
+namespace npsi {
+    template <class Point, class Numeric, class BooleanFunctor,
+              typename Num2, unsigned StackLen2, unsigned StackDim2>
+    void minuitUnbinnedLogisticRegression(
+        npstat::LogisticRegressionOnKDTree<Point,Numeric,BooleanFunctor>& reg,
+        const unsigned maxdeg, npstat::ArrayND<Num2,StackLen2,StackDim2>* result,
+        const npstat::BoxND<Numeric>& resultBox, const unsigned reportProgressEvery)
+    {
+        const unsigned dim = reg.dim();
+        assert(result);
+        assert(result->rank() == dim);
+
+        // Assume that the weight function is centered in its bounding box.
+        // Make a copy of that box and recenter the copy at the origin.
+        std::vector<double> center(dim);
+        npstat::BoxND<Numeric> regressionBox(reg.getPoly().boundingBox());
+        for (unsigned i=0; i<dim; ++i)
+        {
+            const Numeric midpoint(regressionBox[i].midpoint());
+            center[i] = midpoint;
+            regressionBox[i] -= midpoint;
+        }
+
+        // Build the Minuit interface
+        MinuitLocalLogisticFcn<Numeric> minuFcn(&reg, maxdeg);
+        ROOT::Minuit2::MnUserParameters upar;
+        char parname[12];
+        for (unsigned i=0; i<minuFcn.nParameters(); ++i)
+        {
+            sprintf(parname, "p%u", i);
+            upar.Add(parname, 0.0, 0.1);
+        }
+        ROOT::Minuit2::MnMigrad migrad(minuFcn, upar);
+
+        // Various useful buffers
+        std::vector<Numeric> coords(dim);
+        std::vector<double> coeffs(minuFcn.nParameters());
+
+        // Cycle over the coordinates of the result points
+        const unsigned long arrLen = result->length();
+        for (npstat::BoxNDScanner<Numeric> scanner(resultBox, result->shape());
+             scanner.isValid(); ++scanner)
+        {
+            npstat::BoxND<Numeric> box(regressionBox);
+            scanner.getCoords(&coords[0], dim);
+            box += coords;
+            reg.setRegressionBox(box);
+            const unsigned long idx = scanner.state();
+
+            // Trigger one actual function evaluation
+            // and check for ill-defined situations
+            for (unsigned i=0; i<minuFcn.nParameters(); ++i)
+                coeffs[i] = 0.0;
+            minuFcn(coeffs);
+            if (reg.getPassCount() == 0.0)
+            {
+                // Zero efficiency case or no data
+                const Num2 zero = static_cast<Num2>(0.0);
+                result->linearValue(idx) = zero;
+            }
+            else if (reg.getFailCount() == 0.0)
+            {
+                // The efficiency is 1
+                const Num2 one = static_cast<Num2>(1.0);
+                result->linearValue(idx) = one;
+            }
+            else
+            {
+                // Run the standard fitting sequence
+                const bool converged = localLogisticRegressionAtAPoint(
+                    reg, migrad, minuFcn, coeffs, maxdeg,
+                    idx, &center[0], result);
+                if (!converged)
+                {
+                    std::cerr << "ERROR in minuitUnbinnedLogisticRegression: "
+                              << " fit failed to converge at";
+                    for (unsigned i = 0; i<dim; ++i)
+                        std::cerr << ' ' << coords[i];
+                    std::cerr << std::endl;
+                }
+            }
+
+            if (reportProgressEvery)
+                if (idx % reportProgressEvery == 0)
+                {
+                    std::cout << npstat::timestamp()
+                              << " minuitUnbinnedLogisticRegression : processed "
+                              << idx + 1UL << " point" << (idx ? "s" : "")
+                              << " out of " << arrLen << '\n';
+                    std::cout.flush();
+                }
+        }
+    }
+
+    template <typename Numeric, unsigned StackLen, unsigned StackDim,
+              typename Num2, unsigned StackLen2, unsigned StackDim2>
+    void minuitLogisticRegressionOnGrid(
+        npstat::LogisticRegressionOnGrid<Numeric,StackLen,StackDim>& reg,
+        const unsigned maxdeg, npstat::ArrayND<Num2,StackLen2,StackDim2>* result,
+        const unsigned reportProgressEvery)
+    {
+        const unsigned dim = reg.dim();
+        assert(result);
+        assert(result->rank() == dim);
+        assert(result->isShapeCompatible(reg.getDenominator()));
+
+        // Require that the weight has an odd number of scan points
+        // and center the regression box at 0
+        npstat::BoxND<int> regressionBox(reg.getPoly().nSteps());
+        for (unsigned i=0; i<dim; ++i)
+        {
+            assert(regressionBox[i].max() % 2);
+            regressionBox[i] -= (regressionBox[i].max() / 2);
+        }
+
+        // Build the Minuit interface
+        MinuitLocalLogisticFcn<int> minuFcn(&reg, maxdeg);
+        ROOT::Minuit2::MnUserParameters upar;
+        char parname[12];
+        for (unsigned i=0; i<minuFcn.nParameters(); ++i)
+        {
+            sprintf(parname, "p%u", i);
+            upar.Add(parname, 0.0, 0.1);
+        }
+        ROOT::Minuit2::MnMigrad migrad(minuFcn, upar);
+
+        // Some workspace needed later
+        std::vector<double> coeffs(minuFcn.nParameters());
+        std::vector<double> zeroBuf(dim, 0.0);
+        npstat::BoxND<int> box;
+
+        // Scan the histograms and fill the result array
+        std::vector<unsigned> shift(dim);
+        const unsigned long arrLen = result->length();
+        for (unsigned long idx=0UL; idx<arrLen; ++idx)
+        {
+            // Center the regression box on the current cell
+            result->convertLinearIndex(idx, &shift[0], dim);
+            box = regressionBox;
+            box += shift;
+            reg.setRegressionBox(box);
+
+            // Trigger one function evaluation
+            // and check for ill-defined situations
+            for (unsigned i=0; i<minuFcn.nParameters(); ++i)
+                coeffs[i] = 0.0;
+            minuFcn(coeffs);
+            if (reg.getPassCount() == 0.0)
+            {
+                // Zero efficiency case or no data
+                const Num2 zero = static_cast<Num2>(0.0);
+                result->linearValue(idx) = zero;
+            }
+            else if (reg.getFailCount() == 0.0)
+            {
+                // The efficiency is 1
+                const Num2 one = static_cast<Num2>(1.0);
+                result->linearValue(idx) = one;
+            }
+            else
+            {
+                // Run the standard fitting sequence
+                const bool converged = localLogisticRegressionAtAPoint(
+                    reg, migrad, minuFcn, coeffs, maxdeg,
+                    idx, &zeroBuf[0], result);
+                if (!converged)
+                {
+                    std::cerr << "ERROR in minuitLogisticRegressionOnGrid: "
+                              << " fit failed to converge for cell";
+                    for (unsigned i = 0; i<dim; ++i)
+                        std::cerr << ' ' << shift[i];
+                    std::cerr << std::endl;
+                }
+            }
+
+            if (reportProgressEvery)
+                if (idx % reportProgressEvery == 0)
+                {
+                    std::cout << npstat::timestamp()
+                              << " minuitLogisticRegressionOnGrid : processed "
+                              << idx + 1UL << " point" << (idx ? "s" : "")
+                              << " out of " << arrLen << '\n';
+                    std::cout.flush();
+                }
+        }
+    }
+}

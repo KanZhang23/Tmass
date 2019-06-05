@@ -1,0 +1,157 @@
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/stat/ArrayProjectors.hh"
+#include "npstat/stat/Distributions1D.hh"
+#include "npstat/stat/DistributionsND.hh"
+
+namespace npstat {
+    template <typename Num1, unsigned Len1, unsigned Dim1>
+    CompositeDistributionND::CompositeDistributionND(
+        const double* location, const double* scale,
+        const unsigned locationAndScaleLength,
+        const ArrayND<Num1,Len1,Dim1>& histo,
+        const ArrayShape& copulaShape,
+        const unsigned interpDegree)
+        : AbsDistributionND(histo.rank()),
+          copula_(0)
+    {
+        const unsigned mydim = histo.rank();
+        if (locationAndScaleLength != mydim) throw std::invalid_argument(
+            "In npstat::CompositeDistributionND constructor: "
+            "incompatible length of location and scale arrays");
+        if (mydim <= 1U) throw std::invalid_argument(
+            "In npstat::CompositeDistributionND constructor: "
+            "input histogram must be at least two-dimensional");
+        if (copulaShape.size() != mydim) throw std::invalid_argument(
+            "In npstat::CompositeDistributionND constructor: "
+            "incompatible copula dimensionality");
+        if (!histo.isDensity()) throw std::invalid_argument(
+            "In npstat::CompositeDistributionND constructor: "
+            "input histogram is not a density");
+        assert(location);
+        assert(scale);
+        for (unsigned dimnum=0; dimnum<mydim; ++dimnum)
+        {
+            if (!copulaShape[dimnum]) throw std::invalid_argument(
+                "In npstat::CompositeDistributionND constructor: "
+                "invalid copula shape");
+            if (scale[dimnum] <= 0.0) throw std::invalid_argument(
+                "In npstat::CompositeDistributionND constructor: "
+                "all scale parameters must be positive");
+        }
+        if (interpDegree > 1U)
+            throw std::invalid_argument(
+                "In npstat::CompositeDistributionND constructor: "
+                "interpolation degrees higher than 1 are not supported");
+
+        work_.resize(mydim);
+        marginals_.resize(mydim);
+        for (unsigned i=0; i<mydim; ++i)
+            marginals_[i] = 0;
+
+        // Density integral
+        const double histoInteg = histo.template sum<long double>()/
+            histo.length();
+
+        // Build the marginals
+        ArraySumProjector<Num1,double,long double> summer;
+        std::vector<unsigned> indices(mydim);
+        for (unsigned i=0; i<mydim; ++i)
+        {
+            unsigned ifill = 0;
+            for (unsigned k=0; k<mydim; ++k)
+                if (k != i)
+                    indices[ifill++] = k;
+            ArrayND<double> slice(histo, &indices[0], ifill);
+            histo.project(&slice, summer, &indices[0], ifill);
+            marginals_[i] = new BinnedDensity1D(
+                location[i], scale[i], slice.data(),
+                slice.length(), interpDegree);
+        }
+
+        // Prepare the quantile tables
+        std::vector<double>* quantiles = new std::vector<double>[mydim];
+        std::vector<double>* densities = new std::vector<double>[mydim];
+        for (unsigned dimnum=0; dimnum<mydim; ++dimnum)
+        {
+            const AbsDistribution1D* marg = marginals_[dimnum];
+            const unsigned npt = copulaShape[dimnum];
+            quantiles[dimnum].reserve(npt);
+            densities[dimnum].reserve(npt);
+            for (unsigned iq=0; iq<npt; ++iq)
+            {
+                const double q = marg->quantile((iq + 0.5)/npt);
+                const double d = marg->density(q)*scale[dimnum];
+                assert(d >= 0.0);
+                quantiles[dimnum].push_back(
+                    (q - location[dimnum])/scale[dimnum]);
+                densities[dimnum].push_back(d);
+            }
+        }
+
+        // Various useful variables
+        double* w = &work_[0];
+        std::vector<unsigned> spans(histo.shape());
+        const unsigned* span = &spans[0];
+
+        // Build the copula array
+        ArrayND<double> cop(copulaShape);
+        const unsigned long coplen = cop.length();
+        for (unsigned long i=0; i<coplen; ++i)
+        {
+            cop.convertLinearIndex(i, &indices[0], mydim);
+            for (unsigned dimnum=0; dimnum<mydim; ++dimnum)
+            {
+                // Quantile corresponding to this index
+                const double q = quantiles[dimnum][indices[dimnum]];
+
+                // Translate the quantile into the array
+                // coordinate system of the input histogram
+                w[dimnum] = q*span[dimnum] - 0.5;
+            }
+
+            // Calculate the multivariate density
+            double densityND = 0.0;
+            switch (interpDegree)
+            {
+            case 0U:
+                densityND = histo.closest(w, mydim);
+                break;
+            case 1U:
+                densityND = histo.interpolate1(w, mydim);
+                break;
+            default:
+                assert(0);
+            }
+            densityND /= histoInteg;
+            assert(densityND >= 0.0);
+
+            // Calculate the product of marginals
+            double marginProduct = 1.0;
+            if (densityND > 0.0)
+                for (unsigned dimnum=0; dimnum<mydim; ++dimnum)
+                    marginProduct *= densities[dimnum][indices[dimnum]];
+
+            // Fill the copula value
+            if (marginProduct > 0.0)
+                cop.linearValue(i) = densityND/marginProduct;
+            else
+            {
+                assert(marginProduct == 0.0);
+                assert(densityND == 0.0);
+                cop.linearValue(i) = 0.0;
+            }
+        }
+
+        // Release the quantile table memory
+        delete [] densities;
+        delete [] quantiles;
+
+        // Build the copula function
+        std::vector<double> scales(mydim, 1.0);
+        for (unsigned dimnum=0; dimnum<mydim; ++dimnum)
+            w[dimnum] = 0.0;
+        copula_ = new BinnedDensityND(w, &scales[0], mydim, cop, interpDegree);
+    }
+}

@@ -1,0 +1,49 @@
+#include <stdexcept>
+
+namespace npstat {
+    template <typename T>
+    inline bool Column::isValid(const AbsNtuple<T>& ntuple) const
+    {
+        if (lastNt_) throw std::runtime_error(
+            "In npstat::Column::isValid: Column objects can not be reused"
+            " with different ntuples");
+        const unsigned long ncols = ntuple.nColumns();
+        switch (mode_)
+        {
+        case 0:
+            break;
+
+        case 1:
+            col_ = ntuple.columnNumber(name_);
+            break;
+
+        case 2:
+        {
+            col_ = ncols;
+            for (unsigned long i=0; i<ncols; ++i)
+                if (ntuple.columnName(i) == st_)
+                {
+                    col_ = i;
+                    break;
+                }
+        }
+        break;
+
+        default:
+            assert(0);
+        }
+        return col_ < ncols;
+    }
+
+    template <typename T>
+    inline unsigned long Column::operator()(const AbsNtuple<T>& ntuple) const
+    {
+        if ((const void*)(&ntuple) != lastNt_)
+        {
+            if (!this->isValid(ntuple)) throw std::invalid_argument(
+                "In npstat::Column::operator(): invalid column specification");
+            lastNt_ = (const void*)(&ntuple);
+        }
+        return col_;
+    }
+}

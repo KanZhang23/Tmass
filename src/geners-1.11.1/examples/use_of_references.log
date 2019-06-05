@@ -1,0 +1,47 @@
+
+** Searching for a unique name/category combination
+Found 1 item in the archive using name pattern "hello" (exact)
+and category pattern "Greetings" (exact):
+1. Hello, world!
+
+** What if name/category combination does not exist?
+Found 0 items in the archive using name pattern "no such name" (exact)
+and category pattern "Greetings" (exact).
+
+** What if there is more than one item with given name/category?
+Found 2 items in the archive using name pattern "classics" (exact)
+and category pattern "Movies" (exact):
+1. Casablanka
+2. Gone with the Wind
+
+** Regex example -- arbitrary name
+Found 2 items in the archive using name pattern ".*" (regex)
+and category pattern "Greetings" (exact):
+1. Hello, world!
+2. Goodbye world
+
+** Regex example -- same search, but using regex argument directly. Note
+   that the regular expression itself can no longer be extracted from such
+   an argument. This example prints an empty string instead.
+Found 2 items in the archive using name pattern "" (regex)
+and category pattern "Greetings" (exact):
+1. Hello, world!
+2. Goodbye world
+
+** Regex example -- arbitrary category
+Found 1 item in the archive using name pattern "quantum" (exact)
+and category pattern ".*" (regex):
+1. Quantum of Solace
+
+** Regex example -- name matching a substring, arbitrary category
+Found 2 items in the archive using name pattern "(.*)movie(.*)" (regex)
+and category pattern ".*" (regex):
+1. Titanic
+2. Avatar
+
+** Placing an item on the heap using a unique pointer
+Hello, world!
+
+** Placing an item on the heap using a shared pointer
+Hello, world!
+PASS use_of_references (exit status: 0)

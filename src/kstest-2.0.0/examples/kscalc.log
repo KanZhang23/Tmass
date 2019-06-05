@@ -1,0 +1,7 @@
+
+Usage: kscalc n x
+
+The following arguments are required:
+  n   is the sample size
+  x   is the Kolmogorov distance
+

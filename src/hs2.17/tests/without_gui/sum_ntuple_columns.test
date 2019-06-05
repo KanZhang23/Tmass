@@ -1,0 +1,50 @@
+test sum_ntuple_columns-1.1 {summing ntuple columns} {} {
+    set id0 [hs::create_ntuple [next_uid] "Test ntuple 0" "tests" {a b}]
+    set id1 [hs::create_ntuple [next_uid] "Test ntuple 1" "tests" {a b}]
+    set id2 [hs::create_ntuple [next_uid] "Test ntuple 2" "tests" {a b}]
+    set id3 [hs::create_ntuple [next_uid] "Result ntuple" "tests" {a}]
+    set id4 [hs::create_ntuple [next_uid] "Result ntuple" "tests" {a}]
+
+    hs::ntuple_block_fill $id0 [list \
+            1.0  4.5 \
+            2.0  5.0 \
+            3.0  6.5 \
+    ]
+    hs::ntuple_block_fill $id1 [list \
+            7.0  8.5 \
+            9.0  5.0 \
+            3.0  0.5 \
+    ]
+    hs::ntuple_block_fill $id2 [list \
+            1.0  5.5 \
+            7.1  7.0 \
+            2.0  1.5 \
+    ]
+
+    # Add three columns
+    hs::sum_ntuple_columns $id3 $id0 0 $id1 1 $id2 0
+    hs::ntuple_block_fill $id4 [list \
+            10.5 \
+            14.1 \
+            5.5 \
+    ]
+    verify_similarity $id3 $id4 0
+
+    # Check the sum for a single column
+    hs::sum_ntuple_columns $id3 $id0 1
+    hs::reset $id4
+    hs::ntuple_project $id0 $id4 {expr 1} {expr $b}
+    verify_similarity $id3 $id4 0
+} {}
+
+hs::delete_category "..."
+
+catch {unset id0}
+catch {unset id1}
+catch {unset id2}
+catch {unset id3}
+catch {unset id4}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

@@ -1,0 +1,138 @@
+#
+# Where the Histo-Scope libraries (libCHisto.a and/or libCHisto.so)
+# are installed? It will be assumed that the Histo-Scope include
+# files could be found in $HISTO_LIB_DIR/../include and that the
+# main Histo-Scope GUI executable is $HISTO_LIB_DIR/../bin/histo.
+#
+HISTO_LIB_DIR := /usr/local/lib
+
+#
+# Where is the system Tcl configuration file tclConfig.sh?
+#
+TCL_CONFIG_FILE := /usr/lib/x86_64-linux-gnu/tclConfig.sh
+
+#
+# Which directory contains tcl.h?
+#
+TCL_INCLUDE_DIR := /usr/include/tcl8.6
+
+#
+# The C compiler to use
+#
+CC := gcc
+
+#
+# The Fortran compiler to use / Fortran system libraries to link
+#
+FC := gfortran
+FLIBS := -lgfortran
+
+
+################################################################
+#                                                              #
+#  Normally you don't need to change anything below this line. #
+#                                                              #
+################################################################
+
+PACKAGE_VERSION = 2.17
+
+TCL_PKG_DIR := $(shell echo puts [info library] | tclsh)
+INSTALL_DIR = $(TCL_PKG_DIR)/hs$(PACKAGE_VERSION)
+
+include $(TCL_CONFIG_FILE)
+
+INCLUDES = -I$(TCL_PKG_DIR)/../../include \
+           -I$(HISTO_LIB_DIR)/../include \
+           -I$(TCL_INCLUDE_DIR)
+
+DEFS = -DUSE_TCL_STUBS -DUSE_TK_STUBS \
+       -DHS_VERSION=\"$(PACKAGE_VERSION)\" \
+       -DHS_SYS_TCL_CONFIG_FILE=\"$(TCL_CONFIG_FILE)\" \
+       -DHS_HISTO_LIB_DIR=\"$(HISTO_LIB_DIR)\" \
+       -DHS_FC_EXECUTABLE=\"$(FC)\"
+
+CFLAGS = -O $(TCL_SHLIB_CFLAGS) $(INCLUDES) $(DEFS)
+FFLAGS = -O $(TCL_SHLIB_CFLAGS)
+
+# Strip quotes
+NORMAL_STUB_LIB_SPEC = $(shell echo $(TCL_STUB_LIB_SPEC))
+
+LIBS = -L$(HISTO_LIB_DIR) -lCHisto \
+       -llapack -lblas $(FLIBS) $(NORMAL_STUB_LIB_SPEC) -ldl -lm
+
+OFILES = Hs_Init.o histo_tcl_api.o hs_ascii_dump.o stat_utils.o \
+         hs_stats_histogram.o sliceproject.o f_math.o hs_calc.o \
+         hs_dir.o hs_copy.o hs_linear_fit.o tl_interface.o \
+         fit_function.o minuit_fcn.o minuit_api.o fit_config.o fit_api.o \
+         current_config.o ranlux_api.o histoscope_stub.o kerdens.o \
+         minuit.o mnamin.o mnbins.o mncalf.o mncler.o mncntr.o mncomd.o \
+         mncont.o mncrck.o mncros.o mncuve.o mnderi.o mndxdi.o mneig.o \
+         mnemat.o mnerrs.o mneval.o mnexcm.o mnexin.o mnfixp.o mnfree.o \
+         mngrad.o mnhelp.o mnhes1.o mnhess.o mnimpr.o mninex.o mninit.o \
+         mninpu.o mnintr.o mnlims.o mnline.o mnmatu.o mnmigr.o mnmnos.o \
+         mnmnot.o mnparm.o mnpars.o mnpfit.o mnpint.o mnplot.o mnpout.o \
+         mnprin.o mnpsdf.o mnrazz.o mnread.o mnrn15.o mnrset.o mnsave.o \
+         mnscan.o mnseek.o mnset.o mnseti.o mnsimp.o mnstat.o mnstin.o \
+         mntiny.o mnunpt.o mnvers.o mnvert.o mnwarn.o mnwerr.o stand.o \
+         mn_interface.o ranlux.o cfft.o rfft.o rlsqpm.o rvset.o dsinv.o \
+         rteq364.o dvsum.o rnormx.o rnmnml.o rlsqp2.o prob.o rnpssn.o \
+         dfact.o tmprnt.o kerset.o probkl.o dinv.o f010pr.o dfinv.o dvmpy.o \
+         dseqn.o abend.o rlsqp1.o rnbnml.o mtlprt.o mtlset.o lenocc.o
+
+OMETHODS = cmethods.o data_curve.o data_curve_2d.o fmethods.o johnson.o \
+           risetime.o sbshape.o dgquad.o dgset.o d107d1.o gausin64.o \
+           studis.o denlan.o dgamma.o dfreq.o gapnc64.o algama64.o
+
+OSHARED = sharedlib_handler.o Shlibhandler_Init.o
+
+%.o : %.c
+	$(CC) -c $(CFLAGS) -MD $< -o $@
+	@sed -i 's,\($*\.o\)[:]*\(.*\),$@: $$\(wildcard\2\)\n\1:\2,g' $*.d
+
+%.o : %.f
+	$(FC) -c $(FFLAGS) $< -o $@
+
+%.o : %.F
+	$(FC) -c $(FFLAGS) $< -o $@
+
+.PHONY : all clean install uninstall test
+
+all: libhs$(PACKAGE_VERSION).so libmethods.so libshlibhandler.so pkgIndex.tcl
+
+libhs$(PACKAGE_VERSION).so: $(OFILES)
+	rm -f libhs$(PACKAGE_VERSION).so
+	$(CC) -shared -o $@ $(OFILES) $(LIBS)
+
+libmethods.so: $(OMETHODS)
+	rm -f libmethods.so
+	$(CC) -shared -o $@ $(OMETHODS) $(FLIBS) $(NORMAL_STUB_LIB_SPEC) -ldl -lm
+
+libshlibhandler.so: $(OSHARED)
+	rm -f libshlibhandler.so
+	$(CC) -shared -Wl,--whole-archive $(NORMAL_STUB_LIB_SPEC) -Wl,-no-whole-archive -o $@ $(OSHARED) -ldl
+
+pkgIndex.tcl: pkgIndex.template
+	rm -f pkgIndex.tcl
+	sed 's/HS_VERSION/$(PACKAGE_VERSION)/g' pkgIndex.template > pkgIndex.tcl
+
+clean:
+	rm -f *.o *.so *.d pkgIndex.tcl core core.* test_sbshape *~ doc/*~ examples/*~
+	rm -f tests/*/*~ tests/*/core tests/*/core.*
+
+install: all
+	sh ./mkinstalldirs $(INSTALL_DIR)
+	install -m 644 libhs$(PACKAGE_VERSION).so libshlibhandler.so $(INSTALL_DIR)
+	install -m 644 libmethods.so pkgIndex.tcl hs_utils.tcl $(INSTALL_DIR)
+	(cd doc; install -m 644 hs_manual.txt hs_calc.txt hs_fit.txt $(INSTALL_DIR))
+	install -m 644 histoscope_stub.h $(HISTO_LIB_DIR)/../include
+
+uninstall:
+	rm -f $(HISTO_LIB_DIR)/../include/histoscope_stub.h
+	rm -fr $(TCL_PKG_DIR)/hs$(PACKAGE_VERSION)
+
+test:
+	(cd tests/without_gui; tclsh all.tcl)
+
+-include $(OFILES:.o=.d)
+-include $(OMETHODS:.o=.d)
+-include $(OSHARED:.o=.d)

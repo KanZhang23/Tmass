@@ -1,0 +1,381 @@
+histoMainProgram.o: histoMainProgram.c /usr/include/errno.h \
+ /usr/include/features.h /usr/include/sys/cdefs.h \
+ /usr/include/bits/wordsize.h /usr/include/gnu/stubs.h \
+ /usr/include/gnu/stubs-64.h /usr/include/bits/errno.h \
+ /usr/include/linux/errno.h /usr/include/asm/errno.h \
+ /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
+ /usr/include/stdio.h \
+ /pnfs/cdfen/persistent/proj/401.top/igv/compilers/lib/gcc/x86_64-pc-linux-gnu/7.3.0/include/stddef.h \
+ /usr/include/bits/types.h /usr/include/bits/typesizes.h \
+ /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h \
+ /pnfs/cdfen/persistent/proj/401.top/igv/compilers/lib/gcc/x86_64-pc-linux-gnu/7.3.0/include/stdarg.h \
+ /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h \
+ /usr/include/bits/stdio.h /usr/include/stdlib.h \
+ /usr/include/bits/waitflags.h /usr/include/bits/waitstatus.h \
+ /usr/include/endian.h /usr/include/bits/endian.h \
+ /usr/include/bits/byteswap.h /usr/include/sys/types.h \
+ /usr/include/time.h /usr/include/sys/select.h /usr/include/bits/select.h \
+ /usr/include/bits/sigset.h /usr/include/bits/time.h \
+ /usr/include/sys/sysmacros.h /usr/include/bits/pthreadtypes.h \
+ /usr/include/alloca.h /usr/include/xlocale.h /usr/include/sys/time.h \
+ /usr/include/sys/errno.h /usr/include/unistd.h \
+ /usr/include/bits/posix_opt.h /usr/include/bits/environments.h \
+ /usr/include/bits/confname.h /usr/include/getopt.h /usr/include/netdb.h \
+ /usr/include/netinet/in.h \
+ /pnfs/cdfen/persistent/proj/401.top/igv/compilers/lib/gcc/x86_64-pc-linux-gnu/7.3.0/include/stdint.h \
+ /usr/include/stdint.h /usr/include/bits/wchar.h \
+ /usr/include/sys/socket.h /usr/include/sys/uio.h /usr/include/bits/uio.h \
+ /usr/include/bits/socket.h /usr/include/bits/sockaddr.h \
+ /usr/include/asm/socket.h /usr/include/asm-generic/socket.h \
+ /usr/include/asm/sockios.h /usr/include/asm-generic/sockios.h \
+ /usr/include/bits/in.h /usr/include/rpc/netdb.h \
+ /usr/include/bits/netdb.h /usr/include/X11/Intrinsic.h \
+ /usr/include/X11/Xlib.h /usr/include/X11/X.h \
+ /usr/include/X11/Xfuncproto.h /usr/include/X11/Xosdefs.h \
+ /usr/include/X11/Xutil.h /usr/include/X11/keysym.h \
+ /usr/include/X11/keysymdef.h /usr/include/X11/Xresource.h \
+ /usr/include/string.h /usr/include/bits/string.h \
+ /usr/include/bits/string2.h /usr/include/X11/Core.h \
+ /usr/include/X11/Composite.h /usr/include/X11/Constraint.h \
+ /usr/include/X11/Object.h /usr/include/X11/RectObj.h \
+ /usr/include/Xm/Xm.h /usr/include/X11/Shell.h \
+ /usr/include/X11/SM/SMlib.h /usr/include/X11/SM/SM.h \
+ /usr/include/X11/ICE/ICElib.h /usr/include/X11/ICE/ICE.h \
+ /usr/include/X11/Xatom.h /usr/include/X11/extensions/Print.h \
+ /usr/include/X11/Xauth.h /usr/include/X11/Xfuncs.h \
+ /usr/include/Xm/XmStrDefs.h /usr/include/X11/StringDefs.h \
+ /usr/include/Xm/XmStrDefs22.h /usr/include/Xm/XmStrDefs23.h \
+ /usr/include/Xm/VirtKeys.h /usr/include/Xm/Transfer.h \
+ /usr/include/Xm/DragC.h /usr/include/Xm/Display.h \
+ /usr/include/Xm/DropSMgr.h /usr/include/Xm/Primitive.h \
+ /usr/include/Xm/Manager.h /usr/include/Xm/Gadget.h \
+ /usr/include/Xm/TxtPropCv.h /usr/include/Xm/VendorS.h \
+ /usr/include/Xm/XmIm.h /usr/include/sys/param.h \
+ /pnfs/cdfen/persistent/proj/401.top/igv/compilers/lib/gcc/x86_64-pc-linux-gnu/7.3.0/include-fixed/limits.h \
+ /pnfs/cdfen/persistent/proj/401.top/igv/compilers/lib/gcc/x86_64-pc-linux-gnu/7.3.0/include-fixed/syslimits.h \
+ /usr/include/limits.h /usr/include/bits/posix1_lim.h \
+ /usr/include/bits/local_lim.h /usr/include/linux/limits.h \
+ /usr/include/bits/posix2_lim.h /usr/include/linux/param.h \
+ /usr/include/asm/param.h /usr/include/asm-generic/param.h \
+ /usr/include/Xm/PrimitiveP.h /usr/include/Xm/XmP.h \
+ /usr/include/X11/IntrinsicP.h /usr/include/X11/CoreP.h \
+ /usr/include/X11/CompositeP.h /usr/include/X11/ConstrainP.h \
+ /usr/include/X11/ObjectP.h /usr/include/X11/RectObjP.h \
+ /usr/include/Xm/ColorP.h /usr/include/Xm/AccColorT.h \
+ /usr/include/Xm/BaseClassP.h ../util/misc.h ../util/printUtils.h \
+ ../histo_util/hsTypes.h ../histo_util/publish.h ../histo/histoP.h \
+ ../histo/plotWindows.h ../histo/ColorScale.h /usr/include/X11/Xcms.h \
+ ../histo/drawOver.h ../histo/mainPanel.h ../histo/histoMainProgram.h \
+ ../histo/communications.h ../histo/preferences.h ../histo/configFile.h \
+ ../histo/dragPlot.h ../histo/ColorScale.h ../histo/gsComm.h \
+ /usr/include/linux/types.h /usr/include/asm/types.h \
+ /usr/include/asm-generic/types.h /usr/include/asm-generic/int-ll64.h \
+ /usr/include/asm/bitsperlong.h /usr/include/asm-generic/bitsperlong.h \
+ /usr/include/linux/posix_types.h /usr/include/linux/stddef.h \
+ /usr/include/asm/posix_types.h /usr/include/asm/posix_types_64.h
+
+/usr/include/errno.h:
+
+/usr/include/features.h:
+
+/usr/include/sys/cdefs.h:
+
+/usr/include/bits/wordsize.h:
+
+/usr/include/gnu/stubs.h:
+
+/usr/include/gnu/stubs-64.h:
+
+/usr/include/bits/errno.h:
+
+/usr/include/linux/errno.h:
+
+/usr/include/asm/errno.h:
+
+/usr/include/asm-generic/errno.h:
+
+/usr/include/asm-generic/errno-base.h:
+
+/usr/include/stdio.h:
+
+/pnfs/cdfen/persistent/proj/401.top/igv/compilers/lib/gcc/x86_64-pc-linux-gnu/7.3.0/include/stddef.h:
+
+/usr/include/bits/types.h:
+
+/usr/include/bits/typesizes.h:
+
+/usr/include/libio.h:
+
+/usr/include/_G_config.h:
+
+/usr/include/wchar.h:
+
+/pnfs/cdfen/persistent/proj/401.top/igv/compilers/lib/gcc/x86_64-pc-linux-gnu/7.3.0/include/stdarg.h:
+
+/usr/include/bits/stdio_lim.h:
+
+/usr/include/bits/sys_errlist.h:
+
+/usr/include/bits/stdio.h:
+
+/usr/include/stdlib.h:
+
+/usr/include/bits/waitflags.h:
+
+/usr/include/bits/waitstatus.h:
+
+/usr/include/endian.h:
+
+/usr/include/bits/endian.h:
+
+/usr/include/bits/byteswap.h:
+
+/usr/include/sys/types.h:
+
+/usr/include/time.h:
+
+/usr/include/sys/select.h:
+
+/usr/include/bits/select.h:
+
+/usr/include/bits/sigset.h:
+
+/usr/include/bits/time.h:
+
+/usr/include/sys/sysmacros.h:
+
+/usr/include/bits/pthreadtypes.h:
+
+/usr/include/alloca.h:
+
+/usr/include/xlocale.h:
+
+/usr/include/sys/time.h:
+
+/usr/include/sys/errno.h:
+
+/usr/include/unistd.h:
+
+/usr/include/bits/posix_opt.h:
+
+/usr/include/bits/environments.h:
+
+/usr/include/bits/confname.h:
+
+/usr/include/getopt.h:
+
+/usr/include/netdb.h:
+
+/usr/include/netinet/in.h:
+
+/pnfs/cdfen/persistent/proj/401.top/igv/compilers/lib/gcc/x86_64-pc-linux-gnu/7.3.0/include/stdint.h:
+
+/usr/include/stdint.h:
+
+/usr/include/bits/wchar.h:
+
+/usr/include/sys/socket.h:
+
+/usr/include/sys/uio.h:
+
+/usr/include/bits/uio.h:
+
+/usr/include/bits/socket.h:
+
+/usr/include/bits/sockaddr.h:
+
+/usr/include/asm/socket.h:
+
+/usr/include/asm-generic/socket.h:
+
+/usr/include/asm/sockios.h:
+
+/usr/include/asm-generic/sockios.h:
+
+/usr/include/bits/in.h:
+
+/usr/include/rpc/netdb.h:
+
+/usr/include/bits/netdb.h:
+
+/usr/include/X11/Intrinsic.h:
+
+/usr/include/X11/Xlib.h:
+
+/usr/include/X11/X.h:
+
+/usr/include/X11/Xfuncproto.h:
+
+/usr/include/X11/Xosdefs.h:
+
+/usr/include/X11/Xutil.h:
+
+/usr/include/X11/keysym.h:
+
+/usr/include/X11/keysymdef.h:
+
+/usr/include/X11/Xresource.h:
+
+/usr/include/string.h:
+
+/usr/include/bits/string.h:
+
+/usr/include/bits/string2.h:
+
+/usr/include/X11/Core.h:
+
+/usr/include/X11/Composite.h:
+
+/usr/include/X11/Constraint.h:
+
+/usr/include/X11/Object.h:
+
+/usr/include/X11/RectObj.h:
+
+/usr/include/Xm/Xm.h:
+
+/usr/include/X11/Shell.h:
+
+/usr/include/X11/SM/SMlib.h:
+
+/usr/include/X11/SM/SM.h:
+
+/usr/include/X11/ICE/ICElib.h:
+
+/usr/include/X11/ICE/ICE.h:
+
+/usr/include/X11/Xatom.h:
+
+/usr/include/X11/extensions/Print.h:
+
+/usr/include/X11/Xauth.h:
+
+/usr/include/X11/Xfuncs.h:
+
+/usr/include/Xm/XmStrDefs.h:
+
+/usr/include/X11/StringDefs.h:
+
+/usr/include/Xm/XmStrDefs22.h:
+
+/usr/include/Xm/XmStrDefs23.h:
+
+/usr/include/Xm/VirtKeys.h:
+
+/usr/include/Xm/Transfer.h:
+
+/usr/include/Xm/DragC.h:
+
+/usr/include/Xm/Display.h:
+
+/usr/include/Xm/DropSMgr.h:
+
+/usr/include/Xm/Primitive.h:
+
+/usr/include/Xm/Manager.h:
+
+/usr/include/Xm/Gadget.h:
+
+/usr/include/Xm/TxtPropCv.h:
+
+/usr/include/Xm/VendorS.h:
+
+/usr/include/Xm/XmIm.h:
+
+/usr/include/sys/param.h:
+
+/pnfs/cdfen/persistent/proj/401.top/igv/compilers/lib/gcc/x86_64-pc-linux-gnu/7.3.0/include-fixed/limits.h:
+
+/pnfs/cdfen/persistent/proj/401.top/igv/compilers/lib/gcc/x86_64-pc-linux-gnu/7.3.0/include-fixed/syslimits.h:
+
+/usr/include/limits.h:
+
+/usr/include/bits/posix1_lim.h:
+
+/usr/include/bits/local_lim.h:
+
+/usr/include/linux/limits.h:
+
+/usr/include/bits/posix2_lim.h:
+
+/usr/include/linux/param.h:
+
+/usr/include/asm/param.h:
+
+/usr/include/asm-generic/param.h:
+
+/usr/include/Xm/PrimitiveP.h:
+
+/usr/include/Xm/XmP.h:
+
+/usr/include/X11/IntrinsicP.h:
+
+/usr/include/X11/CoreP.h:
+
+/usr/include/X11/CompositeP.h:
+
+/usr/include/X11/ConstrainP.h:
+
+/usr/include/X11/ObjectP.h:
+
+/usr/include/X11/RectObjP.h:
+
+/usr/include/Xm/ColorP.h:
+
+/usr/include/Xm/AccColorT.h:
+
+/usr/include/Xm/BaseClassP.h:
+
+../util/misc.h:
+
+../util/printUtils.h:
+
+../histo_util/hsTypes.h:
+
+../histo_util/publish.h:
+
+../histo/histoP.h:
+
+../histo/plotWindows.h:
+
+../histo/ColorScale.h:
+
+/usr/include/X11/Xcms.h:
+
+../histo/drawOver.h:
+
+../histo/mainPanel.h:
+
+../histo/histoMainProgram.h:
+
+../histo/communications.h:
+
+../histo/preferences.h:
+
+../histo/configFile.h:
+
+../histo/dragPlot.h:
+
+../histo/ColorScale.h:
+
+../histo/gsComm.h:
+
+/usr/include/linux/types.h:
+
+/usr/include/asm/types.h:
+
+/usr/include/asm-generic/types.h:
+
+/usr/include/asm-generic/int-ll64.h:
+
+/usr/include/asm/bitsperlong.h:
+
+/usr/include/asm-generic/bitsperlong.h:
+
+/usr/include/linux/posix_types.h:
+
+/usr/include/linux/stddef.h:
+
+/usr/include/asm/posix_types.h:
+
+/usr/include/asm/posix_types_64.h:

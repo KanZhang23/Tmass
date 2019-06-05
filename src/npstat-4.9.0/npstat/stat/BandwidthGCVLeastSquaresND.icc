@@ -1,0 +1,75 @@
+#include <stdexcept>
+
+namespace npstat {
+    // GCV for weighted samples
+    template<typename Numeric, class Array>
+    double BandwidthGCVLeastSquaresND<Numeric,Array>::operator()(
+        const HistoND<Numeric>& histo,
+        const double effectiveSampleSize,
+        const Array& densityEstimate,
+        const Array& looEstimate,
+        const AbsPolyFilterND&) const
+    {
+        // Check arguments for consistency
+        if (!densityEstimate.isShapeCompatible(histo.binContents()))
+            throw std::invalid_argument(
+                "In npstat::BandwidthGCVLeastSquaresND::operator(): "
+                "histogram and density estimate are not compatible");
+        if (!densityEstimate.isShapeCompatible(looEstimate))
+            throw std::invalid_argument(
+                "In npstat::BandwidthGCVLeastSquaresND::operator(): "
+                "density estimates are not mutually compatible");
+        if (effectiveSampleSize <= 1.0) throw std::invalid_argument(
+            "In npstat::BandwidthGCVLeastSquaresND::operator(): "
+            "not enough data for cross validation");
+        const double wsum = histo.binContents().template sum<long double>();
+
+        // Check that the density estimate normalization is "reasonable"
+        const double binWidth = histo.binVolume();
+        const unsigned long nbins = histo.nBins();
+        const typename Array::value_type* densData = densityEstimate.data();
+        {    
+            long double densitySum = 0.0L;
+            for (unsigned long ibin=0; ibin<nbins; ++ibin)
+                densitySum += densData[ibin];
+            const double densityInteg = densitySum*binWidth;
+            if (fabs(densityInteg - 1.0) >= 0.01) throw std::invalid_argument(
+                "In npstat::BandwidthGCVLeastSquaresND::operator(): "
+                "input density is not properly normalized");
+        }
+
+        const typename Array::value_type* looData = looEstimate.data();
+        {
+            long double densitySum = 0.0L;
+            for (unsigned long ibin=0; ibin<nbins; ++ibin)
+                densitySum += looData[ibin];
+            const double densityInteg = densitySum*binWidth;
+            if (fabs(densityInteg - 1.0) >= 0.01) throw std::invalid_argument(
+                "In npstat::BandwidthGCVLeastSquaresND::operator(): "
+                "LOO density is not properly normalized");
+        }
+
+        // Start accumulating the MISE approximation
+        long double mise = 0.0L;
+        const Numeric* bins = histo.binContents().data();
+        for (unsigned long ibin=0; ibin<nbins; ++ibin)
+        {
+            const double binContrib = densData[ibin]*densData[ibin]*binWidth -
+                                      bins[ibin]*2.0*looData[ibin]/wsum;
+            mise += binContrib;
+        }
+        return -static_cast<double>(mise);
+    }
+
+    // GCV for unweighted samples
+    template<typename Numeric, class Array>
+    inline double BandwidthGCVLeastSquaresND<Numeric,Array>::operator()(
+        const HistoND<Numeric>& histo,
+        const Array& densityEstimate,
+        const Array& looEstimate,
+        const AbsPolyFilterND& f) const
+    {
+        const unsigned long N = histo.nFillsInRange();
+        return (*this)(histo, N, densityEstimate, looEstimate, f);
+    }
+}

@@ -1,0 +1,42 @@
+#include <cassert>
+#include <stdexcept>
+#include <typeinfo>
+
+#include "npstat/nm/allocators.hh"
+
+namespace npstat {
+    template<typename T1, typename T2>
+    inline void AbsBinnedComparison1D::compare(
+        const T1* data, const T2* reference, const unsigned len,
+        double* distance, double* pvalue) const
+    {
+        if (distance || pvalue)
+        {
+            if (!len) throw std::invalid_argument(
+                "In npstat::AbsBinnedComparison1D::compare: "
+                "zero length input arrays");
+            assert(data);
+            assert(reference);
+
+            const double* pdat = reinterpret_cast<const double*>(data);
+            if (!(typeid(data[0]) == typeid(double)))
+            {
+                if (buf1_.size() < len)
+                    buf1_.resize(len);
+                copyBuffer(&buf1_[0], data, len);
+                pdat = &buf1_[0];
+            }
+
+            const double* pref = reinterpret_cast<const double*>(reference);
+            if (!(typeid(reference[0]) == typeid(double)))
+            {
+                if (buf2_.size() < len)
+                    buf2_.resize(len);
+                copyBuffer(&buf2_[0], reference, len);
+                pref = &buf2_[0];
+            }
+
+            this->compareD(pdat, pref, len, distance, pvalue);
+        }
+    }
+}

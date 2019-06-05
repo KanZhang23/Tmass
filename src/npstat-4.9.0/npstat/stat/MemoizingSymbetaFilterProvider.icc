@@ -1,0 +1,53 @@
+namespace npstat {
+    namespace Private {
+        inline bool SymbetaFilterParams::operator==(
+            const SymbetaFilterParams& r) const
+        {
+            if (bandwidth_ < 0.0 && r.bandwidth_ < 0.0)
+                return true;
+
+            unsigned ebin = excludedBin_;
+            if (ebin > nbins_)
+                ebin = nbins_;
+            unsigned rebin = r.excludedBin_;
+            if (rebin > r.nbins_)
+                rebin = r.nbins_;
+
+            return bandwidth_ == r.bandwidth_ &&
+                degree_ == r.degree_ &&
+                binwidth_ == r.binwidth_ &&
+                nbins_ == r.nbins_ &&
+                symbetaPower_ == r.symbetaPower_ &&
+                bm_ == r.bm_ &&
+                excludeCentralPoint_ == r.excludeCentralPoint_ &&
+                ebin == rebin;
+        }
+
+        inline bool SymbetaFilterParams::operator<(
+            const SymbetaFilterParams& r) const
+        {
+            if (bandwidth_ < r.bandwidth_) return true;
+            if (bandwidth_ > r.bandwidth_) return false;
+            if (degree_ < r.degree_) return true;
+            if (degree_ > r.degree_) return false;
+            if (binwidth_ < r.binwidth_) return true;
+            if (binwidth_ > r.binwidth_) return false;
+            if (nbins_ < r.nbins_) return true;
+            if (nbins_ > r.nbins_) return false;
+            if (symbetaPower_ < r.symbetaPower_) return true;
+            if (symbetaPower_ > r.symbetaPower_) return false;
+            if (bm_ < r.bm_) return true;
+            if (r.bm_ < bm_) return false;
+            if (!excludeCentralPoint_ && r.excludeCentralPoint_) return true;
+            if (excludeCentralPoint_ && !r.excludeCentralPoint_) return false;
+
+            unsigned ebin = excludedBin_;
+            if (ebin > nbins_)
+                ebin = nbins_;
+            unsigned rebin = r.excludedBin_;
+            if (rebin > r.nbins_)
+                rebin = r.nbins_;
+            return ebin < rebin;
+        }
+    }
+}

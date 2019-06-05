@@ -1,0 +1,159 @@
+#include <cmath>
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    template<typename Numeric, typename NumOut>
+    void lorpeBackgroundCVDensity1D(
+        const LocalPolyFilter1D& filter, const HistoND<Numeric>& histo,
+        const double signalFraction,
+        const NumOut* signalDensity, const unsigned lenSignalDensity,
+        const NumOut* bgDensity, const unsigned lenBgDensity,
+        std::vector<double>& workspace,
+        NumOut* densityMinusOne, const unsigned lenDensityMinusOne)
+    {
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::lorpeBackgroundCVDensity1D: "
+            "input histogram must be one-dimensional");
+        if (histo.nFillsInRange() <= 1UL) throw std::invalid_argument(
+            "In npstat::lorpeBackgroundCVDensity1D: "
+            "not enough data in the input histogram");
+        const Numeric* bins = histo.binContents().data();
+        const Numeric zero = Numeric();
+        const unsigned nbins = histo.nBins();
+        const double binWidth = histo.binVolume();
+
+        assert(signalDensity);
+        assert(bgDensity);
+        assert(densityMinusOne);
+
+        if (nbins != lenBgDensity ||
+            nbins != lenDensityMinusOne ||
+            nbins != lenSignalDensity)
+            throw std::invalid_argument("In npstat::lorpeBackgroundCVDensity1D:"
+                                        " incompatible array length");
+
+        if (fabs(signalFraction) >= 1.0)
+            throw std::invalid_argument(
+                "In npstat::lorpeBackgroundCVDensity1D: "
+                "signal fraction is out of range");
+        const double oneMinusSF = 1.0 - signalFraction;
+
+        if (workspace.size() < 3U*nbins)
+            workspace.resize(3U*nbins);
+        double* prob = &workspace[0];
+        double* alphaDeri = prob + nbins;
+        double* A_alphaDeri = alphaDeri + nbins;
+
+        // Construct the complete initial probability density
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+            prob[ibin] = signalFraction*signalDensity[ibin] +
+                         oneMinusSF*bgDensity[ibin];
+
+        // Figure out the original normalization factor
+        long double inSum = 0.0L;
+        long double ldnpoints = 0.0L;
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+            if (bins[ibin] > zero && prob[ibin] > 0.0)
+            {
+                ldnpoints += bins[ibin];
+                inSum += bins[ibin]*bgDensity[ibin]/prob[ibin];
+            }
+        const long double norm = inSum/ldnpoints*binWidth;
+        const double nSignal = signalFraction*ldnpoints;
+        const double nm1 = ldnpoints - 1.0L;
+
+        // Construct the derivative due to the change in signal fraction
+        long double alphaDeriSum = 0.0L;
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+        {
+            if (bins[ibin] > zero && prob[ibin] > 0.0)
+            {
+                alphaDeri[ibin] = (bgDensity[ibin]-signalDensity[ibin])*
+                    bgDensity[ibin]*bins[ibin]/prob[ibin]/prob[ibin]/nm1;
+                alphaDeriSum += alphaDeri[ibin];
+            }
+            else
+                alphaDeri[ibin] = 0.0;
+        }
+
+        // Get the filter matrix
+        const Matrix<double>& A = filter.getFilterMatrix();
+
+        // Multiply the filter matrix by the signal fraction derivative
+        const double* mdata = A.data();
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+        {
+            long double sum = 0.0L;
+            const double* row = mdata + ibin*nbins;
+            for (unsigned i=0; i<nbins; ++i)
+                sum += row[i]*alphaDeri[i];
+            A_alphaDeri[ibin] = sum - alphaDeriSum*bgDensity[ibin]*binWidth;
+        }
+
+        // Construct the derivative due to the change in background distribution.
+        // This is a diagonal matrix.
+        Matrix<double> S(A.nRows(), A.nColumns(), 0);
+        Matrix<double> BG(A.nRows(), A.nColumns(), 0);
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+            if (bins[ibin] > zero && prob[ibin] > 0.0)
+            {
+                const double deri = bins[ibin]*signalFraction*
+                    signalDensity[ibin]/prob[ibin]/prob[ibin]/nm1;
+                S[ibin][ibin] = deri;
+                for (unsigned k=0; k<nbins; ++k)
+                    BG[k][ibin] = bgDensity[k]*deri*binWidth;
+            }
+
+        // Unit matrix with dimensions of the filter matrix
+        const Matrix<double> U(A.nRows(), A.nColumns(), 1);
+
+        // Matrix that will be used to solve the equations
+        const Matrix<double>& eq = (U*norm + BG - A*S).inv();
+
+        // Now, go over all bins and update the background
+        for (unsigned minusBin=0; minusBin<nbins; ++minusBin)
+        {
+            if (prob[minusBin] <= 0.0 || bins[minusBin] <= zero)
+            {
+                densityMinusOne[minusBin] = static_cast<NumOut>(0);
+                continue;
+            }
+
+            // Get the new value of the signal fraction
+            const double sig = signalFraction*signalDensity[minusBin];
+            const double sigfrac = (nSignal - sig/prob[minusBin])/nm1;
+            const double sigdelta = sigfrac - signalFraction;
+
+            // Prepare to calculate the weight for the removed point
+            const double aderij = (bgDensity[minusBin]-signalDensity[minusBin])*
+                              bgDensity[minusBin]/prob[minusBin]/prob[minusBin];
+            const double bderij = signalFraction*signalDensity[minusBin]/
+                                  prob[minusBin]/prob[minusBin];
+            const double* invRow = eq[minusBin];
+
+            long double wcoeff = 0.0L;
+            for (unsigned ibin=0; ibin<nbins; ++ibin)
+                wcoeff += invRow[ibin]*(A[ibin][minusBin] -
+                                        bgDensity[ibin]*binWidth);
+
+            long double asum = 0.0L;
+            for (unsigned ibin=0; ibin<nbins; ++ibin)
+                asum += invRow[ibin]*A_alphaDeri[ibin]*sigdelta;
+
+            const double a = (bgDensity[minusBin]/prob[minusBin] +
+                              aderij*sigdelta)/nm1;
+            const double b = bderij/nm1;
+            const double denom = 1.0 + wcoeff*b;
+            double estimate = 0.0;
+            if (denom)
+            {
+                const double deltab = (asum - wcoeff*a)/denom;
+                estimate = bgDensity[minusBin] + deltab;
+                if (estimate < 0.0)
+                    estimate = 0.0;
+            }
+            densityMinusOne[minusBin] = static_cast<NumOut>(estimate);
+        }
+    }
+}

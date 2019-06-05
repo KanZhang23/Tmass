@@ -1,0 +1,145 @@
+#include <cmath>
+#include <cfloat>
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    template <typename Result, typename Arg1>
+    bool goldenSectionSearchInLogSpace(const Functor1<Result, Arg1>& f,
+                                       const Arg1& x0, const double tol,
+                                       Arg1* minimum, Result* fmin,
+                                       double logstep)
+    {
+        const unsigned maxiter = 3000;
+        const double increase = 1.2;
+
+        if (tol <= DBL_EPSILON) throw std::invalid_argument(
+            "In npstat::goldenSectionSearchInLogSpace: "
+            "tolerance argument is too small");
+        assert(minimum);
+
+        const double sqrdeps = sqrt(DBL_EPSILON);
+        logstep = fabs(logstep);
+        if (logstep < sqrdeps)
+            logstep = sqrdeps;
+
+        double factor0 = exp(logstep);
+        double cr = factor0;
+        double cl = 1.0/factor0;
+
+        // Maintain: xright = xcenter * cr
+        //           xleft  = xcenter * cl
+        Arg1 xleft = x0*cl;
+        Arg1 xcenter = x0;
+        Arg1 xright = x0*cr;
+        Result fleft = f(xleft);
+        Result fcenter = f(xcenter);
+        Result fright = f(xright);
+
+        // First, bracket the minimum
+        unsigned it = 0U;
+        for(; (fright < fcenter || fleft < fcenter) && it < maxiter; ++it)
+        {
+            if (fright <= fcenter && fleft <= fcenter)
+                return false;
+
+            if (fright < fcenter)
+            {
+                // Move to the right
+                xleft = xcenter;
+                fleft = fcenter;
+                xcenter = xright;
+                fcenter = fright;
+                cl = 1.0/cr;
+                cr = factor0;
+                xright = xcenter*cr;
+                fright = f(xright);
+            }
+            else
+            {
+                // Move to the left
+                xright = xcenter;
+                fright = fcenter;
+                xcenter = xleft;
+                fcenter = fleft;
+                cr = 1.0/cl;
+                cl = 1.0/factor0;
+                xleft = xcenter*cl;
+                fleft = f(xleft);
+            }
+
+            // Increase the stepping factor
+            logstep *= increase;
+            factor0 = exp(logstep);
+        }
+        if (it == maxiter)
+            return false;
+
+        // Now, converge towards the minimum
+        const double golden = (sqrt(5.0) - 1.0)/2.0;
+        const double onemg  = 1.0 - golden;
+
+        it = 0U;
+        for (; (fabs(cr - 1.0) + fabs(cl - 1.0)) > tol && it < maxiter; ++it)
+            if (fabs(log(cl)) < fabs(log(cr)))
+            {
+                // Center point is closer to the left
+                const double factor = pow(cl,onemg)*pow(cr,golden);
+                if (!(factor > 1.0 && factor/cr < 1.0))
+                    throw std::runtime_error(
+                        "In npstat::goldenSectionSearchInLogSpace: "
+                        "failed to achieve requested tolerance");
+                const Arg1 xtry = xcenter*factor;
+                const Result ftry = f(xtry);
+                if (fcenter < ftry)
+                {
+                    xright = xtry;
+                    fright = ftry;
+                    cr = factor;
+                }
+                else
+                {
+                    xleft = xcenter;
+                    fleft = fcenter;
+                    xcenter = xtry;
+                    fcenter = ftry;
+                    cl = 1.0/factor;
+                    cr /= factor;
+                }
+            }
+            else
+            {
+                // Center point is closer to the right
+                const double factor = pow(cl,golden)*pow(cr,onemg);
+                if (!(factor < 1.0 && factor/cl > 1.0))
+                    throw std::runtime_error(
+                        "In npstat::goldenSectionSearchInLogSpace: "
+                        "failed to achieve requested tolerance");
+                const Arg1 xtry = xcenter*factor;
+                const Result ftry = f(xtry);
+                if (fcenter < ftry)
+                {
+                    xleft = xtry;
+                    fleft = ftry;
+                    cl = factor;
+                }
+                else
+                {
+                    xright = xcenter;
+                    fright = fcenter;
+                    xcenter = xtry;
+                    fcenter = ftry;
+                    cr = 1.0/factor;
+                    cl /= factor;
+                }
+            }
+
+        if (it == maxiter)
+            return false;
+
+        if (fmin)
+            *fmin = fcenter;
+        *minimum = xcenter;
+        return true;
+    }
+}

@@ -1,0 +1,95 @@
+test function-1.1 {monomial integration in 3d} {} {
+    foreach {c_expr tcl_expr} {
+        1.0   {($xmax-$xmin)*($ymax-$ymin)*($zmax-$zmin)}
+        x     {($xmax*$xmax-$xmin*$xmin)*($ymax-$ymin)*($zmax-$zmin)/2.0}
+        y     {($xmax-$xmin)*($ymax*$ymax-$ymin*$ymin)*($zmax-$zmin)/2.0}
+        z     {($xmax-$xmin)*($ymax-$ymin)*($zmax*$zmax-$zmin*$zmin)/2.0}
+        x*x   {($xmax*$xmax*$xmax-$xmin*$xmin*$xmin)*($ymax-$ymin)*($zmax-$zmin)/3.0}
+        y*y   {($xmax-$xmin)*($ymax*$ymax*$ymax-$ymin*$ymin*$ymin)*($zmax-$zmin)/3.0}
+        z*z   {($xmax-$xmin)*($ymax-$ymin)*($zmax*$zmax*$zmax-$zmin*$zmin*$zmin)/3.0}
+        x*y   {($xmax*$xmax-$xmin*$xmin)*($ymax*$ymax-$ymin*$ymin)*($zmax-$zmin)/4.0}
+        x*z   {($xmax*$xmax-$xmin*$xmin)*($ymax-$ymin)*($zmax*$zmax-$zmin*$zmin)/4.0}
+        y*z   {($xmax-$xmin)*($ymax*$ymax-$ymin*$ymin)*($zmax*$zmax-$zmin*$zmin)/4.0}
+        x*x*x {($xmax*$xmax*$xmax*$xmax-$xmin*$xmin*$xmin*$xmin)*($ymax-$ymin)*($zmax-$zmin)/4.0}
+        y*y*y {($xmax-$xmin)*($ymax*$ymax*$ymax*$ymax-$ymin*$ymin*$ymin*$ymin)*($zmax-$zmin)/4.0}
+        z*z*z {($xmax-$xmin)*($ymax-$ymin)*($zmax*$zmax*$zmax*$zmax-$zmin*$zmin*$zmin*$zmin)/4.0}
+        x*x*y {($xmax*$xmax*$xmax-$xmin*$xmin*$xmin)*($ymax*$ymax-$ymin*$ymin)*($zmax-$zmin)/6.0}
+        x*x*z {($xmax*$xmax*$xmax-$xmin*$xmin*$xmin)*($ymax-$ymin)*($zmax*$zmax-$zmin*$zmin)/6.0}
+        y*y*x {($xmax*$xmax-$xmin*$xmin)*($ymax*$ymax*$ymax-$ymin*$ymin*$ymin)*($zmax-$zmin)/6.0}
+        y*y*z {($xmax-$xmin)*($ymax*$ymax*$ymax-$ymin*$ymin*$ymin)*($zmax*$zmax-$zmin*$zmin)/6.0}
+        z*z*x {($xmax*$xmax-$xmin*$xmin)*($ymax-$ymin)*($zmax*$zmax*$zmax-$zmin*$zmin*$zmin)/6.0}
+        z*z*y {($xmax-$xmin)*($ymax*$ymax-$ymin*$ymin)*($zmax*$zmax*$zmax-$zmin*$zmin*$zmin)/6.0}
+        x*y*z {($xmax*$xmax-$xmin*$xmin)*($ymax*$ymax-$ymin*$ymin)*($zmax*$zmax-$zmin*$zmin)/8.0}
+    } {
+        hs::function_compile monom "Test monomial" $c_expr {} 3
+        foreach {xmin xmax nx ymin ymax ny zmin zmax nz} {
+	    -0.5 1.5 4 0.5 2 6 0 1 5
+            1 2 3 0.5 1.5 6 2 3 2
+        } {
+            set i1 [hs::function monom integrate [list x $xmin $xmax $nx] \
+                    [list y $ymin $ymax $ny] [list z $zmin $zmax $nz]]
+            set i2 [expr $tcl_expr]
+            if {[catch {assert_same_double $i1 $i2 1e-14}]} {
+                hs::function monom del
+                error "Wrong result for monomial $c_expr, xmin $xmin, xmax $xmax, nx $nx,\
+                        ymin $ymin, ymax $ymax, ny $ny, zmin $zmin, zmax $zmax, nz $nz:\
+                        expected $i2, got $i1"
+            }
+        }
+        hs::function monom del
+    }
+} {}
+
+test function-1.2 {3d function scan} {} {
+    set c_expr {x*y*z}
+    set tcl_expr {$x*$y*$z}
+    hs::function_compile testfun "Test monomial" $c_expr {} 3
+    foreach {xmin xmax nx ymin ymax ny zmin zmax nz} {
+             -0.5  1.5  4  0.5  2.0  6  0.0  1.0  5
+    } {}
+    foreach axis {x y z} {
+        set min [set ${axis}min]
+        set max [set ${axis}max]
+        set n [set n$axis]
+        set halfstep [expr {($max - $min)/2.0/$n}]
+	set ${axis}step [expr {2.0*$halfstep}]
+        set nt${axis}min [expr {$min + $halfstep}]
+        set nt${axis}max [expr {$max - $halfstep}]
+    }
+    set id_h [hs::create_3d_hist [next_uid] "Untitled" "Test" \
+              X Y Z V $nx $ny $nz $xmin $xmax $ymin $ymax $zmin $zmax]
+    set id_ref_h [hs::duplicate_axes $id_h [next_uid] "Untitled" "Test"]
+    set id_nt [hs::create_ntuple [next_uid] "Untitled" "Test" {X Y Z V}]
+    set id_ref_nt [hs::duplicate_ntuple_header $id_nt [next_uid] "Untitled" "Test"]
+    hs::function testfun scan [list $id_h x y z]
+    hs::function testfun scan [list $id_nt [list x $ntxmin $ntxmax $nx] \
+        [list y $ntymin $ntymax $ny] [list z $ntzmin $ntzmax $nz]]
+    hs::function testfun del
+    for {set i 0} {$i < $nx} {incr i} {
+        set x [expr {$ntxmin + $i * $xstep}]
+        for {set j 0} {$j < $ny} {incr j} {
+            set y [expr {$ntymin + $j * $ystep}]
+            for {set k 0} {$k < $nz} {incr k} {
+                set z [expr {$ntzmin + $k * $zstep}]
+                set fval [expr $tcl_expr]
+                hs::fill_3d_hist $id_ref_h $x $y $z $fval
+                hs::fill_ntuple $id_ref_nt [list $x $y $z $fval]
+            }
+        }
+    }
+    verify_similarity $id_h $id_ref_h 2e-7
+    verify_similarity $id_nt $id_ref_nt 2e-7
+} {}
+
+foreach name {
+    c_expr tcl_expr xmin xmax nx ymin ymax ny zmin zmax nz i1 i2
+    id_h id_ref_h id_nt id_ref_nt axis min max n halfstep x y z fval
+    ntxmin ntxmax ntymin ntymax ntzmin ntzmax i j k xstep ystep zstep
+} {
+    catch {unset $name}
+}
+catch {unset name}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

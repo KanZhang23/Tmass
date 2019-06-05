@@ -1,0 +1,21 @@
+#!/bin/bash
+        MYTMP=/tmp/run$$
+        MYPWD=/home/mrenna/Work/W4jets/wellnu01234j_5f_LO_MLM/SubProcesses/P0_gg_wpggqq_wp_epve/fermi
+        mkdir -p $MYTMP
+        cd $MYPWD
+        input_files=( /home/mrenna/Work/W4jets/wellnu01234j_5f_LO_MLM/SubProcesses/P0_gg_wpggqq_wp_epve/comp_madweight /home/mrenna/Work/W4jets/wellnu01234j_5f_LO_MLM/Cards/param_card_2.dat /home/mrenna/Work/W4jets/wellnu01234j_5f_LO_MLM/lib/Pdfdata/cteq6l1.tbl /home/mrenna/Work/W4jets/wellnu01234j_5f_LO_MLM/Cards/ident_card.dat /home/mrenna/Work/W4jets/wellnu01234j_5f_LO_MLM/Cards/run_card.dat /home/mrenna/Work/W4jets/wellnu01234j_5f_LO_MLM/SubProcesses/P0_gg_wpggqq_wp_epve/fermi/verif_0.lhco /home/mrenna/Work/W4jets/wellnu01234j_5f_LO_MLM/bin/internal/madweight/MW_driver.py )
+        for i in ${input_files[@]}
+        do
+            cp -R -L $i $MYTMP
+        done
+        cd $MYTMP
+        echo '2 1 1 verif_0.lhco 1000 weight 1' > arguments
+        chmod +x ./MW_driver.py
+          ./MW_driver.py 2 1 1 verif_0.lhco 1000 weight 1
+        output_files=( output_2_1.xml )
+        for i in ${output_files[@]}
+        do
+            cp -r $MYTMP/$i $MYPWD
+        done
+        rm -rf $MYTMP
+        

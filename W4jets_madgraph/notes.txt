@@ -1,0 +1,62 @@
+Things to take care of:
+
+1) Phase space singularity in the integration over the W mass.
+
+2) Determination of the integral convergence.
+
+3) Proper inclusion of the transfer function efficiency term in the
+   integral.
+
+4) Transfer functions (TFs) used in the top mass measurement are rather
+   complicated. Not only they depend on the jet mass, they are also
+   not factorizable into the product of Pt and angular TFs. In the TF
+   construction procedure, Pt TFs are built depending on delta eta
+   between the jet and the parton. On the other hand, integration
+   over parton angular variables for the W + 4 jets process would
+   just be a waste of time, as there are no sharp propagator terms
+   in the matrix element (leptonic W mass is sharp but this does not
+   matter because the neutrino Pz can always be adjusted to get the
+   W mass needed). If we do not want to integrate over jet angular
+   variables for W + 4 jets, we have no choice but to use different
+   TFs for ttbar and W + 4 jets.
+
+5) Do we want to take the jet mass dependence into account for TFs?
+   If we do, how do we get back to the tree level kinematics for the ME
+   calculation? The procedure for doing this in the top mass case is
+   described in the Appendix D of CDF Note 9245. It relies substantially
+   on the presence of intermediate resonances with known masses (these
+   masses are actually integrated over, but for kinematical calculations
+   they are considered fixed), so this procedure can not be applied to
+   the W + 4 jets case.
+
+6) Determination of jet Pt importance sampling functions, especially for
+   low Pt jets.
+
+7) Determination of the W + 4 jets transverse momentum prior. Does it
+   depend on the jet spectrum or does it factorize? In case of top mass
+   measurement, it does exhibit some (but rather weak) dependence on the
+   top mass.
+
+8) What do we do with W -> tau nu? The top mass measurement assumes that
+   it picks up W -> tau nu in case tau subsequently decays into l nu nu.
+   It also assumes that l flies in the same direction as the original
+   tau. In principle, the fraction of tau momentum carried away by l
+   depends on the tau polarization which, in turn, depends on the W
+   polarization. Thus the spectrum of the l/tau momentum ratio can be
+   different between ttbar and W + 4 jets. I presume, the VECBOS ME sums
+   over polarizations of the outgoing lepton anyway, so the best we could
+   do is to determine the average l/tau momentum ratio distribution
+   from whatever W + jets MC we are going to use.
+
+9) I presume, we are not going to consider W + 4 jets contribution for
+   events with b tags (otherwise W + bb + qq matrix element will be needed).
+
+10) Is W mass propagator included in the VECBOS ME?
+
+11) Does VECBOS ME assume that the total Pt of W + 4 jets is 0?
+
+12) What VECBOS ME assumes about parton masses? -- they are all 0.
+
+13) Apparently, there is a bug in the original MTM3 code in handling
+    the low Pt cutoff -- the JES there is taking as the current JES
+    instead of the JES at the cutoff.

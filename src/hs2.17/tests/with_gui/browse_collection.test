@@ -1,0 +1,28 @@
+test browse_collection-1.1 {hs histogram collection browser} {} {
+    # Create a bunch of histograms
+    set idlist {}
+    lappend idlist [random_histo gauss 50 -5 5 0.0 1.0 1000]
+    lappend idlist [random_histo cauchy 50 -5 5 0.0 1.0 1000]
+    lappend idlist [random_histo uniform 50 -5 5 0.0 1.0 1000]
+    set id [hs::create_2d_hist [next_uid] "Random filled 2d histogram"\
+	    "Example category" "X" "Y" "Z" 20 20 -5 5 -5 5]
+    for {set i 0} {$i < 10000} {incr i} {
+	hs::fill_2d_hist $id [gauss_random 0 1] [gauss_random 0 2] 1.0
+    }
+    lappend idlist $id
+    # Start the browser
+    set w [hs::browse_collection $idlist -color blue]
+    tkwait visibility $w
+    tkwait window $w
+    foreach id $idlist {
+	hs::delete $id
+    }
+} {}
+
+catch {unset i}
+catch {unset w}
+catch {unset idlist}
+catch {unset id}
+
+::tcltest::cleanupTests
+return

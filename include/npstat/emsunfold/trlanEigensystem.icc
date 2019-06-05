@@ -1,0 +1,198 @@
+#include <cassert>
+#include <algorithm>
+#include <numeric>
+
+#include "npstat/emsunfold/trlan77.h"
+#include "Eigen/SparseCore"
+
+namespace emsunfold {
+    namespace Private {
+        template <class Matrix>
+        class PointerHolder
+        {
+        public:
+            inline PointerHolder() : ptr_(0) {}
+
+            inline void set(const Matrix* p) {assert(p); ptr_ = p;}
+            inline const Matrix* get() const {assert(ptr_); return ptr_;}
+
+        private:
+            const Matrix* ptr_;
+        };
+    }
+}
+
+namespace {
+    template <class Matrix>
+    static emsunfold::Private::PointerHolder<Matrix>&
+    emsunfold_my_ph_instance()
+    {
+        static emsunfold::Private::PointerHolder<Matrix> h;
+        return h;
+    }
+
+    template <class Matrix>
+    static void emsunfold_my_matvec(const int* nrows,  const int* ncols,
+                                    const double* xin, const int* ldx,
+                                    double* yout, const int* ldy)
+    {
+        const Matrix* m = emsunfold_my_ph_instance<Matrix>().get();
+        assert(*nrows == m->rows());
+
+        for (int icol=0; icol<*ncols; ++icol)
+        {
+            const Eigen::Map<Eigen::RowVectorXd> rowvec(
+                const_cast<double*>(xin + *ldx * icol), *nrows);
+            Eigen::Map<Eigen::RowVectorXd> rvec(
+                yout + *ldy * icol, *nrows);
+            rvec = rowvec * *m;
+        }
+    }
+}
+
+namespace emsunfold {
+    namespace Private {
+        inline int nextEigensize(int currentEigenvalues,
+                                 const EigenParameters& p)
+        {
+            const int next = static_cast<int>(
+                currentEigenvalues*p.increaseRate());
+            if (next <= currentEigenvalues)
+                ++currentEigenvalues;
+            else
+                currentEigenvalues = next;
+            if (currentEigenvalues < p.minEigenvalues())
+                currentEigenvalues = p.minEigenvalues();
+            else if (currentEigenvalues > p.maxEigenvalues())
+                currentEigenvalues = p.maxEigenvalues();
+            return currentEigenvalues;
+        }
+    }
+
+    inline TrlanDiagnostics::TrlanDiagnostics()
+        : tailFraction_(-1.0)
+    {
+        for (int i=0; i<32; ++i)
+            ipar_[i] = 0;
+    }
+
+    inline TrlanDiagnostics::TrlanDiagnostics(const double tailFraction,
+                                              const int ipar[32])
+        : tailFraction_(tailFraction)
+    {
+        for (int i=0; i<32; ++i)
+            ipar_[i] = ipar[i];
+    }
+
+    template <class Matrix>
+    inline int trlanEigensystem(const Matrix& covmat,
+                                const EigenParameters& params,
+                                std::vector<double>* eigenvalues,
+                                std::vector<double>* eigenvectors,
+                                TrlanDiagnostics* diagnostics)
+    {
+        assert(eigenvalues);
+        assert(eigenvectors);
+        assert(diagnostics);
+
+        const double trace = covmat.diagonal().sum();
+        const int nrows = covmat.rows();
+        const int nonzer = covmat.nonZeros();
+        emsunfold_my_ph_instance<Matrix>().set(&covmat);
+
+        void(*op)(const int*,  const int*, const double*, const int*,
+                  double*, const int*) = &emsunfold_my_matvec<Matrix>;
+
+        std::vector<double> workspace;
+        int oldeigen = 0, status = 0, nconverged = 0;
+        double tail = 1.0;
+        int ipar[32];
+
+        for (int neigen = params.minEigenvalues();
+             neigen > oldeigen && status == 0;
+             neigen = Private::nextEigensize(neigen, params))
+        {
+            for (int i=0; i<32; ++i)
+                ipar[i] = 0;
+
+            int maxlan = params.lanczosBasisSize();
+            const int minlan = neigen + std::min(6, neigen);
+            if (maxlan < minlan)
+                maxlan = minlan;
+
+            ipar[1]  = 1;
+            ipar[2]  = neigen;
+            ipar[3]  = nconverged;
+            ipar[4]  = maxlan;
+            ipar[5]  = params.restartScheme();
+            ipar[6]  = params.maxOperatorCalls();
+            // ipar[7]  = 0;
+            ipar[8]  = -15;
+            ipar[9]  = 6;
+            ipar[10] = -1;
+            // ipar[11] = 0;
+            ipar[12] = 98;
+            ipar[13] = 2*nonzer;
+
+            if (eigenvalues->size() < static_cast<unsigned>(neigen))
+                eigenvalues->resize(neigen);
+            const long newsz = static_cast<long>(nrows)*neigen;
+            if (eigenvectors->size() < static_cast<unsigned long>(newsz))
+                eigenvectors->resize(newsz);
+            int lwrk = maxlan*(maxlan+10);
+            if (workspace.size() < static_cast<unsigned>(lwrk))
+                workspace.resize(lwrk);
+            workspace[0] = params.tolerance();
+
+            double* eval = &(*eigenvalues)[0];
+            trlan77_(op, ipar, &nrows, &neigen, eval, &(*eigenvectors)[0],
+                     &nrows, &workspace[0], &lwrk);
+
+            status = ipar[0];
+            nconverged = ipar[3];
+            long double sum = 0.0L;
+            bool haveZeroEigen = false;
+            for (int i=0; i<nconverged; ++i)
+                if (eval[i] <= 0.0)
+                    haveZeroEigen = true;
+                else
+                    sum += eval[i];
+            const double tr = sum;
+
+            tail = (trace - tr)/trace;
+            if (tail < 0.0)
+                tail = 0.0;
+            if (tail <= params.tailFraction() || haveZeroEigen)
+                break;
+
+            oldeigen = neigen;
+        }
+
+        *diagnostics = TrlanDiagnostics(tail, ipar);
+
+        // Check that the result is sorted in the order of increasing
+        // eigenvalues, as expected
+        for (int i=1; i<nconverged; ++i)
+            assert((*eigenvalues)[i-1] <= (*eigenvalues)[i]);
+
+        return status;
+    }
+}
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const emsunfold::TrlanDiagnostics& d)
+{
+    os << "finalTailFraction = " << d.finalTailFraction()
+       << ", status = " << d.status()
+       << ", nConverged = " << d.nConverged()
+       << ", nLocked = " << d.nLocked()
+       << ", nMatVec = " << d.nMatVec()
+       << ", nRestart = " << d.nRestart()
+       << ", nOrth = " << d.nOrth()
+       << ", nRand = " << d.nRand()
+       << ", tTotal = " << d.tTotal()
+       << ", tMatVec = " << d.tMatVec()
+       << ", tOrth = " << d.tOrth()
+       << ", tRestart = " << d.tRestart();
+    return os;
+}

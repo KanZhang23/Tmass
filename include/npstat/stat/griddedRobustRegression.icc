@@ -1,0 +1,224 @@
+#include <map>
+#include <cassert>
+#include <iostream>
+#include <stdexcept>
+
+#include "geners/CPP11_array.hh"
+
+namespace npstat {
+    namespace Private {
+        template <unsigned MaxDim>
+        void fillSubrange(const ArrayND<double>& in,
+                          const unsigned* from,
+                          ArrayND<double>* window,
+                          unsigned* indexInsideSubrange)
+        {
+            assert(from);
+            assert(window);
+            assert(indexInsideSubrange);
+            const unsigned dim = in.rank();
+            assert(window->rank() == dim);
+ 
+            // Index of the point inside the hyperrectangle
+            unsigned corner[MaxDim];
+            for (unsigned i=0; i<dim; ++i)
+            {
+                const unsigned span = in.span(i);
+                const unsigned N = window->span(i);
+                const unsigned halfN = N/2U;
+
+                if (from[i] < halfN)
+                {
+                    indexInsideSubrange[i] = from[i];
+                    corner[i] = 0U;
+                }
+                else if (from[i] + halfN >= span)
+                {
+                    indexInsideSubrange[i] = N + from[i] - span;
+                    corner[i] = span - N;
+                }
+                else
+                {
+                    indexInsideSubrange[i] = halfN;
+                    corner[i] = from[i] - halfN;
+                }
+            }
+
+            // Transfer the data into the hypercube
+            in.exportSubrange(corner, dim, window);
+        }
+
+
+        // Loss calculation functor for use with the ArrayND
+        // "processSubrange" method
+        template <unsigned MaxDim, unsigned MaxReplace>
+        class PenCalc2 : public AbsArrayProjector<double,void>
+        {
+        public:
+            typedef ReplacementBlock<MaxDim,MaxReplace> BlockReplacement;
+            typedef std::multimap<LocalLoss,BlockReplacement> Map;
+
+            PenCalc2(
+                ArrayND<double>& iout,
+                ArrayND<typename Map::iterator>& icoordToImprov,
+                Map& iimprovToCoord, ArrayND<double>& icalcArg,
+                const AbsLossCalculator<MaxDim,MaxReplace>& ilossCalc)
+                : out(iout), coordToImprov(icoordToImprov),
+                  improvToCoord(iimprovToCoord), calcArg(icalcArg),
+                  lossCalc(ilossCalc) {}
+
+            virtual void clear() {}
+            virtual void result() {}
+
+            virtual void process(const unsigned *index, unsigned indexLen,
+                                 unsigned long /* linearIndex */,
+                                 const double& /* value */)
+            {
+               unsigned argInd[MaxDim];
+               fillSubrange<MaxDim>(out, index, &calcArg, argInd);
+
+               BlockReplacement block;
+               const LocalLoss& loss = lossCalc(
+                   calcArg, argInd, index, &block);
+
+               typename Map::iterator& val(coordToImprov.value(index,indexLen));
+               improvToCoord.erase(val);
+               val = improvToCoord.insert(std::make_pair(loss, block));
+            }
+
+        private:
+            ArrayND<double>& out;
+            ArrayND<typename Map::iterator>& coordToImprov;
+            Map& improvToCoord;
+            ArrayND<double>& calcArg;
+            const AbsLossCalculator<MaxDim,MaxReplace>& lossCalc;
+        };
+    }
+
+    template <unsigned MaxDim, unsigned MaxReplace>
+    unsigned long griddedRobustRegression(
+        const ArrayND<double>& in,
+        const unsigned *slidingWindowSize, const unsigned slidingWindowDim,
+        const AbsLossCalculator<MaxDim,MaxReplace>& lossCalc,
+        const Functor2<bool,LocalLoss,unsigned long>& stopCallback,
+        const Functor1<void,ArrayND<double> >* observationCallback,
+        const unsigned observationFrequency,
+        ArrayND<double>* out,
+        std::vector<
+           std::pair<LocalLoss,ReplacementBlock<MaxDim,MaxReplace> >
+        >* repairHistory, const bool verbose)
+    {
+        typedef ReplacementBlock<MaxDim,MaxReplace> BlockReplacement;
+        typedef std::multimap<LocalLoss,BlockReplacement> Map;
+
+        const unsigned dim = in.rank();
+        if (!(dim && dim <= MaxDim)) throw std::invalid_argument(
+            "In npstat::griddedRobustRegression: "
+            "input array rank is out of range");
+        if (slidingWindowDim != dim) throw std::invalid_argument(
+            "In npstat::griddedRobustRegression: "
+            "incompatible sliding window dimensionality");
+        assert(slidingWindowSize);
+        for (unsigned i=0; i<dim; ++i)
+            if (!(slidingWindowSize[i] > 1U && slidingWindowSize[i] % 2U))
+                throw std::invalid_argument(
+                    "In npstat::griddedRobustRegression: "
+                    "unsupported sliding window dimensions");
+        ArrayND<double> calcArg(slidingWindowSize, slidingWindowDim);
+
+        assert(out);
+        if (out != &in)
+        {
+            out->uninitialize();
+            *out = in;
+        }
+
+        ArrayND<typename Map::iterator> coordToImprov(in.shape());
+        Map improvToCoord;
+
+        BlockReplacement block;
+        unsigned indexInDataset[MaxDim];
+        unsigned indexInWindow[MaxDim];
+
+        // Initial cycle over all inputs
+        const unsigned long len = out->length();
+        for (unsigned long i=0; i<len; ++i)
+        {
+            out->convertLinearIndex(i, indexInDataset, dim);
+            Private::fillSubrange<MaxDim>(*out, indexInDataset,
+                                          &calcArg, indexInWindow);
+            const LocalLoss& loss = lossCalc(
+                calcArg, indexInWindow, indexInDataset, &block);
+            coordToImprov.linearValue(i) = 
+                improvToCoord.insert(std::make_pair(loss, block));
+        }
+
+        BoxND<int> limits(dim);
+        Private::PenCalc2<MaxDim,MaxReplace> recalc(
+            *out, coordToImprov, improvToCoord, calcArg, lossCalc);
+
+        // Run the replacement cycle
+        unsigned long irep = 0;
+        for (; ; ++irep)
+        {
+            // Check if we need to stop
+            typename Map::reverse_iterator it = improvToCoord.rbegin();
+            if (stopCallback(it->first, irep))
+                break;
+
+            // Check if we need to call the observation callback
+            if (observationFrequency && observationCallback)
+                if (irep % observationFrequency == 0UL)
+                    (*observationCallback)(*out);
+
+            // Perform all replacements and figure out
+            // the region affected by these replacements
+            const BlockReplacement& br(it->second);
+            if (br.nReplacements == 0)
+                break;
+
+            for (unsigned ir=0; ir<br.nReplacements; ++ir)
+            {
+                const PointReplacement<MaxDim>& rep(br.replacement[ir]);
+                out->value(&rep.coord[0], dim) = rep.improvedValue;
+                for (unsigned i=0; i<dim; ++i)
+                {
+                    const int halfN = slidingWindowSize[i]/2U;
+                    const int ix = rep.coord[i];
+                    if (ir)
+                    {
+                        if (ix-halfN < limits[i].min())
+                            limits[i].setMin(ix-halfN);
+                        if (ix+halfN >= limits[i].max())
+                            limits[i].setMax(ix+halfN+1);
+                    }
+                    else
+                        limits[i].setBounds(ix-halfN, ix+halfN+1);
+                }
+            }
+            if (repairHistory)
+                repairHistory->push_back(*it);
+
+            if (verbose)
+            {
+                std::cout << "Replaced " << br.nReplacements 
+                          << " point" << (br.nReplacements == 1 ? "" : "s")
+                          << " at";
+                for (unsigned i=0; i<dim; ++i)
+                    std::cout << ' ' << br.idx[i];
+                std::cout << std::endl;
+            }
+
+            // Recalculate the loss for the points in the
+            // affected region
+            out->processSubrange(recalc, limits);
+        }
+
+        // Call the observation callback one last time
+        // with the final result
+        if (observationFrequency && observationCallback)
+            (*observationCallback)(*out);
+
+        return irep;
+    }
+}

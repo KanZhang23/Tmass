@@ -1,0 +1,273 @@
+#include <cmath>
+#include <cfloat>
+#include <climits>
+#include <stdexcept>
+
+#include "npstat/nm/BoxNDScanner.hh"
+
+namespace npstat {
+    namespace Private {
+        inline unsigned getInd(const double xmin, const double xmax,
+                               const unsigned nbins, const double x)
+        {
+            if (x <= xmin)
+                return 0U;
+            else if (x < xmax)
+            {
+                const double bw = (xmax - xmin)/nbins;
+                const unsigned binnum=static_cast<unsigned>(floor((x-xmin)/bw));
+                if (binnum < nbins)
+                    return binnum;
+            }
+            return nbins - 1U;
+        }
+    }
+
+
+    template<class T>
+    inline CPP11_auto_ptr<std::vector<T> > productResponseMatrix(
+        const npstat::BoxND<double>& unfoldedBox,
+        const std::vector<unsigned>& unfoldedShape,
+        const npstat::BoxND<double>& observedBox,
+        const std::vector<unsigned>& observedShape,
+        npstat::ProductDistributionND& inDistro,
+        const std::vector<npstat::AbsMultivariateFunctor*>& shifts,
+        const std::vector<npstat::AbsMultivariateFunctor*>& widthFactors)
+    {
+        const unsigned long intmax = INT_MAX;
+
+        // Check that all arguments have compatible dimensionalities/sizes
+        const unsigned dim = inDistro.dim();
+        if (!(dim == unfoldedBox.dim() &&
+              dim == unfoldedShape.size() &&
+              dim == observedBox.dim() &&
+              dim == observedShape.size() &&
+              dim == shifts.size() &&
+              dim == widthFactors.size())) throw std::invalid_argument(
+                  "In npstat::productResponseMatrix: incompatible "
+                  "dimensionality of the inputs");
+
+        if (dim >= CHAR_BIT*sizeof(unsigned long)) throw std::invalid_argument(
+            "In npstat::productResponseMatrix: problem dimensionality "
+            "is too large");
+        const unsigned long maxcycle = 1UL << dim;
+
+        if (!inDistro.isScalable()) throw std::invalid_argument(
+            "In npstat::productResponseMatrix: input product "
+            "distribution is not scalable");
+
+        for (unsigned i=0; i<dim; ++i)
+        {
+            // Check that location and scale functions
+            // have compatible dimensionalities
+            if (shifts[i])
+                if (shifts[i]->minDim() > dim ||
+                    shifts[i]->maxDim() < dim)
+                    throw std::invalid_argument(
+                        "In npstat::productResponseMatrix: incompatible "
+                        "dimensionality of a shift function");
+            if (widthFactors[i])
+                if (widthFactors[i]->minDim() > dim ||
+                    widthFactors[i]->maxDim() < dim)
+                    throw std::invalid_argument(
+                        "In npstat::productResponseMatrix: incompatible "
+                        "dimensionality of a width factor function");
+
+            // Check that ne number of bins is reasonable
+            if (!unfoldedShape[i]) throw std::invalid_argument(
+                "In npstat::productResponseMatrix: invalid "
+                "shape definition for the unfolded space");
+            if (!observedShape[i]) throw std::invalid_argument(
+                "In npstat::productResponseMatrix: invalid "
+                "shape definition for the observed space");
+        }
+
+        // Get the vector of distributions. Static cast is appropriate
+        // because we have already checked the scalability.
+        std::vector<npstat::AbsScalableDistribution1D*> distroVec(dim);
+        for (unsigned i=0; i<dim; ++i)
+            distroVec[i] = static_cast<npstat::AbsScalableDistribution1D*>(
+                inDistro.getMarginal(i));
+        npstat::AbsScalableDistribution1D** distros = &distroVec[0];
+
+        // Parse out the memory
+        std::vector<double> dblBuf(8*dim);
+        double* unfoldedStep = &dblBuf[0];
+        double* observedStep = unfoldedStep + dim;
+        double* origShifts = observedStep + dim;
+        double* origScales = origShifts + dim;
+        double* centers = origScales + dim;
+        double* minvals = centers + dim;
+        double* maxvals = minvals + dim;
+        double* point = maxvals + dim;
+
+        std::vector<unsigned> unsignedBuf(2*dim);
+        unsigned* minIndex = &unsignedBuf[0];
+        unsigned* scanLen = minIndex + dim;
+
+        std::vector<unsigned long> ulongBuf(2*dim);
+        unsigned long* scanStrides = &ulongBuf[0];
+        unsigned long* observedStrides = scanStrides + dim;
+
+        // Calculate strides for the observed space */
+        observedStrides[dim - 1] = 1UL;
+        for (unsigned j=dim - 1; j>0; --j)
+            observedStrides[j - 1] = observedStrides[j]*observedShape[j];
+        const unsigned long nObserved = observedStrides[0]*observedShape[0];
+        if (nObserved > intmax) throw std::invalid_argument(
+            "In npstat::productResponseMatrix: "
+            "too many cells in the observed space");
+
+        // The step size for each dimension
+        for (unsigned i=0; i<dim; ++i)
+        {
+            unfoldedStep[i] = (unfoldedBox[i].max() - unfoldedBox[i].min())/
+                unfoldedShape[i];
+            observedStep[i] = (observedBox[i].max() - observedBox[i].min())/
+                observedShape[i];
+        }
+
+        // Original shifts and scales
+        for (unsigned i=0; i<dim; ++i)
+        {
+            origShifts[i] = distros[i]->location();
+            origScales[i] = distros[i]->scale();
+        }
+
+        // We will need to integrate over the observed space and average
+        // over the unfolded space. Use two-point Gauss–Legendre quadrature
+        // for averaging.
+        const double dxgl = 0.5*sqrt(1.0/3.0);
+
+        // Prepare to cycle over bins in the unfolded space
+        npstat::BoxNDScanner<double> scan(unfoldedBox, unfoldedShape);
+        if (scan.maxState() > intmax) throw std::invalid_argument(
+            "In npstat::productResponseMatrix: "
+            "too many cells in the unfolded space");
+
+        // Cycle over bins in the unfolded space and collect
+        // non-zero values in the response matrix
+        CPP11_auto_ptr<std::vector<T> > triplets(new std::vector<T>());
+        for (; scan.isValid(); ++scan)
+        {
+            const unsigned long unfoldedLinearBin = scan.state();
+            scan.getCoords(centers, dim);
+            for (unsigned i=0; i<dim; ++i)
+            {
+                minvals[i] = DBL_MAX;
+                maxvals[i] = -DBL_MAX;
+            }
+
+            // Cycle over points to average and figure out the limits
+            // in the observed space
+            for (unsigned long icycle=0UL; icycle<maxcycle; ++icycle)
+            {
+                for (unsigned i=0; i<dim; ++i)
+                {
+                    if (icycle & (1UL << i))
+                        point[i] = centers[i] + unfoldedStep[i]*dxgl;
+                    else
+                        point[i] = centers[i] - unfoldedStep[i]*dxgl;
+                }
+
+                for (unsigned i=0; i<dim; ++i)
+                {
+                    const double m = shifts[i] ? (*shifts[i])(point, dim) : 0.0;
+                    const double s = widthFactors[i] ?
+                        (*widthFactors[i])(point, dim) : 1.0;
+                    distros[i]->setLocation(origShifts[i] + point[i] + m);
+                    distros[i]->setScale(origScales[i]*s);
+
+                    const double q0 = distros[i]->quantile(0.0);
+                    if (q0 < minvals[i])
+                        minvals[i] = q0;
+
+                    const double q1 = distros[i]->quantile(1.0);
+                    if (q1 > maxvals[i])
+                        maxvals[i] = q1;
+                }
+            }
+
+            // Figure out the minimum and the maximum indices
+            // to scan in the observed space
+            for (unsigned i=0; i<dim; ++i)
+            {
+                const double xmin = observedBox[i].min();
+                const double xmax = observedBox[i].max();
+                assert(minvals[i] <= maxvals[i]);
+                minIndex[i] = Private::getInd(
+                    xmin, xmax, observedShape[i], minvals[i]);
+                scanLen[i] = Private::getInd(
+                    xmin, xmax, observedShape[i], maxvals[i]) + 1U - minIndex[i];
+            }
+
+            // Strides for this scan
+            scanStrides[dim - 1] = 1UL;
+            for (unsigned j=dim - 1; j>0; --j)
+                scanStrides[j - 1] = scanStrides[j]*scanLen[j];
+            const unsigned long maxscan = scanStrides[0]*scanLen[0];
+
+            // Cycle over the cells in the observed space
+            for (unsigned long iscan=0; iscan<maxscan; ++iscan)
+            {
+                // Figure out the index in the observed space
+                unsigned long olinear = 0UL;
+                unsigned long l = iscan;
+                for (unsigned i=0; i<dim; ++i)
+                {
+                    const unsigned long idx = l / scanStrides[i];
+                    const unsigned oind = static_cast<unsigned>(idx)+minIndex[i];
+                    olinear += oind*observedStrides[i];
+                    l -= (idx * scanStrides[i]);
+                    minvals[i] = observedBox[i].min() + oind*observedStep[i];
+                    maxvals[i] = minvals[i] + observedStep[i];
+                }
+
+                long double sum = 0.0L;
+                for (unsigned long icycle=0UL; icycle<maxcycle; ++icycle)
+                {
+                    for (unsigned i=0; i<dim; ++i)
+                    {
+                        if (icycle & (1UL << i))
+                            point[i] = centers[i] + unfoldedStep[i]*dxgl;
+                        else
+                            point[i] = centers[i] - unfoldedStep[i]*dxgl;
+                    }
+
+                    double prod = 1.0;
+                    for (unsigned i=0; i<dim; ++i)
+                    {
+                        const double m = shifts[i] ?
+                            (*shifts[i])(point, dim) : 0.0;
+                        const double s = widthFactors[i] ?
+                            (*widthFactors[i])(point, dim) : 1.0;
+                        distros[i]->setLocation(origShifts[i] + point[i] + m);
+                        distros[i]->setScale(origScales[i]*s);
+
+                        const double c0 = distros[i]->cdf(minvals[i]);
+                        const double c1 = distros[i]->cdf(maxvals[i]);
+                        double d = c1 - c0;
+                        if (d < 0.0)
+                            d = 0.0;
+                        prod *= d;
+                    }
+                    sum += prod;
+                }
+                const double integ = sum/maxcycle;
+
+                if (integ > 0.0)
+                    // This becomes an entry in the sparse matrix
+                    triplets->push_back(T(olinear, unfoldedLinearBin, integ));
+            }
+        }
+
+        // Restore original locations and scales
+        for (unsigned i=0; i<dim; ++i)
+        {
+            distros[i]->setLocation(origShifts[i]);
+            distros[i]->setScale(origScales[i]);
+        }
+
+        return triplets;
+    }
+}

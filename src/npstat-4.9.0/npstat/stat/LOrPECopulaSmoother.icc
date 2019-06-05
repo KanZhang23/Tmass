@@ -1,0 +1,47 @@
+#include "npstat/stat/scanDensityAsWeight.hh"
+
+namespace npstat {
+    template <unsigned MaxLOrPEDegreeForCopulas>
+    LOrPECopulaSmoother<MaxLOrPEDegreeForCopulas>::LOrPECopulaSmoother(
+        const unsigned* nBinsInEachDim,
+        const unsigned dim, const double marginTolerance,
+        const unsigned nNormCycles,
+        const AbsDistributionND& kernel,
+        const double* taper, const unsigned maxDegree,
+        const double initialBw,
+        const typename Base::CVCalc* cvCalc,
+        const bool assumeCvCalcOwnership,
+        const double cvFactor, const unsigned nCV, const bool useConvolute)
+        : Base(nBinsInEachDim, dim, marginTolerance, nNormCycles, initialBw,
+               cvCalc, assumeCvCalcOwnership, cvFactor, nCV, useConvolute)
+    {
+        const std::vector<double>& bwVec = Base::bandwidthValues();
+        const unsigned nFilters = bwVec.size();
+        if (nFilters)
+        {
+            // Memory buffers
+            std::vector<double> bandwidthSet(dim);
+            std::vector<double> stepSize(dim);
+            for (unsigned j=0; j<dim; ++j)
+                stepSize[j] = 1.0/nBinsInEachDim[j];
+
+            // Generate all filters
+            for (unsigned ifilt=0; ifilt<nFilters; ++ifilt)
+            {
+                // Generate the weight
+                const double bw = bwVec[ifilt];
+                for (unsigned j=0; j<dim; ++j)
+                    bandwidthSet[j] = bw;
+                CPP11_auto_ptr<ArrayND<double> > w =
+                    scanDensityAsWeight(kernel, nBinsInEachDim,
+                                        &bandwidthSet[0], &stepSize[0],
+                                        dim, true);
+
+                // Generate the filter for this bandwidth
+                typename Base::Filter* f = new typename Base::Filter(
+                    taper, maxDegree, *w, this->copulaShape());
+                this->setFilter(ifilt, f);
+            }
+        }
+    }
+}

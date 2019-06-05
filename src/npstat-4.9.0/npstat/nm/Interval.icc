@@ -1,0 +1,161 @@
+#include <cmath>
+#include <cassert>
+
+namespace npstat {
+    template <typename Numeric>
+    inline Interval<Numeric> Interval<Numeric>::overlap(
+        const Interval<Numeric>& r) const
+    {
+        Interval<Numeric> over;
+        if (max_ == r.min_)
+            over.setBounds(max_, max_);
+        else if (r.max_ == min_)
+            over.setBounds(min_, min_);
+        else if (max_ > r.min_ && r.max_ > min_)
+        {
+            over.min_ = min_ < r.min_ ? r.min_ : min_;
+            over.max_ = max_ < r.max_ ? max_ : r.max_;
+        }
+        return over;
+    }
+
+    template <typename Numeric>
+    inline Numeric Interval<Numeric>::overlapLength(const Interval& r) const
+    {
+        if (max_ > r.min_ && r.max_ > min_)
+        {
+            const Numeric mn = min_ < r.min_ ? r.min_ : min_;
+            const Numeric mx = max_ < r.max_ ? max_ : r.max_;
+            return mx - mn;
+        }
+        else
+            return Numeric();
+    }
+
+    template <typename Numeric>
+    inline double Interval<Numeric>::overlapFraction(const Interval& r) const
+    {
+        if (max_ > r.min_ && r.max_ > min_)
+        {
+            const Numeric mn = min_ < r.min_ ? r.min_ : min_;
+            const Numeric mx = max_ < r.max_ ? max_ : r.max_;
+            return (mx - mn)*1.0/(max_ - min_);
+        }
+        else
+            return 0.0;
+    }
+
+    template <typename Numeric>
+    inline std::pair<Interval<Numeric>,Interval<Numeric> >
+    Interval<Numeric>::logicalDifference(
+        const Interval<Numeric>& r) const
+    {
+        std::pair<Interval,Interval> result;
+        if (r.length() == Numeric())
+            result.first = *this;
+        else
+        {
+            const bool rminInside = isInside(r.min_);
+            const bool rmaxInside = isInside(r.max_);
+            if (rminInside && rmaxInside)
+            {
+                result.first = Interval(min_, r.min_);
+                result.second = Interval(r.max_, max_);
+            }
+            else if (rminInside)
+                result.first = Interval(min_, r.min_);
+            else if (rmaxInside)
+                result.first = Interval(r.max_, max_);
+            else if (!(max_ > r.min_ && r.max_ > min_))
+                result.first = *this;
+        }
+        return result;
+    }
+
+    template <typename Numeric>
+    inline Interval<Numeric>& Interval<Numeric>::operator*=(const double r)
+    {
+        min_ *= r;
+        max_ *= r;
+        if (max_ < min_)
+            std::swap(min_, max_);
+        return *this;
+    }
+
+    template <typename Numeric>
+    inline Interval<Numeric>& Interval<Numeric>::moveMidpointTo0()
+    {
+        const Numeric len = max_ - min_;
+        max_ = len/static_cast<Numeric>(2);
+        min_ = -max_;
+        return *this;
+    }
+
+    template <typename Numeric>
+    inline Interval<Numeric>& Interval<Numeric>::expand(const double ir)
+    {
+        const double r = fabs(ir);
+        if (r != 1.0)
+        {
+            const Numeric center(static_cast<Numeric>((max_ + min_)*0.5));
+            min_ = center + (min_ - center)*r;
+            max_ = center + (max_ - center)*r;
+        }
+        return *this;
+    }
+
+    template <typename Numeric>
+    inline Interval<Numeric>& Interval<Numeric>::operator/=(const double r)
+    {
+        if (!r) throw std::domain_error(
+            "In npstat::Interval::operator/=: division by zero");
+        min_ /= r;
+        max_ /= r;
+        if (max_ < min_)
+            std::swap(min_, max_);
+        return *this;
+    }
+
+    template <typename Numeric>
+    inline Interval<Numeric>& Interval<Numeric>::operator+=(const Numeric r)
+    {
+        min_ += r;
+        max_ += r;
+        return *this;
+    }
+
+    template <typename Numeric>
+    inline Interval<Numeric>& Interval<Numeric>::operator-=(const Numeric r)
+    {
+        min_ -= r;
+        max_ -= r;
+        return *this;
+    }
+
+    template <typename Numeric>
+    template <typename Num2>
+    void Interval<Numeric>::linearMap(
+        const Interval<Num2> &r, double* a, double* b) const
+    {
+        if (max_ == min_) throw std::domain_error(
+            "In npstat::Interval::linearMap: zero length interval");
+        assert(a);
+        assert(b);
+        const Num2 rmax(r.max());
+        const Num2 rmin(r.min());
+        *a = static_cast<double>((rmax - rmin)*1.0/(max_ - min_));
+        *b = static_cast<double>((rmax + rmin) - *a*(max_ + min_))/2.0;
+    }
+}
+
+template <typename Numeric>
+bool operator==(const npstat::Interval<Numeric>& l,const npstat::Interval<Numeric>& r)
+{
+    return r.min() == l.min() && r.max() == l.max();
+}
+
+template <typename Numeric>
+bool operator!=(const npstat::Interval<Numeric>& l,const npstat::Interval<Numeric>& r)
+{
+    return !(l == r);
+}

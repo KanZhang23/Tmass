@@ -1,0 +1,200 @@
+#include <cmath>
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/stat/arrayStats.hh"
+#include "npstat/stat/amiseOptimalBandwidth.hh"
+#include "npstat/stat/LocalPolyFilter1D.hh"
+#include "npstat/stat/Distributions1D.hh"
+
+namespace npstat {
+    template<typename Numeric, typename Num2, typename NumOut>
+    void variableBandwidthSmooth1D(
+        const HistoND<Numeric>& histo,
+        const Num2* pilotDensity, const unsigned lenPilot,
+        const AbsDistribution1D& kernel, const double bandwidth,
+        const double power, const bool increaseBandwidthAtBoundary,
+        NumOut* result, const unsigned lenResult)
+    {
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::variableBandwidthSmooth1D: "
+            "input histogram must be one-dimensional");
+        const unsigned nbins = histo.nBins();
+        if (nbins != lenPilot) throw std::invalid_argument(
+            "In npstat::variableBandwidthSmooth1D: "
+            "incompatible number of bins between the input "
+            "histogram and the pilot estimate");
+        if (!(nbins <= lenResult)) throw std::invalid_argument(
+            "In npstat::variableBandwidthSmooth1D: "
+            "insufficient length of the output buffer");
+        if (bandwidth <= 0.0) throw std::invalid_argument(
+            "In npstat::variableBandwidthSmooth1D: "
+            "input bandwidth must be positive");
+        assert(pilotDensity);
+        assert(result);
+
+        long double logSum = 0.0L, binSum = 0.0L;
+        const Numeric* bins = histo.binContents().data();
+        const Numeric zero = static_cast<Numeric>(0);
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+            if (bins[ibin] > zero)
+            {
+                const double d = static_cast<double>(pilotDensity[ibin]);
+                if (d <= 0.0) throw std::invalid_argument(
+                    "In npstat::variableBandwidthSmooth1D: "
+                    "incompatible pilot density");
+                logSum += bins[ibin]*log(d);
+                binSum += bins[ibin];
+            }
+        if (binSum <= 0.0L)  throw std::invalid_argument(
+            "In npstat::variableBandwidthSmooth1D: "
+            "sum of input bins is not positive");
+        const double norm = exp(static_cast<double>(power*logSum/binSum));
+
+        std::vector<double> workspace(2U*nbins, 0.0);
+        double* w = &workspace[0];
+        double* acc = w + nbins;
+
+        const double xmin = histo.axis(0).min();
+        const double xmax = histo.axis(0).max();
+        const double binwidth = histo.binVolume();
+        const double kerMin = kernel.quantile(0.0);
+        const double kerMax = kernel.quantile(1.0);
+
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+            if (bins[ibin] > zero)
+            {
+                // Calculate the pointwise bandwidth
+                const double d = static_cast<double>(pilotDensity[ibin]);
+                const double x = xmin + (ibin + 0.5)*binwidth;
+                double h = bandwidth*norm/pow(d,power);
+
+                // Limits for the kernel scan
+                unsigned minbin = 0;
+                if (kerMin*h + x > xmin)
+                    minbin = histo.axis(0).binNumber(kerMin*h + x);
+
+                unsigned maxbin = nbins;
+                if (kerMax*h + x < xmax)
+                    maxbin = histo.axis(0).binNumber(kerMax*h + x);
+                if (maxbin < nbins)
+                    ++maxbin;
+
+                // Scan the kernel and calculate the normalization.
+                // Note that this has to be done every time because
+                // the kernel bandwidth is different for every bin.
+                long double integ = 0.0L;
+                for (unsigned i=minbin; i<maxbin; ++i)
+                {
+                    const double xi = xmin + (i + 0.5)*binwidth;
+                    w[i] = kernel.density((xi - x)/h)/h;
+                    integ += w[i];
+                }
+                integ *= binwidth;
+
+                if (increaseBandwidthAtBoundary)
+                {
+                    h /= static_cast<double>(integ);
+
+                    minbin = 0;
+                    if (kerMin*h + x > xmin)
+                        minbin = histo.axis(0).binNumber(kerMin*h + x);
+
+                    maxbin = nbins;
+                    if (kerMax*h + x < xmax)
+                        maxbin = histo.axis(0).binNumber(kerMax*h + x);
+                    if (maxbin < nbins)
+                        ++maxbin;
+
+                    integ = 0.0L;
+                    for (unsigned i=minbin; i<maxbin; ++i)
+                    {
+                        const double xi = xmin + (i + 0.5)*binwidth;
+                        w[i] = kernel.density((xi - x)/h)/h;
+                        integ += w[i];
+                    }
+                    integ *= binwidth;
+                }
+
+                const double inorm = bins[ibin]/static_cast<double>(integ);
+                for (unsigned i=minbin; i<maxbin; ++i)
+                    acc[i] += inorm*w[i];
+            }
+
+        // Renormalize the whole estimate
+        long double integ = 0.0L;
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+            integ += acc[ibin];
+        const double denom = static_cast<double>(integ*binwidth);
+
+        // Fill the result array
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+            result[ibin] = static_cast<NumOut>(acc[ibin]/denom);
+    }
+
+    template<typename Numeric, typename NumOut>
+    double weightedVariableBandwidthSmooth1D(
+        const HistoND<Numeric>& histo, const double n, const int symbetaPower,
+        NumOut* result, const unsigned lenResult, const double bandwidthFactor)
+    {
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::weightedVariableBandwidthSmooth1D: "
+            "input histogram must be one-dimensional");
+        const unsigned nbins = histo.nBins();
+        if (!(nbins <= lenResult)) throw std::invalid_argument(
+            "In npstat::weightedVariableBandwidthSmooth1D: "
+            "insufficient length of the output buffer");
+        if (bandwidthFactor <= 0.0) throw std::invalid_argument(
+            "In npstat::weightedVariableBandwidthSmooth1D: "
+            "bandwidth factor must be positive");
+        if (n <= 0.0) throw std::invalid_argument(
+            "In npstat::weightedVariableBandwidthSmooth1D: "
+            "effective sample size must be positive");
+
+        // Figure out the width of the distribution in a robust manner
+        const double xmin = histo.axis(0).min();
+        const double xmax = histo.axis(0).max();
+        const double qvalues[2] = {0.15865525393145705, 0.84134474606854295};
+        double quantiles[2];
+        arrayQuantiles1D(histo.binContents().data(), nbins, xmin, xmax,
+                         qvalues, quantiles, 2U);
+        const double dataSigma = (quantiles[1] - quantiles[0])/2.0;
+
+        // Determine the plugin bandwidth
+        const double amiseBw = symbetaPower < 0 ?
+            amisePluginBwGauss(0U, n, dataSigma) :
+            amisePluginBwSymbeta(symbetaPower, 0U, n, dataSigma);
+
+        // Bandwidth for the pilot estimate
+        const double pilotBw = amiseBw*bandwidthFactor;
+
+        // Build the pilot estimate
+        ArrayND<double> pilot(nbins);
+        CPP11_auto_ptr<LocalPolyFilter1D> filter = symbetaLOrPEFilter1D(
+            symbetaPower, pilotBw, 0, nbins, xmin, xmax, BoundaryHandling());
+        filter->filter(histo.binContents().data(), nbins,
+                       const_cast<double*>(pilot.data()));
+
+        // Kernel for the variable bandwidth smoother
+        Gauss1D gauss(0.0, 1.0);
+        SymmetricBeta1D symb(0.0, 1.0, symbetaPower < 0 ? 0 : symbetaPower);
+        AbsScalableDistribution1D* kernel = symbetaPower < 0 ?
+            dynamic_cast<AbsScalableDistribution1D*>(&gauss) :
+            dynamic_cast<AbsScalableDistribution1D*>(&symb);
+
+        // Run the variable bandwidth smoother
+        variableBandwidthSmooth1D(histo, pilot.data(), nbins, *kernel,
+                                  pilotBw, 0.5, false, result, lenResult);
+        return pilotBw;
+    }
+
+    template<typename Numeric, typename NumOut>
+    inline double simpleVariableBandwidthSmooth1D(
+        const HistoND<Numeric>& histo, const int symbetaPower,
+        NumOut* result, const unsigned lenResult, const double bandwidthFactor)
+    {
+        const double n = histo.nFillsInRange();
+        return weightedVariableBandwidthSmooth1D(histo, n, symbetaPower, result,
+                                                 lenResult, bandwidthFactor);
+    }
+}

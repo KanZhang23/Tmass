@@ -1,0 +1,78 @@
+#include <cassert>
+#include <climits>
+#include <stdexcept>
+
+#include "npstat/stat/interpolateHistoND.hh"
+#include "npstat/nm/ArrayNDScanner.hh"
+
+namespace npstat {
+    template <class H1, class H2, class H3>
+    void mergeTwoHistos(const H1& h1, const H2& h2,
+                        const AbsMultivariateFunctor& wFunct,
+                        H3* result, const bool truncateWeight,
+                        const unsigned interDeg)
+    {
+        assert(result);
+
+        const unsigned dim = h1.dim();
+        if (dim == 0 || dim > CHAR_BIT*sizeof(unsigned long))
+            throw std::invalid_argument(
+                "In npstat::mergeTwoHistos: "
+                "histogram dimensionality is out of range");
+        if (dim != h2.dim() || dim != result->dim())
+            throw std::invalid_argument(
+                "In npstat::mergeTwoHistos: "
+                "incompatible histogram dimensionalities");
+        if (dim != wFunct.minDim())
+            throw std::invalid_argument(
+                "In npstat::mergeTwoHistos: "
+                "incompatible functor dimensionality");
+
+        double coordBuf[CHAR_BIT*sizeof(unsigned long)];
+        unsigned indexBuf[CHAR_BIT*sizeof(unsigned long)];
+        unsigned indexBuf2[CHAR_BIT*sizeof(unsigned long)];
+        for (unsigned i=0; i<dim; ++i)
+            indexBuf2[i] = UINT_MAX;
+
+        const typename H3::value_type zero = typename H3::value_type();
+
+        for (ArrayNDScanner scanner(result->binContents().shapeData(), dim);
+             scanner.isValid(); ++scanner)
+        {
+            // Get the bin coordinate (works for non-uniform histos as well)
+            scanner.getIndex(indexBuf, dim);
+            for (unsigned i=0; i<dim; ++i)
+                if (indexBuf2[i] != indexBuf[i])
+                {
+                    coordBuf[i] = result->axis(i).binCenter(indexBuf[i]);
+                    indexBuf2[i] = indexBuf[i];
+                }
+
+            // Calculate the weight
+            double w1 = wFunct(coordBuf, dim);
+            if (truncateWeight)
+            {
+                if (w1 < 0.0)
+                    w1 = 0.0;
+                if (w1 > 1.0)
+                    w1 = 1.0;
+            }
+            const double w2 = 1.0 - w1;
+
+            if (truncateWeight && w2 == 1.0)
+                // Speed things up a little by truncating
+                // small non-zero weights for h1
+                w1 = 0.0;
+
+            typename H3::value_type v1 = zero;
+            if (w1)
+                v1 = interpolateHistoND(h1, coordBuf, dim, interDeg) * w1;
+
+            typename H3::value_type v2 = zero;
+            if (w2)
+                v2 = interpolateHistoND(h2, coordBuf, dim, interDeg) * w2;
+
+            result->setBin(indexBuf, dim, v1 + v2);
+        }
+    }
+}

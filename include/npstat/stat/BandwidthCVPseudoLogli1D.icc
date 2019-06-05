@@ -1,0 +1,269 @@
+#include <cmath>
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/stat/AbsPolyFilter1D.hh"
+
+namespace npstat {
+    // CV for unweighted samples
+    template<typename Numeric, typename Num2, typename Num3, typename Num4>
+    double BandwidthCVPseudoLogli1D<Numeric,Num2,Num3,Num4>::operator()(
+        const HistoND<Numeric>& histo,
+        const Num2* densData, const unsigned lenEstimate,
+        const AbsPolyFilter1D& filterUsed) const
+    {
+        // Check consistency of the arguments
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+            "input histogram must be one-dimensional");
+        const unsigned nbins = histo.nBins();
+        if (nbins != lenEstimate) throw std::invalid_argument(
+            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+            "histogram and density estimate are not compatible");
+        assert(densData);
+        if (nbins != filterUsed.dataLen()) throw std::invalid_argument(
+            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+            "histogram and filter are not compatible");
+        const unsigned long N = histo.nFillsInRange();
+        if (N <= 1UL) throw std::invalid_argument(
+            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+            "not enough data for cross validation");
+        const double sqrtN = pow(static_cast<double>(N), renormPow_);
+
+        // Check that the density estimate normalization is "reasonable"
+        long double densitySum = 0.0L;
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+            densitySum += densData[ibin];
+        const double binWidth = histo.binVolume();
+        const double densityInteg = densitySum*binWidth;
+        if (fabs(densityInteg - 1.0) >= 0.01) throw std::invalid_argument(
+            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+            "input density is not properly normalized");
+
+        // Start accumulating the leaving-one-out log-likelihoods
+        long double logli = 0.0L;
+        const Numeric* bins = histo.binContents().data();
+        const Numeric zero = static_cast<Numeric>(0);
+        nonZeroCount_ = 0UL;
+        renormCount_ = 0UL;
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+            if (bins[ibin] > zero)
+            {
+                ++nonZeroCount_;
+
+                // Figure out the contribution of one event falling
+                // into this histogram bin into the density estimate
+                // at this bin
+                const double fVal = filterUsed.selfContribution(ibin);
+                const double weight = densityInteg*fVal/N/binWidth;
+
+                // Construct the density at this bin without one event
+                const double densityOneOut = N*(densData[ibin]-weight)/(N-1UL);
+                const double minDensity = bins[ibin]*weight/sqrtN;
+                if (densityOneOut <= minDensity)
+                {
+                    logli += bins[ibin]*log(minDensity);
+                    ++renormCount_;
+                }
+                else
+                    logli += bins[ibin]*log(densityOneOut);
+            }
+
+        return static_cast<double>(logli);
+    }
+
+    // CV for weighted samples
+    template<typename Numeric, typename Num2, typename Num3, typename Num4>
+    double BandwidthCVPseudoLogli1D<Numeric,Num2,Num3,Num4>::operator()(
+        const HistoND<Numeric>& histo,
+        const double effectiveSampleSize,
+        const Num2* densData, const unsigned lenEstimate,
+        const AbsPolyFilter1D& filterUsed) const
+    {
+        // Check consistency of the arguments
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+            "input histogram must be one-dimensional");
+        const unsigned nbins = histo.nBins();
+        if (nbins != lenEstimate) throw std::invalid_argument(
+            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+            "histogram and density estimate are not compatible");
+        assert(densData);
+        if (nbins != filterUsed.dataLen()) throw std::invalid_argument(
+            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+            "histogram and filter are not compatible");
+        if (effectiveSampleSize <= 1.0) throw std::invalid_argument(
+            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+            "not enough data for cross validation");
+        const double sqrtN = pow(effectiveSampleSize, renormPow_);
+        const double wsum = histo.binContents().template sum<long double>();
+
+        // Average weight of one effective event
+        const double w1eff = wsum/effectiveSampleSize;
+
+        // Check that the density estimate normalization is "reasonable"
+        long double densitySum = 0.0L;
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+            densitySum += densData[ibin];
+        const double binWidth = histo.binVolume();
+        const double densityInteg = densitySum*binWidth;
+        if (fabs(densityInteg - 1.0) >= 0.01) throw std::invalid_argument(
+            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+            "input density is not properly normalized");
+
+        // Start accumulating the leaving-one-out log-likelihoods
+        long double logli = 0.0L;
+        const Numeric* bins = histo.binContents().data();
+        const Numeric zero = static_cast<Numeric>(0);
+        nonZeroCount_ = 0UL;
+        renormCount_ = 0UL;
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+            if (bins[ibin] > zero)
+            {
+                ++nonZeroCount_;
+
+                const double binValue = bins[ibin];
+                const double wminus = binValue > w1eff ? w1eff : binValue;
+                const double weightLeft = wsum - wminus;
+                if (weightLeft <= 0.0) throw std::invalid_argument(
+                    "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+                    "not enough filled bins for cross validation");
+
+                // Figure out the contribution of unit weight falling
+                // into this histogram bin into the density estimate
+                // at this bin
+                const double fVal = filterUsed.selfContribution(ibin);
+                const double weightOf1 = densityInteg*fVal/wsum/binWidth;
+
+                // Construct the density at this bin without the contribution
+                // from the bin itself
+                const double densityBinOut =
+                    wsum*(densData[ibin] - weightOf1*wminus)/weightLeft;
+
+                // Construct the minimum density regularizing the criterion
+                const double minDensity = binValue*weightOf1/sqrtN;
+                if (densityBinOut <= minDensity)
+                {
+                    logli += binValue*log(minDensity);
+                    ++renormCount_;
+                }
+                else
+                    logli += binValue*log(densityBinOut);
+            }
+
+        return static_cast<double>(logli);
+    }
+
+    // CV for weighted samples in case the sample is available
+    template<typename Numeric, typename Num2, typename Num3, typename Num4>
+    double BandwidthCVPseudoLogli1D<Numeric,Num2,Num3,Num4>::operator()(
+            const HistoND<Numeric>& histo,
+            const std::pair<Num3, Num4>* sample, const unsigned long lenSample,
+            const Num2* densData, const unsigned lenEstimate,
+            const AbsPolyFilter1D& filterUsed) const
+    {
+        // Check consistency of the arguments
+        if (histo.dim() != 1U) throw std::invalid_argument(
+            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+            "input histogram must be one-dimensional");
+        const unsigned nbins = histo.nBins();
+        if (nbins != lenEstimate) throw std::invalid_argument(
+            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+            "histogram and density estimate are not compatible");
+        assert(sample);
+        assert(densData);
+        if (nbins != filterUsed.dataLen()) throw std::invalid_argument(
+            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+            "histogram and filter are not compatible");
+        const typename HistoND<Numeric>::axis_type& axis = histo.axis(0);
+        const Numeric* bins = histo.binContents().data();
+        const int intbins = nbins;
+        unsigned long posLen = 0;
+        long double samplesum = 0.0L, samplesumsq = 0.0L;
+        for (unsigned long i=0; i<lenSample; ++i)
+        {
+            const double w = sample[i].second;
+            if (w < 0.0) throw std::invalid_argument(
+                "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+                "sample points can not have negative weights");
+            if (w > 0.0)
+            {
+                const int binnum = axis.binNumber(sample[i].first);
+                if (binnum >= 0 && binnum < intbins)
+                {
+                    ++posLen;
+                    samplesum += w;
+                    samplesumsq += w*w;
+                    if (static_cast<double>(bins[binnum]) <= 0.99*w)
+                        throw std::invalid_argument(
+                            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+                            "histogram is not compatible with the input sample");
+                }
+            }
+        }
+        if (posLen <= 1UL) throw std::invalid_argument(
+            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+            "not enough data for cross validation");
+        const double wsum = histo.binContents().template sum<long double>();
+        if (fabs(wsum/samplesum - 1.0L) >= 0.01) throw std::invalid_argument(
+            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+            "histogram bin sum is not compatible with the input sample");
+        const double effectiveSampleSize = samplesum*samplesum/samplesumsq;
+        const double sqrtN = pow(effectiveSampleSize, renormPow_);
+
+        // Check that the density estimate normalization is "reasonable"
+        long double densitySum = 0.0L;
+        nonZeroCount_ = 0UL;
+        const Numeric zero = static_cast<Numeric>(0);
+        for (unsigned ibin=0; ibin<nbins; ++ibin)
+        {
+            densitySum += densData[ibin];
+            if (bins[ibin] > zero)
+                ++nonZeroCount_;
+        }
+        const double binWidth = histo.binVolume();
+        const double densityInteg = densitySum*binWidth;
+        if (fabs(densityInteg - 1.0) >= 0.01) throw std::invalid_argument(
+            "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+            "input density is not properly normalized");
+
+        // Start accumulating the leaving-one-out log-likelihoods
+        long double logli = 0.0L;
+        renormCount_ = 0UL;
+        for (unsigned long i=0; i<lenSample; ++i)
+        {
+            const double wminus = sample[i].second;
+            if (wminus == 0.0) continue;
+
+            const int binnum = axis.binNumber(sample[i].first);
+            if (binnum < 0 || binnum >= intbins) continue;
+
+            const double weightLeft = samplesum - wminus;
+            if (weightLeft <= 0.0) throw std::invalid_argument(
+                "In npstat::BandwidthCVPseudoLogli1D::operator(): "
+                "not enough filled bins for cross validation");
+
+            // Figure out the contribution of unit weight with
+            // this coordinate into the density estimate at this bin
+            const double fVal = filterUsed.selfContribution(binnum);
+            const double weightOf1 = densityInteg*fVal/samplesum/binWidth;
+
+            // Construct the density at this bin without the contribution
+            // from the bin itself
+            const double densityBinOut =
+                samplesum*(densData[binnum] - weightOf1*wminus)/weightLeft;
+
+            // Construct the minimum density regularizing the criterion
+            const double minDensity = wminus*weightOf1/sqrtN;
+            if (densityBinOut <= minDensity)
+            {
+                logli += wminus*log(minDensity);
+                ++renormCount_;
+            }
+            else
+                logli += wminus*log(densityBinOut);
+        }
+
+        return static_cast<double>(logli);
+    }
+}

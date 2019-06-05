@@ -1,0 +1,195 @@
+#include <climits>
+#include <stdexcept>
+
+namespace emsunfold {
+    template<class Matrix>
+    inline void AbsSparseUnfoldND<Matrix>::initialize()
+    {
+        const unsigned unfoldedRank = unfoldedShape_.size();
+        const unsigned observedRank = observedShape_.size();
+        if (!(unfoldedRank && observedRank)) throw std::invalid_argument(
+            "In emsunfold::AbsSparseUnfoldND::initialize: expected rank "
+            "of both unfolded and observed array must be positive");
+
+        unsigned long unfoldedLen = 1UL, observedLen = 1UL;
+        for (unsigned i=0; i<unfoldedRank; ++i)
+            unfoldedLen *= unfoldedShape_[i];
+        for (unsigned i=0; i<observedRank; ++i)
+            observedLen *= observedShape_[i];
+
+        if (!(unfoldedLen && observedLen)) throw std::invalid_argument(
+            "In emsunfold::AbsSparseUnfoldND::initialize: expected size "
+            "of both unfolded and observed array must be positive");
+
+        if (unfoldedLen > static_cast<unsigned long>(INT_MAX))
+            throw std::invalid_argument(
+                "In emsunfold::AbsSparseUnfoldND::initialize: "
+                "expected size of unfolded array is too large");
+
+        if (observedLen > static_cast<unsigned long>(INT_MAX))
+            throw std::invalid_argument(
+                "In emsunfold::AbsSparseUnfoldND::initialize: "
+                "expected size of observed array is too large");
+
+        if (unfoldedLen != static_cast<unsigned long>(responseMatrix_.cols()))
+            throw std::invalid_argument(
+                "In emsunfold::AbsSparseUnfoldND::initialize: number of "
+                "columns in the response matrix is incompatible with the "
+                "expected shape of the unfolded array");
+
+        if (observedLen != static_cast<unsigned long>(responseMatrix_.rows()))
+            throw std::invalid_argument(
+                "In emsunfold::AbsSparseUnfoldND::initialize: number of rows "
+                "in the response matrix is incompatible with the expected "
+                "shape of the observed array");
+
+        responseMatrix_.makeCompressed();
+
+        for (unsigned long col=0; col<unfoldedLen; ++col)
+        {
+            long double sum = 0.0L;
+            for (unsigned long row=0; row<observedLen; ++row)
+            {
+                const double value = responseMatrix_.coeff(row, col);
+                if (value < 0.0) throw std::invalid_argument(
+                    "In emsunfold::AbsSparseUnfoldND::initialize: all elements "
+                    "of the response matrix must be non-negative");
+                sum += value;
+            }
+            const double eff = sum;
+            if (eff <= 0.0)
+            {
+                std::ostringstream os;
+                os << "In emsunfold::AbsSparseUnfoldND::initialize: "
+                   << "efficiency for column " << col
+                   << " is not positive. Please repopulate this column "
+                   << "in the response matrix.";
+                throw std::invalid_argument(os.str());
+            }
+            efficiency_.linearValue(col) = eff;
+        }
+    }
+
+    template<class Matrix>
+    inline AbsSparseUnfoldND<Matrix>::AbsSparseUnfoldND(
+        const response_matrix_type& responseMatrix,
+        const npstat::ArrayShape& unfoldedShape,
+        const npstat::ArrayShape& observedShape)
+        : responseMatrix_(responseMatrix),
+          unfoldedShape_(unfoldedShape),
+          observedShape_(observedShape),
+          efficiency_(unfoldedShape),
+          filt_(0),
+          useConvolutions_(false)
+    {
+        initialize();
+    }
+
+    template<class Matrix>
+    inline AbsSparseUnfoldND<Matrix>::AbsSparseUnfoldND(
+        const response_matrix_type& responseMatrix,
+        const unsigned* unfoldedShape, const unsigned unfoldedDim,
+        const unsigned* observedShape, const unsigned observedDim)
+        : responseMatrix_(responseMatrix),
+          unfoldedShape_(unfoldedShape, unfoldedShape+unfoldedDim),
+          observedShape_(observedShape, observedShape+observedDim),
+          efficiency_(unfoldedShape),
+          filt_(0),
+          useConvolutions_(false)
+    {
+        assert(unfoldedShape);
+        assert(observedShape);
+        initialize();
+    }
+
+    template<class Matrix>
+    inline void AbsSparseUnfoldND<Matrix>::validateUnfoldedShape(
+        const npstat::ArrayND<double>& a) const
+    {
+        if (!a.isCompatible(unfoldedShape_)) throw std::invalid_argument(
+            "In emsunfold::AbsSparseUnfoldND::validateUnfoldedShape: "
+            "incompatible shape of the argument array");
+    }
+
+    template<class Matrix>
+    inline void AbsSparseUnfoldND<Matrix>::validateObservedShape(
+        const npstat::ArrayND<double>& a) const
+    {
+        if (!a.isCompatible(observedShape_)) throw std::invalid_argument(
+            "In emsunfold::AbsSparseUnfoldND::validateObservedShape: "
+            "incompatible shape of the argument array");
+    }
+
+    template<class Matrix>
+    inline void AbsSparseUnfoldND<Matrix>::validateUnfoldedShape(
+        const npstat::ArrayShape& shape) const
+    {
+        if (shape != unfoldedShape_) throw std::invalid_argument(
+            "In emsunfold::AbsSparseUnfoldND::validateUnfoldedShape: "
+            "incompatible argument shape");
+    }
+
+    template<class Matrix>
+    inline void AbsSparseUnfoldND<Matrix>::validateObservedShape(
+        const npstat::ArrayShape& shape) const
+    {
+        if (shape != observedShape_) throw std::invalid_argument(
+            "In emsunfold::AbsSparseUnfoldND::validateObservedShape: "
+            "incompatible argument shape");
+    }
+
+    template<class Matrix>
+    inline void AbsSparseUnfoldND<Matrix>::setInitialApproximation(
+        const npstat::ArrayND<double>& approx)
+    {
+        validateUnfoldedShape(approx);
+        initialApproximation_ = approx;
+    }
+
+    template<class Matrix>
+    inline void AbsSparseUnfoldND<Matrix>::clearInitialApproximation()
+    {
+        initialApproximation_.uninitialize();
+    }
+
+    template<class Matrix>
+    inline const npstat::ArrayND<double>&
+    AbsSparseUnfoldND<Matrix>::getInitialApproximation() const
+    {
+        return initialApproximation_;
+    }
+
+    template<class Matrix>
+    inline void AbsSparseUnfoldND<Matrix>::setFilter(const filter_type* f)
+    {
+        if (f)
+            validateUnfoldedShape(f->dataShape());
+        filt_ = f;
+    }
+
+    template<class Matrix>
+    inline const typename AbsSparseUnfoldND<Matrix>::filter_type *
+    AbsSparseUnfoldND<Matrix>::getFilter(const bool throwIfNull) const
+    {
+        if (!filt_ && throwIfNull) throw std::runtime_error(
+            "In emsunfold::AbsSparseUnfoldND::getFilter: "
+            "filter has not been set");
+        return filt_;
+    }
+
+    template<class Matrix>
+    inline void AbsSparseUnfoldND<Matrix>::buildUniformInitialApproximation(
+        const npstat::ArrayND<double>& observed,
+        npstat::ArrayND<double>* result) const
+    {
+        validateObservedShape(observed);
+        assert(result);
+        result->reshape(unfoldedShape_);
+        const long double effSum = efficiency_.sum<long double>();
+        const long double eff = effSum/efficiency_.length();
+        const long double observedSum = observed.sum<long double>();
+        const long double unfoldedSum = observedSum/eff;
+        const double u = unfoldedSum/result->length();
+        result->constFill(u);
+    }
+}

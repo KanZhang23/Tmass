@@ -1,0 +1,119 @@
+#include <cmath>
+#include <stdexcept>
+#include <algorithm>
+
+namespace npstat {
+    template <typename Numeric, typename Precise>
+    CircularBuffer<Numeric,Precise>::CircularBuffer(
+        const unsigned long sz)
+        : len_(sz), nfills_(0)
+    {
+        if (!sz) throw std::invalid_argument(
+            "In npstat::CircularBuffer constructor: "
+            "buffer size must be positive");
+        data_.reserve(sz);
+    }
+
+    template <typename Numeric, typename Precise>
+    inline void CircularBuffer<Numeric,Precise>::accumulate(
+        const Numeric& value)
+    {
+        if (nfills_ < len_)
+            data_.push_back(value);
+        else
+            data_[nfills_ % len_] = value;
+        ++nfills_;
+    }
+
+    template <typename Numeric, typename Precise>
+    inline bool CircularBuffer<Numeric,Precise>::operator==(
+        const CircularBuffer& r) const
+    {
+        return len_ == r.len_ && nfills_ == r.nfills_ && data_ == r.data_;
+    }
+
+    template <typename Numeric, typename Precise>
+    inline bool CircularBuffer<Numeric,Precise>::operator!=(
+        const CircularBuffer& r) const
+    {
+        return !(*this == r);
+    }
+
+    template <typename Numeric, typename Precise>
+    inline Numeric CircularBuffer<Numeric,Precise>::min() const
+    {
+        if (!data_.empty())
+        {
+            typename std::vector<Numeric>::const_iterator pos = 
+                std::min_element(data_.begin(), data_.end());
+            return *pos;
+        }
+        else
+            return Numeric();
+    }
+
+    template <typename Numeric, typename Precise>
+    inline Numeric CircularBuffer<Numeric,Precise>::max() const
+    {
+        if (!data_.empty())
+        {
+            typename std::vector<Numeric>::const_iterator pos = 
+                std::max_element(data_.begin(), data_.end());
+            return *pos;
+        }
+        else
+            return Numeric();
+    }
+
+    template <typename Numeric, typename Precise>
+    Precise CircularBuffer<Numeric,Precise>::sum() const
+    {
+        Precise sum = Precise();
+        if (!data_.empty())
+        {
+            const Numeric* d = &data_[0];
+            const unsigned long n = data_.size();
+            for (unsigned long i=0; i<n; ++i)
+                sum += d[i];
+        }
+        return sum;
+    }
+
+    template <typename Numeric, typename Precise>
+    Precise CircularBuffer<Numeric,Precise>::mean() const
+    {
+        const unsigned long n = data_.size();
+        if (!n) throw std::runtime_error(
+            "In npstat::CircularBuffer::mean: no data accumulated");
+        return sum()/n;
+    }
+
+    template <typename Numeric, typename Precise>
+    Precise CircularBuffer<Numeric,Precise>::stdev() const
+    {
+        const unsigned long n = data_.size();
+        if (!n) throw std::runtime_error(
+            "In npstat::CircularBuffer::stdev: no data accumulated");
+        if (n > 1UL)
+        {
+            const Precise m(mean());
+            Precise sumsq = Precise();
+            const Numeric* d = &data_[0];
+            for (unsigned long i=0; i<n; ++i)
+            {
+                const Precise delta = d[i] - m;
+                sumsq += delta*delta;
+            }
+            return std::sqrt(sumsq/(n - 1UL));
+        }
+        else
+            return Precise();
+    }
+
+    template <typename Numeric, typename Precise>
+    Precise CircularBuffer<Numeric,Precise>::meanUncertainty() const
+    {
+        const Precise n = data_.size();
+        return stdev()/std::sqrt(n);
+    }
+}

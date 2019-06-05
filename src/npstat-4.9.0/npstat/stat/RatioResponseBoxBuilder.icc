@@ -1,0 +1,130 @@
+#include <cassert>
+#include <cfloat>
+#include <stdexcept>
+#include <algorithm>
+
+#include "npstat/nm/PointDimensionality.hh"
+
+namespace npstat {
+    template <class Point>
+    inline RatioResponseBoxBuilder<Point>::RatioResponseBoxBuilder(
+        const unsigned denomDim,
+        const unsigned ratioDim,
+        const double numeratorCut,
+        const double badFraction)
+        : predictorDim_(denomDim),
+          ratioDim_(ratioDim),
+          numeratorCut_(numeratorCut),
+          frac_(badFraction)
+    {
+        const unsigned ds = PointDimensionality<Point>::dim_size;
+        if (predictorDim_ >= ds) throw std::invalid_argument(
+            "In npstat::RatioResponseBoxBuilder constructor: "
+            "invalid predictor dimension number");
+        if (ratioDim_ >= ds) throw std::invalid_argument(
+            "In npstat::RatioResponseBoxBuilder constructor: "
+            "invalid ratio dimension number");
+        if (numeratorCut_ <= 0.0) throw std::invalid_argument(
+            "In npstat::RatioResponseBoxBuilder constructor: "
+            "numerator cut must be positive");
+        if (frac_ < 0.0 || frac_ > 1.0) throw std::invalid_argument(
+            "In npstat::RatioResponseBoxBuilder constructor: "
+            "fraction argument is out of range");
+    }
+
+    template <class Point>
+    inline BoxND<double> RatioResponseBoxBuilder<Point>::makeResponseBox(
+        unsigned long /* uniqueId */,
+        const double* /* predictorCoords */, unsigned /* nPredictors */,
+        const BoxND<double>& /* predictorBox */,
+        std::vector<OrderedPointND<Point> >& /* data */) const
+    {
+        throw std::runtime_error(
+            "In npstat::RatioResponseBoxBuilder::makeResponseBox: "
+            "function not implemented");
+        return BoxND<double>(PointDimensionality<Point>::dim_size);
+    }
+
+    template <class Point>
+    BoxND<double> RatioResponseBoxBuilder<Point>::makeResponseBoxW(
+        const unsigned long /* uniqueId */,
+        const double* /* predictorCoords */, const unsigned /* nPredictors */,
+        const BoxND<double>& /* predictorBox */, const WeightedPtrVec& data,
+        const unsigned* dimsToUse, const unsigned nDimsToUse) const
+    {
+        typedef std::pair<typename Point::value_type, double> WeightedValue;
+        typedef std::vector<WeightedValue> WeightedValueVec;
+
+        assert(nDimsToUse);
+        assert(dimsToUse);
+
+        unsigned irDim = 0;
+        for (; irDim<nDimsToUse; ++irDim)
+            if (dimsToUse[irDim] == ratioDim_)
+                break;
+        if (irDim >= nDimsToUse) throw std::invalid_argument(
+            "In npstat::RatioResponseBoxBuilder::makeResponseBoxW: "
+            "ratio dimension is not used for box building");
+
+        const unsigned long nPoints = data.size();
+        if (nPoints == 0) throw std::invalid_argument(
+            "In npstat::RatioResponseBoxBuilder::makeResponseBoxW: "
+            "the vector of input points is empty");
+
+        WeightedValueVec predSorted;
+        predSorted.reserve(nPoints);
+        for (unsigned long ipt=0; ipt<nPoints; ++ipt)
+        {
+            const double w = data[ipt].second;
+            assert(w >= 0.0);
+            predSorted.push_back(WeightedValue(
+                                     (*data[ipt].first)[predictorDim_], w));
+        }
+        std::sort(predSorted.begin(), predSorted.end());
+        if (predSorted[0].first <= 0.0) throw std::invalid_argument(
+            "In npstat::RatioResponseBoxBuilder::makeResponseBoxW: "
+            "predictor values must be positive");
+
+        double rCut = -1.0;
+        if (frac_ == 0.0)
+            rCut = numeratorCut_/predSorted[0].first;
+        else if (frac_ == 1.0)
+            rCut = numeratorCut_/predSorted.back().first;
+        else
+        {
+            long double sum = 0.0L;
+            for (unsigned long ipt=0; ipt<nPoints; ++ipt)
+                sum += predSorted[ipt].second;
+            if (sum <= 0.0L) throw std::invalid_argument(
+                "In npstat::RatioResponseBoxBuilder::makeResponseBoxW: "
+                "sum of weights is not positive");
+            const long double sumNeeded = sum*frac_;
+            sum = 0.0L;
+            long double sumAbove = 0.0L;
+            for (unsigned long ipt=0; ipt<nPoints; ++ipt)
+            {
+                sumAbove += predSorted[ipt].second;
+                if (sum <= sumNeeded && sumNeeded < sumAbove)
+                {
+                    rCut = numeratorCut_/predSorted[ipt].first;
+                    break;
+                }
+                sum = sumAbove;
+            }
+        }
+        if (rCut < 0.0) throw std::runtime_error(
+            "In npstat::RatioResponseBoxBuilder::makeResponseBoxW: "
+            "ratio cut determination algorithm failed");
+
+        BoxND<double> result;
+        result.reserve(nDimsToUse);
+        for (unsigned idim=0; idim<nDimsToUse; ++idim)
+        {
+            if (idim == irDim)
+                result.push_back(Interval<double>(rCut, DBL_MAX));
+            else
+                result.push_back(Interval<double>(-DBL_MAX, DBL_MAX));
+        }
+        return result;
+    }
+}

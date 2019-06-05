@@ -1,0 +1,18 @@
+namespace npstat {
+    template<typename Accumulator>
+    inline BinSummary::BinSummary(const Accumulator& acc)
+        : location_(0.0), rangeDown_(0.0), rangeUp_(0.0),
+          min_(DBL_MAX), max_(-DBL_MAX)
+    {
+        if (acc.count())
+        {
+            location_ = acc.location();
+            rangeDown_ = acc.rangeDown();
+            rangeUp_ = acc.rangeUp();
+            min_ = acc.min();
+            max_ = acc.max();
+            validateBinSummary("npstat::BinSummary converting constructor",
+                               location_, rangeDown_, rangeUp_, min_, max_);
+        }
+    }
+}

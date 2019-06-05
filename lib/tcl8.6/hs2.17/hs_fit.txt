@@ -1,0 +1,1143 @@
+
+                 USING THE HS TCL EXTENSION FOR DATA FITTING
+
+Introduction
+------------
+
+To fit your data to a model, you will need to construct the fit using
+the hs::fit command and, possibly, the fit handle command returned by
+hs::fit. The following information has to be provided:
+
+  -- A complete list of datasets which will be fitted (histograms or ntuples,
+     in case ntuples are fitted one has to specify the columns used). An
+     arbitrary number of datasets can be fitted simultaneously.
+
+  -- A set of functions to use in the fit.
+
+  -- Function assignments to datasets. Each dataset may be fitted with
+     several functions (the functions are simply added), and the same
+     function may be assigned to more than one dataset. The latter is
+     useful when, for example, a function is used to fit the background
+     shape in a sample which contains a signal, and the same function
+     is used to fit a background-only control sample.
+
+  -- A set of parameters for your model.
+
+  -- A mapping from the model parameters into the parameters of fitting
+     functions.
+
+  -- The choice of the fitting method (least-squares, maximum likelihood, etc).
+
+  -- Optionally, one can provide dataset filters (these can be used to
+     make exclusion regions).
+
+In reality, the fit construction is usually much simpler than the above
+description sounds because very often you can rely on the defaults built
+into the hs extension. 
+
+
+A Simple Fitting Example
+------------------------
+
+Here is a simple example. Suppose, one wants to fit a Gaussian distribution
+to a 1d histogram with Histo-Scope id $id, and this histogram has its own
+errors. This can be accomplished as follows:
+
+# Let's create an example histogram here
+set id [hs::create_1d_hist 1 "Example histogram" "Tmp" "X" "Y" 20 -2 4]
+hs::1d_hist_block_fill $id [hs::list_to_data {0 2 1 2 8 6 14 19 18 20 \
+    22 26 21 10 13 8 6 3 0 1}] [hs::list_to_data {1 1.4 1 1.4 2.8 2.4 \
+    3.7 4.4 4.2 4.5 4.7 5.1 4.6 3.2 3.6 2.8 2.4 1.7 1 1}]
+
+# Fit this histogram using the Gaussian distribution
+set fit [hs::fit $id gauss]  ;# Create the fit handle.
+$fit fit                     ;# Perform the fit.
+$fit show                    ;# Plot the fitted curve on top of the data.
+$fit print                   ;# Print various information, including fitted
+                             ;# parameter values, their errors, and chi-square
+                             ;# goodness-of-fit test confidence level.
+
+In this example, the command which specifies all necessary fitting information
+is "hs::fit $id gauss". The first arguments of the hs::fit command provides
+the list of fitted datasets. In our example, this list consists of just one
+element, and this element is the Histo-Scope id of the fitted histogram.
+The second argument of the hs::fit command is the list of functions which
+will be applied to every dataset listed in the first argument. Each element
+of this list must be a valid function tag as defined by hs extension commands
+hs::function_import, hs::function_compose, etc. "gauss" is the tag assigned
+to the Gaussian probability density function by the code which initializes
+the hs extension.
+
+In the above example the creation of model parameters happens automatically.
+By default, the model parameters are the combined parameters of all functions
+used in the hs::fit command, and they are mapped one-to-one to the function
+parameters. The fitting method is not specified explicitly, therefore the
+default procedure is used (least squares minimization). No dataset filters
+have been provided, consequently all histogram bins are used in the fit.
+
+
+Fitting Methods
+---------------
+
+The fitting method may be specified either globally, for all fitted
+datasets, using the "-method" option of the hs::fit command, or for
+each dataset separately, using the "-method" option in each dataset
+specification (this takes precedence over the global method). For example,
+the fit in the above example can be changed to use extended maximum
+likelihood if the "hs::fit $id gauss" command is modified as follows:
+
+hs::fit $id gauss -method eml
+
+The following fitting methods are supported by the hs extension:
+
+1) "L2" -- minimizes the distance between the data and the fit in the L2
+   norm (equivalent to least squares with all weights equal). This method
+   is usually used to fit one dataset at a time when error estimates for
+   the data points are not available. Fitting more than one dataset is
+   not recommended whenever L2 method is used because different datasets
+   often have dissimilar error scales.
+
+2) "ls" -- least squares minimization, errors are provided by the user
+   either as histogram error data or as an ntuple column. This is the default
+   fitting method.
+
+3) "chisq" -- least squares minimization, errors are assumed to be equal to
+   the square root of the number of events predicted by the fit (so-called
+   Pearson's chi-square minimization).
+
+4) "ml" -- maximum likelihood method. In this method the user is supposed
+   to take care of the function normalization, usually by fixing the relevant
+   fit parameter.
+
+5) "eml" -- extended maximum likelihood. The function normalization is taken
+   care of automatically, but in case of an unbinned fit the user is supposed
+   to define a grid which will be used to calculate the fit area numerically.
+
+Note that unbinned fits may be performed only with methods 4) and 5).
+
+
+Dataset Specifications
+----------------------
+
+The hs::fit command takes the list of datasets to fit as its first argument.
+Each element of this list is itself a list which specifies one dataset. All
+individual dataset specifications must look like this:
+
+{id ?opt1 value1? ?opt2 value2? ...}
+
+The first element is the Histo-Scope id of an item to fit (a positive
+integer). This item must be either a histogram (1d or 2d) or an ntuple.
+All other elements come as option-value pairs. The following options
+may be used:
+
+  -weight $W    Specifies the dataset weight in the fit ($W should be
+                a non-negative double). The default weight is 1. It may
+                be useful to change a weight of some dataset to 0 when
+                several datasets are fitted simultaneously in order to
+                study the effect of this particular dataset on the fitted
+                parameter values.
+
+  -method $M    Specifies the fitting method for this dataset. Possible
+                M values are "L2", "ls", "chisq", "ml", and "eml". If this
+                switch is not provided then the fit default method will be
+                used for this dataset. This switch should not be used unless
+                it is absolutely necessary because the interpretation of
+                parameter errors in the mixed-method fit is less clear.
+
+When the fitted item is an ntuple, each ntuple row represents one data
+point. In this case, the following additional options may be used:
+
+  -x $Xcol      Specifies the ntuple column name used to define x coordinates
+                of the data points. This option is required for ntuple fits.
+
+  -y $Ycol      The ntuple column which defines y coordinates. This option
+                is needed for 2d and 3d datasets only.
+
+  -z $Zcol      The ntuple column which defines z coordinates. This option
+                is needed for 3d datasets only.
+
+  -v $Vcol      The ntuple column which defines data values for the given
+                coordinates.
+
+  -e $Ecol      The ntuple column which defines data errors.
+
+If the -v switch is not provided for an ntuple then the fit is unbinned,
+otherwise the fit is said to be binned even though the positions of
+the data points are arbitrary.
+
+Note that it is not necessary to include all datasets at once into the
+hs::fit command. More datasets can be added later, using the fit handle.
+
+Here is an example fit which uses an ntuple as a dataset:
+
+set id [hs::create_ntuple 2 "Example ntuple" "Tmp" {x data error random}]
+for {set i 1} {$i <= 10} {incr i} {
+    set random [expr 2*([join [hs::random 12] +] - 6.0)]
+    set data [expr {$i*$i + $random}]
+    hs::fill_ntuple $id [list $i $data 2 $random]
+}
+set fit [hs::fit [list $id -x x -v data -e error] poly_1d]
+$fit parameter x0 configure -value 0 -state fixed
+$fit fit
+$fit show
+
+Another example makes an unbinned fit using the same ntuple:
+
+set fit [hs::fit [list $id -x random] gauss -method ml]
+$fit parameter area configure -value 10 -state fixed
+$fit fit
+$fit show
+
+
+Fit Functions
+-------------
+
+The second argument to the hs::fit command is the list of functions used
+to fit every dataset. Each function tag in the fit must be distinct. This
+is because the tags correspond not only to the functions themselves but also
+to the mappings from the model parameters into the function parameters.
+Therefore, in order to include the same function more than once (e.g., fit
+some data with a sum of two Gaussians) one has to duplicate the function
+first. This can be done using the "copy" operation of the hs::function
+command. Example:
+
+hs::function gauss copy gauss1
+hs::fit $id {gauss gauss1}
+
+It is not necessary to provide the list of all functions used in the fit
+as the argument to the hs::fit command. In fact, when more than one dataset
+is fitted simultaneously, this argument is usually an empty list because
+the cases when the same function with the same set of parameters can be
+usefully employed to fit different datasets are not very common.
+
+
+Fit Handles
+-----------
+
+The hs::fit command returns a handle (sometimes called an "object command"
+by tcl programmers) which can be used to perform various operations, set and
+examine fit parameters, configure fitting options, plot the results, etc.
+The handles may be invoked with the following options:
+
+$handle
+
+    When invoked without any additional arguments, the handle command
+    returns its own name.
+
+$handle id
+
+    Returns the unique fit id. This id stays the same even if the handle
+    command is renamed.
+
+$handle copy ?newhandle?
+
+    Creates a copy of the fit data and returns a new handle. The name of
+    the new handle may be specified as the optional string argument
+    "newhandle". Without this argument, a new unique command name is
+    generated automatically.
+
+$handle delete
+
+    Deletes the fit and the associated handle.
+
+$handle configure ?option1 value1? ?option2 value2? ...
+
+    Configures various fit options. The following options are available:
+
+    -title $T          Specifies the fit title which will be used in various
+                       printouts. Minuit printouts can only use the first
+                       50 characters of the title string.
+    
+    -description $D    Specifies the fit description (an arbitrary string).
+                       The default D value is an empty string.
+    
+    -method $M         Sets the default fitting method which will be
+                       assigned to every dataset which does not explicitly
+                       specify its fitting method. The allowed M values
+                       are "ls", "L2", "chisq", "ml", and "eml". The default
+                       M value is "ls".
+
+    -warnings $Warn    If set to "false", instructs Minuit to suppress
+                       warning messages about suspicious conditions which
+                       may indicate unreliable results. The default is
+                       to print such messages.
+    
+    -status $Stat      Specifies the fit status. $Stat must be either "ok"
+                       or "error". The default value is "ok". This option
+                       affects the internal behavior of the fitting code,
+                       and should not normally be set by the application.
+    
+    -gradient $G       $G is a boolean value which specifies whether Minuit
+                       should use an external procedure to calculate
+                       the function gradient over parameters. Right now,
+    		       this option should be left at its default value of 0.
+    
+    -ignore $Ign       If $Ign is set "true", the program will not print
+                       error messages generated by fitting functions.
+    		       The default Ign value is "false".
+    
+    -errdef $UP        Sets Minuit value of UP defining parameter errors.
+                       Minuit defines parameter errors as the change in
+                       the parameter value required to change the function
+    		       value by $UP. Unless you know exactly what you are
+                       doing, leave this option at its default value of 1.0.
+    
+    -precision $Eps    Informs Minuit that the relative floating point
+                       arithmetic precision is $Eps. The default value
+                       of this option is 0.0 which means that the program
+                       will use the system default for doubles.
+    
+    -strategy $Stra    Sets the Minuit strategy to be used in calculating
+                       first and second derivatives and in certain
+    		       minimization methods. Low values of $Stra mean fewer
+    		       function calls and high values mean more reliable
+    		       minimization. Currently allowed values are
+    		       0, 1 (default), and 2.
+
+    -minimizer $Min    Sets the Minuit minimization method. $Min must be
+                       one of the keywords "migrad", "mini", or "simplex".
+                       Default is "migrad".
+
+    -minos $Use        If $Use is false, instructs the program _not_ to run
+                       MINOS after the minimizer. The default is "true".
+
+    -verbose $Level    Minuit verbose level:
+    			  -1 -- no output except from SHOW commands
+    			   0 -- minimum output (no starting values
+                                  or intermediate results)
+    			   1 -- Minuit "normal" output
+    			   2 -- print intermediate results
+    			   3 -- show the progress of minimization
+                       The default value of this option is 0.
+
+    -timeout $sec      Timeout in seconds for the Minuit main loop. 0 or
+                       negative values mean no timeout will be set (this
+    		       is the default). Note that timeout does not immediately
+    		       stop the main loop since Minuit is not capable of
+    		       receiving status information from the fitted function.
+                       Instead, the code modifies the total number of function
+                       calls allowed. As a consequence, Minuit prints somewhat
+                       misleading message to the standard output that the call
+                       limit is exceeded, but the interpreter result contains
+                       the correct diagnostics.
+
+$handle cget $option
+
+    This command can be used to examine various fit properties.
+    The following options are supported: -compiled, -complete, -description,
+    -errdef, -gradient, -method, -precision, -strategy, -title, -epars, -emat,
+    -verbose, -ignore, -warnings, -psync, -osync, -dlls, -ministat, -minos,
+    -minimizer, -wpoints, -timeout, and -status. Most switches have the same
+    meaning as in the "$handle configure" command. Additional switches are:
+    
+    -compiled    With this switch, the command returns 1 if all parameter
+                 mappings and dataset filters have been compiled, and
+                 0 otherwise.
+    
+    -complete    Returns 0 if there were parameter or mapping changes since
+                 the last minimization run or if the minimization has never
+                 been performed, otherwise returns 1.
+    
+    -epars       Returns the list of parameters for which the error matrix
+                 has been estimated, or an empty list if the matrix has never
+                 been calculated.
+    
+    -emat        Returns the error matrix as a list whose elements are
+                 the matrix rows, or an empty list if the matrix has never
+    		 been calculated.
+    
+    -osync       Returns 1 if the fitting options have been passed to Minuit
+                 since the last change, 0 otherwise.
+    
+    -psync       Returns 1 if the fit parameters have been synchronized with
+                 Minuit, 0 otherwise.
+    
+    -dlls        Returns the list of shared libraries which may be unloaded
+                 when the fit is deleted.
+    
+    -ministat    Returns the minimization status as a list
+                 {fmin fedm errdef npari nparx istat}. See the description
+    		 of the Minuit subroutine MNSTAT for the meaning of the list
+    		 elements. This will be an empty list if the minimization
+    		 has not been performed yet after the last configuration
+    		 change.
+    
+    -wpoints     Returns the combined total weighed number of points in all
+                 datasets used to calculate the minimization statistics
+    		 during the most recent FCN call.
+    
+    These additional switches correspond to the fit properties which can be
+    examined from tcl but can not be set explicitly using "configure".
+
+$handle subset opt1? value1? ...
+
+    This command manipulates the fit datasets. The following forms may be used:
+
+  * $handle subset add $dataset_specifier opt? value? ...
+
+    Adds a new dataset to the fit and returns the dataset id (an integer).
+    dataset_specifier is a list which specifies Histo-Scope histogram or
+    ntuple to fit. The structure of this list has already been described
+    in the "Dataset Specifications" section. The following options are
+    supported:
+
+    -filter $filter_code    Specifies the filter expression (in C notation)
+                            which will be applied to all dataset points
+                            before they are fitted. The filter code can only
+                            depend on the data point coordinates but not on
+                            the point values. It can use variables x, y, 
+                            and z, and must result in an integer value.
+                            A point will be accepted if the result of
+                            the filter expression on the point coordinates
+                            is not 0. For example, the expression
+    			    {x < 1 || x > 2} defines an exclusion region
+    			    [1, 2]. The C code generated from such filter
+    			    expression looks like this:
+    			    int filter(double x, double y, double z)
+    			    {
+    			        return ( x < 1 || x > 2 );
+    			    }
+    			    The default filter_code value is an empty string
+    			    which means that all data points will be used
+    			    in the fit. You can use all functions defined
+    			    in the standard C headers inside your filter
+    			    expression.
+    
+    -functions $fun_list    Specifies the list of tags of the functions
+                            which will be used to fit the dataset. All
+                            these functions will be summed in the fit.
+
+    -normregion $descr      Specifies the region to use for calculation
+                            of the fit normalization. This option may be
+                            used with unbinned fits only. The descr argument
+                            is a flat list which contains 3 numbers for
+                            every dimension of the dataset: min, max, and
+			    number of intervals to use. For example, this
+			    is how $descr may look like for a 2d fit:
+			    {-5.0 5.0 50 -10.0 10.0 100}. $descr may be
+			    an empty list in which case the normalization
+			    region becomes undefined.
+
+  * $handle subset count
+
+    Returns the upper limit for the dataset ids in the fit. Note that this
+    number is not necessarily equal to the total number of datasets since
+    their ids are not required to be contiguous.
+
+  * $handle subset list
+
+    Returns the list of ids of datasets used in the fit.
+
+  * $handle subset $id $subcommand opt1? value1? ...
+
+    Manipulates the dataset identified by $id in the fit. The following
+    subcommands are supported:
+
+    exists                      Returns 1 if dataset identified by $id
+                                exists in the fit, 0 otherwise.
+    
+    delete                      Removes the dataset identified by $id
+                                from the fit. Also, removes functions which
+                                were used to fit just this particular dataset
+				(note that in such a case fit parameters may
+				have to be redefined).
+    
+    info                        Returns the information about the dataset
+                                identified by $id in the form of a list
+                                {id ndim binned columns filter_string \
+    				 functions weight method points normregion}
+                                   id      -- Histo-Scope id of the data item
+                                 ndim      -- dataset dimensionality
+                                 binned    -- set to 1 for binned datasets,
+                                              to 0 for unbinned
+    				 columns   -- five-element list of ntuple
+                                              column numbers used to define
+                                              x, y, z, data value, and
+    					      errors. For histograms, all
+                                              these numbers are set to -1.
+                                 filter_string  -- dataset filter expression
+                                 functions -- the set of fitting functions
+                                 weight    -- the dataset weight in the
+                                              statistic being minimized
+                                 method    -- fitting method to use for this
+                                              dataset.
+    				 points    -- the number of points used to
+                                              calculate the minimization
+                                              statistics during the most
+                                              recent FCN call.
+    				 normregion -- normalization region for
+    				              an unbinned dataset (or an
+                                              empty list if undefined).
+    
+    stats $what $quantities      Returns basic statistical information
+                                 about the data or fit. The "what"
+    				 argument must be either "data" or "fit".
+    				 The "quantities" argument is a a list
+    				 which may contain one or more of the
+    				 following keywords: npoints, is_pdf, sum,
+    				 mean_x, mean_y, mean_z, s_x, s_y, s_z,
+    				 rho_xy, rho_xz, rho_yz. If the fit has been
+    				 completed then the result will be a list
+    				 of values with the same number of elements
+    				 and in the requested order. If the fit has
+    				 not been completed, the command generates
+    				 a tcl error. The fit stats are not calculated
+                                 in case an unbinned fit is done using the
+                                 "ml" method because in this case we don't
+    				 know the support of the fitting function.
+    				 The keywords have the following meaning:
+
+                                 npoints -- Number of points used in the fit
+                                            (that is, points which passed the
+                                            filter and did not cause any
+                                            function errors). For data, this
+                                            is the same as the result of
+                                            "$handle subset $num cget -npoints"
+    					    command. For the fit, this may
+                                            depend on the grid used for
+    					    function normalization (this will
+    					    be set to 0 in case of unbinned
+    					    "ml" fit).
+                                 is_pdf  -- This is set to 1 if all values
+                                            are non-negative.
+    				 sum     -- The total number of events. In the
+                                            binned case, this is just the sum
+    					    of bin values (for the fit it uses
+    					    Simpson's integration rule in
+    					    which bins are taken to be
+    					    integration intervals). In the
+    					    unbinned case, for the data this
+    					    is just the total number of points
+    					    used in the fit. For the unbinned
+    					    "eml" fit, this is the fit area
+    					    covered by the grid of points used
+    					    in the fit. For the unbinned "ml"
+    					    fit it is undefined.
+                                 mean_x  -- Mean x value.
+                                 s_x     -- X standard deviation.
+                                 rho_xy  -- XY correlation coefficient.
+    
+    				 All other keywords are self-explanatory.
+                                 The values corresponding to these keywords
+                                 will make sense only if npoints > 0,
+    				 is_pdf == 1, and the dimensionality of the
+    				 fit is sufficient for creation of relevant
+    				 statistics.
+    
+    configure opt? value? ...    Sets the dataset attributes. Available
+                                 options are -filter, -functions, -method,
+                                 -normregion, and -weight. The meaning of
+    				 these options is the same as in the dataset
+				 specifiers and in the "$handle subset add"
+    				 command.
+
+    cget $option                 Returns the dataset property identified
+                                 by $option. In addition to the standard
+                                 configurable options -filter, -functions,
+                                 -method, -normregion, and -weight, the
+    				 following options are available read-only:
+    				 -id, -ndim, -binned, -columns, -points.
+    				 The values returned for these options are
+    				 the same as the corresponding elements in
+    				 the list produced by the "info" subcommand.
+    				 Also, there are several special options which
+    				 are not directly related to the dataset
+    				 definition: -validmethods, -ndof, and -chisq.
+    				 Option -validmethods may be used to return
+    				 the list of all fitting methods compatible
+    				 with this dataset. Options -ndof, and -chisq
+    				 return the number of points used in the
+    				 chi-square test and the chi-square value for
+    				 the fitted data. Note that these options are
+    				 only meaningful when the fit is complete and
+    				 the dataset is binned, otherwise their return
+                                 values are 0.
+
+    compiledfilter dll? proc?    When issued without the dll and proc
+                                 arguments, this subcommand returns 1 in case
+    				 the filter expression has already been
+                                 compiled and 0 otherwise. Optional dll and
+                                 proc arguments can be used to set the dll
+                                 number and the C function name to use for
+    				 the filtering functions. The proc argument
+    				 may be specified as an empty string in
+    				 which case the filter is removed (all point
+    				 will be used in the fit). It should not be
+    				 necessary for a user code to use this
+    				 subcommand.
+    
+    ranges $scan_specifier       Scans filter functions of 1-dimensional
+                                 datasets and returns the list of allowed
+                                 regions in the form {{min1 max1 npoints1} \
+                                 {min2 max2 npoints2} ...}. The scan_specifier
+                                 argument is a three-element list
+    				 {min max npoints} which defines the region
+    				 to scan and the density of trial points.
+    
+    plotfit $result_specifier    Fills a Histo-Scope item with fitted values.
+                                 $result_specifier is just an id for
+    				 a histogram or it must look like this
+    				 for ntuple: {id {min max npoints}}
+    				 in 1d case or {id {min1 max1 npoints1} \
+    				 {min2 max2 npoints2}} in 2d case.
+    
+    fitvalues $uid $title \      This command calculates the fitted values
+    $category $is_difference     at the coordinates of the data points.
+                                 "is_difference" is a boolean argument which
+                                 specifies if the program should calculate
+                                 the difference between the data and the fit
+                                 (when "true") or just calculate the fit.
+				 The command will create the same kind
+                                 of Histo-Scope item as the one used
+                                 to represent the data: an ntuple or
+				 a histogram. This subcommand returns
+                                 the Histo-Scope id of the result.
+
+$handle function
+
+    This command manipulates data fitting functions. The following forms
+    can be used:
+
+  * $handle function add $funct opt1? value1? ...
+
+    Adds a data fitting function with tag $funct to the fit. $funct
+    must be a valid function tag as defined by commands hs::function_import,
+    hs::function_compose, etc. It is not possible to add a function
+    with the same tag to a fit more than once but it is possible to use
+    the same function with more than one dataset included in the same fit.
+    The following options are allowed:
+
+    -subsets $datasets      $datasets is a list of dataset numbers to
+                            which this function will be added. This option
+			    may be omitted if the fit includes only one
+			    dataset, but for fits with multiple datasets
+			    this option is mandatory.
+
+    -mapping $codestring    Specifies the mapping from fit parameters into
+                            the function parameters. The mapping is either
+                            a string of pseudo-C code or a special keyword
+                            which designates a precompiled mapping. In the
+			    pseudo-C code the fit parameters should be
+			    designated by name or by number and prefixed
+			    with the '%' character. The function parameters
+			    are referred to by names. Here is an example
+			    mapping:
+			        { double bin_width = 0.05;
+			    	  area  = %nevents * bin_width;
+			          mean  = %1;
+			          sigma = sqrt(%variance); }
+			    Besides the special designators for the fit
+			    parameters (whose type should not be declared),
+			    everything else should be normal C code which
+			    can use all the functions provided in the
+			    standard C headers. The character '%' itself
+			    can be written as the "%%" sequence. The mapping
+			    code will be compiled and loaded before the fit
+			    is performed.
+
+			    The following keywords may be used instead of
+			    a C code map: "sequential", "identical", and
+			    "null". Null mapping is the default mapping
+			    for fitting functions without parameters, and
+			    sequential mapping is the default for functions
+			    with parameters.
+
+    -params $parlist        $parlist specifies initial values of the function
+                            parameters (which can be used, for example,
+			    to plot the function) in a list of name-value
+                            pairs. For example, {{mean 0.0} {sigma 1.0}}.
+                            The default value for all parameters is 0.0.
+
+  * $handle function list
+
+    Returns the list of tags for data fitting functions used in the fit.
+
+  * $handle function $tag $subcommand opt1? value1? ...
+
+    Manipulates the fitting function identified by tag $tag in the fit.
+    The following subcommands may be used:
+
+    exists                        Returns 1 if the function with the given
+                                  tag is included into the fit, 0 otherwise.
+
+    info                          Returns the info about a function in a list
+                                  {name mapping offset subsets parlist}.
+				  offset is the total number of parameters
+				  in all preceding functions used to set up
+				  the sequential parameter mapping.
+
+    delete                        Removes the function from the fit and all
+                                  its datasets.
+
+    compiledmap dll? proc?        When issued without the dll and proc
+                                  arguments, this subcommand returns 1 in case
+				  the mapping has already been compiled and
+				  0 otherwise. Optional dll and proc arguments
+				  can be used to set the dll number and the
+				  C function name to use for mapping. dll
+				  number can be -1 to indicate that one of
+				  the precompiled maps should be used.
+				  In this case a precompiled map keyword
+                                  should be used in place of the "proc"
+				  argument (see the description of -mapping
+				  option in the "$handle function add"
+				  command for the list of such keywords).
+				  Also, the "proc" argument can be set to an
+				  empty string in which case the mapping
+				  is removed (so that some code can later
+				  install a default mapping). It should not
+				  be necessary for a user code to use this
+				  subcommand.
+
+    configure opt1? value1? ...   Configures the options -subsets, -mapping,
+                                  and -params which have the same meaning as
+				  in the "$handle function add" command.
+
+    cget $option                  Returns the function property identified
+                                  by $option. In addition to the standard
+                                  options -subsets, -mapping, and -params,
+				  this subcommand supports convenience options
+				  "-npars" which instructs it to return
+				  the number of function parameters,
+				  "-parnames" which returns the list of
+				  just parameter names, and "-parvalues"
+				  which returns the list of just parameter
+				  values.
+
+$handle parameter opt1? value1? ...
+
+    This command manipulates fit model parameters. The following forms
+    may be used:
+
+  * $handle parameter add $parname opt? value? ...
+
+    Adds a parameter named $parname to the fit. $parname must be different
+    from the names of already existing parameters in its first ten characters
+    (FORTRAN-like comparison, dictated by Minuit interface). The following
+    options are supported:
+
+    -value $v         $h is the initial parameter value (default is 0.0).
+
+    -step $h          $h is the initial parameter step size for Minuit.
+                      It must be positive. The default h value is 0.1.
+
+    -state $s         $s is one of the keywords "fixed" or "variable".
+                      The default is "variable".
+
+    -bounds $blist    $blist is a two-element list of parameter limits
+                      {min max}. The default blist value is an empty
+                      list which means that the parameter has no limits.
+
+  * $handle parameter list
+
+    Returns the list of fit parameter names.
+
+  * $handle parameter clear
+
+    Deletes all fit parameters.
+
+  * $handle parameter info
+
+    Returns the list of parameter definitions. Each element is itself
+    a list {name value state step bounds}.
+
+  * $handle parameter apply
+
+    Passes the current parameter definitions to Minuit. Returns nothing.
+
+  * $handle parameter $name $subcommand opt1? value1? ...
+
+    Manipulates the parameter named $name in the fit. The following
+    subcommands may be used:
+
+    delete                       Deletes the parameter named $name.
+
+    exists                       Returns 1 if the parameter named $name
+                                 exists, 0 otherwise.
+
+    set newvalue?                Returns four-element list {value state \
+                                 step bounds} for the parameter named $name.
+				 When newvalue is specified, sets the value
+				 of an existing parameter. newvalue may be
+				 either a double value or a four-element list.
+
+    configure opt1? value1? ...  Sets the parameter properties. Available
+                                 options are -value, -state, -step, and
+                                 -bounds. The meaning of these options is
+                                 the same as in the "$handle parameter add"
+                                 command
+
+    cget $option                 Returns the parameter property specified
+                                 by $option. When the fit is finished, the
+                                 following options are available in addition
+                                 to the standard options -value, -state,
+                                 -step, and -bounds:
+
+				 -error   -- returns "parabolic" error
+				 -eneg    -- returns negative error from Minos
+                                             (as a negative number)
+				 -epos    -- returns positive error from Minos
+                                 -globcc  -- returns the global correlation
+                                             coefficient. This is a number
+                                             between zero and one which gives
+                                             the correlation between the
+                                             parameter named $name and that
+                                             linear combination of all other
+                                             parameters which is most strongly
+                                             correlated with $name.
+				 -errinfo -- returns the above four properties
+                                             in a single list
+					     {error eneg epos globcc}.
+
+$handle info
+
+    Returns the information about the fit in a 16-element mixed list. This
+    list has the following structure:
+
+    {title description default_fit_method minimizer minos minuit_options \
+     global_status timeout ignore_function_errors minimization_status \
+     parameters error_matrix_pars error_matrix_data dlls datasets \
+     fit_functions}
+
+    The list elements are:
+    
+    title                  -- String. Fit title.
+    description            -- String. Fit description.
+    default_fit_method     -- String. Default fitting method which will be
+                              assigned to every dataset which does not
+                              explicitly specify its fitting method.
+    minimizer              -- String. Minuit minimizer to use.
+    minos                  -- Boolean. It will be 1 if the fitting procedure
+                              uses MINOS or 0 if MINOS is skipped.
+    minuit_options         -- List {errdef verbose warn strategy eps grad}
+    global_status          -- String "ok" or "error".
+    timeout                -- Integer. 0 or negative means no timeout.
+    ignore_function_errors -- Boolean.
+    minimization_status    -- List {fmin fedm errdef npari nparx istat}.
+                              See the description of the Minuit subroutine
+                              MNSTAT for the meaning of the list elements.
+                              This will be an empty list if the minimization
+    			      has not been performed yet after the last
+    			      configuration change.
+    parameters             -- The list of parameters. Each element is itself
+                              a list {name value state step bounds}.
+    			      state is a string which is either "fixed" or
+    			      "variable". bounds is either an empty list
+    			      (unbounded) or a two-element list {min max}.
+    error_matrix_pars      -- The list of names of parameters for which
+                              the error matrix is defined (or an empty list
+    			      if the fit is not performed).
+    error_matrix_data      -- Error matrix, each row (or column since it
+                              is symmetric) is itself a list (or an empty list
+    			      if the fit is not performed).
+    dlls                   -- Dll numbers to unload when the fit is deleted.
+    datasets               -- List of dataset info lists. Please see the
+                              description of the command "$handle subset",
+                              option info, for details about the dataset info
+                              list structure.
+    fit_functions          -- List of fitting function information lists.
+                              Please see the description of the command
+                              "$handle function", option info, for details
+        		      about the function info list structure.
+
+    Since the hs extension code is still under development, it is unwise to
+    assume that the number of elements in the fit info list will not change.
+    However, the new elements are most likely to be appended at the end,
+    so the following list splicing code should be reasonably safe:
+
+    foreach {title description ... fit_functions} [$handle info] break
+
+    where ... stands for all other list elements. Note the "break" command
+    at the end, not {}.
+
+$handle fit ?maxcalls? ?tolerance?
+
+    Runs the Minuit minimization cycle after passing parameter values and
+    fitting options to Minuit. The optional argument "maxcalls" specifies
+    the (approximate) maximum number of function calls after which
+    the calculation will be stopped even if it has not yet converged. This
+    argument may be specified as an empty string (this is the default which
+    means that the procedure will run until the fit converges). The optional
+    argument "tolerance" specifies required tolerance on the function value
+    at the minimum. When "migrad" is used as the minimizer, the default
+    tolerance is 0.001 (which will also be used if tolerance is specified
+    as an empty string), and the minimization will stop when the estimated
+    distance to the minimum (EDM) is less than 0.001 * $tolerance * $UP,
+    where UP is the Minuit setting which defines parameter errors (see the
+    description of "$handle config" command, option -errdef). When "simplex"
+    is used as the minimizer, the minimization will stop when the EDM is less
+    than $tolerance. In this case the default tolerance value is 0.01 * $UP.
+
+$handle show opt? value? ...
+
+    Plots the data and the fit. The plots will be overlayed when fitted
+    dataset is a 1d curve or a histogram, or they will be shown side-by-side
+    together with the difference plot in case the dataset is 2-dimensional.
+    Plotting of 3d datasets is not supported yet. This command can be used
+    with the following options:
+
+    -title $T      $T specifies the window title
+
+    -info $b       Boolean value $b specifies whether to show the parameter
+                   information on top of the plot for the completed fit.
+                   This option has no effect for fits to multiple datasets.
+
+    -font $F       Specifies the font to use for axis labels. Use of this
+                   option requires Tk. $F may be given in any form acceptable
+                   by Tk, for example "Times 18 {bold italic}". X font names
+                   may also be used (run "xlsfonts" program to see the names).
+                   Note that not all fonts are supported in PostScript.
+
+    The command returns the list of multiplots shown (see the hs::multiplot
+    command description for details). The user should delete these multiplots
+    when they are no longer needed.
+
+$handle contours $pname1 $pname2 opt? value? ...
+
+    Draws error contours for the fit parameters. $pname1 and $pname2 are
+    the names of the parameters. Valid options are:
+    
+    -plotpoints $N    Specifies the number of points to calculate on every
+                      contour. $N must be a positive integer larger than 4.
+    		      The default N value is 200.
+
+    -levels $L        $L must be a list of positive real numbers which
+                      specifies how many contours to draw and how many
+                      standard deviations they should be from the central
+                      value. The default L value is {1 2 3}.
+
+    -show $Show       $Show is a boolean value which specifies if the
+                      plot should be displayed immediately. The default
+                      value of this option is "true".
+
+    -font $F          Specifies the font to use for axis labels. Use of this
+                      option requires Tk.
+
+    This command returns the name of an overlayed plot which holds
+    the curves (see the hs::overlay command description for details).
+
+$handle report $channel $format
+
+    Generates a report when the fitting is complete. $channel is a tcl
+    channel into which the report is written, and $format is the string
+    which specifies the report format type. At this time, only one format
+    type is supported: text.
+
+$handle print
+
+    Equivalent to "$handle report stdout text".
+
+$handle tune ?-font $fontname?
+
+    Starts a fitting GUI which can be used for parameter tuning, fit
+    plotting, report generation, etc. The "-font" option can be used to
+    specify the font for axis labels (see "$handle show" description for
+    details). The command returns the name of the new toplevel window.
+
+$handle goodness $test mcsamples? show_progress?
+
+    Returns a fit confidence level from the specified goodness-of-fit test.
+    The following tests can be specified:
+
+    chisq      One-sided chi-square goodness-of-fit test. Can be performed
+               only on binned fits which do not use the "L2" minimization
+               method.
+
+    ks         "Classic" one-sided Kolmogorov-Smirnov test. Can only be
+               used with fits to 1d data. Note that it is almost always
+               a bad idea to rely on the confidence level returned by this
+               test since it was designed for comparison of two independent
+               distributions rather than for goodness-of-fit.
+
+    ksmc       Kolmogorov-Smirnov test based on Monte-Carlo. Builds
+               a distribution of Kolmogorov distances by generating random
+               points according to the fitted distributions, and refitting
+               these random points. This test is much more reliable than
+               the "ks" test but it also takes more time. It can only be
+               used with fits to 1d data.
+
+    multires   Multiresolution Gaussian smoothing test based on Monte-Carlo.
+               This test is very reliable, but it is also very slow, and it
+               works only with fits to single 1d datasets. The default number
+               of bandwidth settings to use is 20. This number can be changed
+               by modifying variable "::fit::Default_bandwidth_set_size".
+               The smallest bandwidth is 1/4 of the bin width (or 1/4 of the
+               normalization region interval width in case of unbinned fits),
+               and the largest bandwidth is 1/2 of the whole fitted region.
+               In between, bandwidth settings increase by a constant factor.
+
+    The argument "mcsamples" specifies the number of samples to generate
+    in Monte-Carlo based tests. When it is omitted or set to an empty string
+    the default number is used (1000). The "show_progress" argument specifies
+    whether the code should print out messages related to the progress of
+    the command execution, which may be useful for long-running MC-based
+    tests. The default value of this argument is 0 (do not print such
+    messages).
+
+$handle callback $subcommand $cbtype ?script?
+
+    This command may be used to set up fit callbacks. Callbacks are tcl
+    scripts called when the fit state changes in a certain way. The following
+    command forms may be used:
+
+  * $handle callback add $cbtype $script
+
+    This command sets up a fit callback. One of the following keywords must
+    be used as the "cbtype" argument: "lostsync", "complete", and "delete".
+    The callback scripts are triggered under the following circumstances:
+
+    lostsync -- when the fit structure looses its synchronization with Minuit
+    complete -- when the fit converges to a stable minimum
+    destruct -- just before the fit is deleted
+
+    The callback scripts will be executed in the global context with two
+    additional arguments appended: handle and cbtype. Any changes made by
+    the callback scripts to the list of callback scripts of the same type
+    will become visible only at the time of the next trigger. Note that
+    when a fit copy is made, the callbacks are _not_ automatically transferred
+    to the copy.
+
+  * $handle callback delete $cbtype $script
+
+    Removes the script $script from the list of callbacks of type $cbtype
+    (if exists). Returns 1 if a callback is removed and 0 if not.
+
+  * $handle callback list $cbtype
+
+    Returns the list of all callbacks of the given type.
+
+  * $handle callback clear $cbtype
+
+    Deletes all callbacks of the given type.
+
+    Fit callbacks are useful to keep the fit tuning GUI in sync with the
+    fit status. They are not normally needed in the user code.
+
+Some fit handle options have equivalent short names or aliases (which may
+be easier to type or remember). Here is the list of such options and their
+alternative names:
+
+delete    : del
+parameter : param, parameters
+configure : config
+contours  : contour
+fit       : mini
+goodness  : quality
+
+
+hs::fit options
+---------------
+
+In addition to the "-method" option already described in the "Fitting Methods"
+section, the following fitting options may be configured when the fit is
+created by the hs::fit command: -name, -title, -description, -warnings,
+-ignore, -errdef, -precision, -strategy, -verbose, -timeout, -minimizer,
+-minos, -parameters, and -mapping. All these options with the exception of
+the last two have the same meaning as in the "$handle configure" command.
+The last two options may be used to configure fit model parameters and their
+mappings to function parameters directly from the hs::fit command without
+the use of fit handles (which results in a more compact code). Please see
+the description of hs::fit command in the online manual for details about
+using these options.
+
+
+Fitting Example with Multiple Datasets
+--------------------------------------
+
+Let's consider an example in which a signal is simultaneously fitted
+in four different channels. In each channel, the signal is a Breight-Wigner
+resonance peak with the same position and width (but different height) on top
+of some background. Suppose also that in each dataset the background can be
+sufficiently well modelled by a second degree polynomial. Such fitting
+problem may occur, for example, in the reconstruction of the invariant mass
+of some resonance whose natural width dominates the detector resolution.
+
+The following code can be cut and paste into a running wish. It is assumed
+that the hs extension has already been initialized, and the Histo-Scope GUI
+is running.
+
+# First, let's define couple procedures which will help us to make
+# various random numbers
+proc gauss_random {mean width} {
+    expr $mean + $width * ([join [hs::random 12] +] - 6.0)
+}
+proc cauchy_random {peak HWHM} {
+    expr $peak + $HWHM * tan(3.1415926 * [hs::random 1] - 1.57079632679)
+}
+
+# Now, let's simulate the background
+set xmin 0.0
+set xmax 5.0
+set nbins 50
+set binwidth [expr {($xmax - $xmin)/$nbins}]
+foreach {num a  b  c} {
+          0  1  1  40
+          1  1 -1  40
+          2 -1  1  40
+          3 -1 -1  40
+} {
+    set idn($num) [hs::create_1d_hist [expr {$num+10}] \
+        "Dataset $num" "Tmp" "X" "Y" $nbins $xmin $xmax]
+    set data {}
+    for {set bin 0} {$bin < $nbins} {incr bin} {
+        set x [expr {$bin * $binwidth}]
+        set mean [expr {$a*$x*$x + $b*$x + $c}]
+        set value [gauss_random $mean [expr {sqrt($mean)}]]
+        if {$value < 0.0} {set value 0.0}
+        lappend data $value
+    }
+    hs::1d_hist_block_fill $idn($num) [hs::list_to_data $data]
+}
+
+# The following code simulates the signal
+set peak 2.0
+set width 0.3
+foreach {num nevents} {0 400  1 800  2 600  3 900} {
+    for {set event 0} {$event < $nevents} {incr event} {
+        hs::fill_1d_hist $idn($num) [cauchy_random $peak $width] 1.0
+    }
+}
+
+# Create the fit. This time we will use chi-square minimization.
+set idlist [list $idn(0) $idn(1) $idn(2) $idn(3)]
+set fit [hs::fit $idlist {} -title "Fitting several datasets" -method chisq]
+
+# Add the parameters for the fitted peak. Pretend that
+# we don't know the real parameter values.
+$fit parameter add peak -value 3
+$fit parameter add width -value 0.2
+
+# Go over each dataset and add fitting functions and parameters
+set i 0
+foreach id $idlist {
+    foreach {name init_value} {a 1 b 1 c 20 signal 10} {
+        $fit parameter add ${name}_$i -value $init_value
+    }
+    hs::function poly_1d copy poly_1d$i
+    hs::function poly_1d$i configure -mode 4
+    $fit function add poly_1d$i -subset $i -map [subst {
+        x0 = 0.0;
+        a0 = %c_$i;
+        a1 = %b_$i;
+        a2 = %a_$i;
+    }]
+    hs::function cauchy copy cauchy$i
+    $fit function add cauchy$i -subset $i -map [subst {
+        area = %signal_$i;
+        peak = %peak;
+        hwhm = %width;
+    }]
+    incr i
+}
+
+# At this point we have a fit with 4 datasets and 18 parameters.
+# Since we have intentionally chosen rather dumb initial values
+# for the model parameters, it is unlikely that the automatic
+# minimization procedure will converge to the desired minimum
+# in 18-dimensional space. Instead, a better idea is to start
+# the fit tuner GUI and adjust a few parameters so that the fit
+# curves start resembling the data. I suggest tuning the parameters
+# "peak" and "signal_$n" (n = 0, 1, 2, 3). After that clicking 
+# the "Fit" button should accomplish the job.
+
+$fit tune

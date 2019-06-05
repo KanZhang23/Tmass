@@ -1,0 +1,33 @@
+global test_data reference_data
+
+set test_data {
+    1  2  3
+    4  5  6
+    7  8  9
+}
+
+set reference_data {
+    1  2  3  10  11
+    4  5  6  12  13
+    7  8  9  14  15
+}
+
+test add_filled_columns-1.1 {adding pre-filled ntuple columns} {} {
+    set id [hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c}]
+    set idref [hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c d e}]
+    global test_data reference_data
+    hs::ntuple_block_fill $id $test_data
+    hs::ntuple_block_fill $idref $reference_data
+    set idtest [hs::add_filled_columns $id [next_uid] "Test ntuple" \
+	"tests" d {10 12 14} e {11 13 15}]
+    verify_similarity $idref $idtest 0.0
+} {}
+
+unset test_data reference_data
+catch {unset id}
+catch {unset idref}
+catch {unset idtest}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

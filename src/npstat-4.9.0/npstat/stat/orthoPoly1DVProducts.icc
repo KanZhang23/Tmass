@@ -1,0 +1,799 @@
+#include <string>
+#include <cassert>
+#include <stdexcept>
+#include <algorithm>
+#include <utility>
+
+namespace npstat {
+    namespace Private {
+        inline void validateNPoints(const char* where,
+                                    const unsigned long nPoints)
+        {
+            if (!nPoints)
+            {
+                std::string message("In npstat::");
+                message += where;
+                message += ": sample size must be positive";
+                throw std::invalid_argument(message);
+            }
+        }
+
+        inline int kdelta(const UUPair ab)
+        {
+            return ab.first == ab.second ? 1 : 0;
+        }
+
+        inline bool isZeroPair(const UUPair pair)
+        {
+            return !(pair.first || pair.second);
+        }
+    }
+
+    template <class Quadrature>
+    double expectedVProduct(const AbsClassicalOrthoPoly1D& poly,
+                            const Quadrature& quad, const unsigned long nPoints,
+                            const UUPair ab, const UUPair cd)
+    {
+        Private::validateNPoints("expectedVProduct", nPoints);
+        if (Private::isZeroPair(ab) || Private::isZeroPair(cd))
+            return 0.0;
+        else
+            return (poly.jointAverage(quad, ab.first, ab.second, cd.first, cd.second) -
+                    Private::kdelta(ab)*Private::kdelta(cd))/nPoints;
+    }
+
+    template <typename Numeric>
+    double sampleVProductExp(const AbsClassicalOrthoPoly1D& poly,
+                             const Numeric* coords, const unsigned long nCoords,
+                             const UUPair ab, const UUPair cd)
+    {
+        Private::validateNPoints("sampleVProductExp", nCoords);
+        assert(coords);
+        if (Private::isZeroPair(ab) || Private::isZeroPair(cd))
+            return 0.0;
+        else
+        {
+            unsigned degs[4];
+            degs[0] = ab.first;
+            degs[1] = ab.second;
+            degs[2] = cd.first;
+            degs[3] = cd.second;
+            return (poly.jointSampleAverage(coords, nCoords, degs, 4) -
+                    Private::kdelta(ab)*Private::kdelta(cd))/nCoords;
+        }
+    }
+
+    template <class Quadrature>
+    inline double expectedVCovariance(const AbsClassicalOrthoPoly1D& poly,
+                                      const Quadrature& quad,
+                                      const unsigned long nPoints,
+                                      const UUPair ab, const UUPair cd)
+    {
+        Private::validateNPoints("expectedVCovariance", nPoints);
+        return expectedVProduct(poly, quad, nPoints, ab, cd);
+    }
+
+    template <class Quadrature>
+    double expectedVProduct(const AbsClassicalOrthoPoly1D& poly,
+                            const Quadrature& quad, const unsigned long nPoints,
+                            const UUPair ab, const UUPair cd, const UUPair ef)
+    {
+        Private::validateNPoints("expectedVProduct", nPoints);
+        if (Private::isZeroPair(ab) || Private::isZeroPair(cd) ||
+            Private::isZeroPair(ef))
+            return 0.0;
+
+        const double pcdef = poly.jointAverage(quad, cd.first, cd.second, ef.first, ef.second);
+        const double pabef = poly.jointAverage(quad, ab.first, ab.second, ef.first, ef.second);
+        const double pabcd = poly.jointAverage(quad, ab.first, ab.second, cd.first, cd.second);
+
+        unsigned degs[6];
+        degs[0] = ab.first;
+        degs[1] = ab.second;
+        degs[2] = cd.first;
+        degs[3] = cd.second;
+        degs[4] = ef.first;
+        degs[5] = ef.second;
+        const double pabcdef = poly.jointAverage(quad, degs, 6);
+
+        const int deltaprod = Private::kdelta(ab)*Private::kdelta(cd)*
+                              Private::kdelta(ef);
+        return (pabcdef - Private::kdelta(ab)*pcdef - Private::kdelta(cd)*pabef -
+                Private::kdelta(ef)*pabcd + 2.0*deltaprod)/nPoints/nPoints;
+    }
+
+    template <typename Numeric>
+    double sampleVProductExp(const AbsClassicalOrthoPoly1D& poly,
+                             const Numeric* coords, const unsigned long nPoints,
+                             const UUPair ab, const UUPair cd, const UUPair ef)
+    {
+        Private::validateNPoints("sampleVProductExp", nPoints);
+        assert(coords);
+
+        if (Private::isZeroPair(ab) || Private::isZeroPair(cd) ||
+            Private::isZeroPair(ef))
+            return 0.0;
+
+        unsigned degs[6];
+        degs[0] = cd.first;
+        degs[1] = cd.second;
+        degs[2] = ef.first;
+        degs[3] = ef.second;
+        const double pcdef = poly.jointSampleAverage(coords, nPoints, degs, 4);
+
+        degs[0] = ab.first;
+        degs[1] = ab.second;
+        const double pabef = poly.jointSampleAverage(coords, nPoints, degs, 4);
+
+        degs[0] = ab.first;
+        degs[1] = ab.second;
+        degs[2] = cd.first;
+        degs[3] = cd.second;
+        const double pabcd = poly.jointSampleAverage(coords, nPoints, degs, 4);
+
+        degs[4] = ef.first;
+        degs[5] = ef.second;
+        const double pabcdef = poly.jointSampleAverage(coords, nPoints, degs, 6);
+
+        const int deltaprod = Private::kdelta(ab)*Private::kdelta(cd)*
+                              Private::kdelta(ef);
+        return (pabcdef - Private::kdelta(ab)*pcdef - Private::kdelta(cd)*pabef -
+                Private::kdelta(ef)*pabcd + 2.0*deltaprod)/nPoints/nPoints;
+    }
+
+    template <class Quadrature>
+    inline double expectedVCovariance(const AbsClassicalOrthoPoly1D& poly,
+                                      const Quadrature& quad,
+                                      const unsigned long nPoints,
+                                      const UUPair ab, const UUPair cd,
+                                      const UUPair ef)
+    {
+        Private::validateNPoints("expectedVCovariance", nPoints);
+        return expectedVProduct(poly, quad, nPoints, ab, cd, ef);
+    }
+
+    template <class Quadrature>
+    double expectedVProduct(const AbsClassicalOrthoPoly1D& poly,
+                            const Quadrature& quad,
+                            const unsigned long nPoints,
+                            const UUPair ab, const UUPair cd,
+                            const UUPair ef, const UUPair gh)
+    {
+        Private::validateNPoints("expectedVProduct", nPoints);
+        if (Private::isZeroPair(ab) || Private::isZeroPair(cd) ||
+            Private::isZeroPair(ef) || Private::isZeroPair(gh))
+            return 0.0;
+
+        const double pabcd = poly.jointAverage(quad, ab.first, ab.second, cd.first, cd.second);
+        const double pefgh = poly.jointAverage(quad, ef.first, ef.second, gh.first, gh.second);
+        const double pabef = poly.jointAverage(quad, ab.first, ab.second, ef.first, ef.second);
+        const double pcdgh = poly.jointAverage(quad, cd.first, cd.second, gh.first, gh.second);
+        const double pabgh = poly.jointAverage(quad, ab.first, ab.second, gh.first, gh.second);
+        const double pcdef = poly.jointAverage(quad, cd.first, cd.second, ef.first, ef.second);
+
+        unsigned degs[8];
+        degs[0] = ab.first;
+        degs[1] = ab.second;
+        degs[2] = cd.first;
+        degs[3] = cd.second;
+        degs[4] = ef.first;
+        degs[5] = ef.second;
+        degs[6] = gh.first;
+        degs[7] = gh.second;
+        const double pabcdefgh = poly.jointAverage(quad, degs, 8);
+        const double pabcdef = poly.jointAverage(quad, degs, 6);
+
+        degs[4] = gh.first;
+        degs[5] = gh.second;
+        const double pabcdgh = poly.jointAverage(quad, degs, 6);
+
+        degs[2] = ef.first;
+        degs[3] = ef.second;
+        const double pabefgh = poly.jointAverage(quad, degs, 6);
+
+        degs[0] = cd.first;
+        degs[1] = cd.second;
+        const double pcdefgh = poly.jointAverage(quad, degs, 6);
+
+        const int deltaprod = Private::kdelta(ab)*Private::kdelta(cd)*
+                              Private::kdelta(ef)*Private::kdelta(gh);
+
+        const double tmp = Private::kdelta(ef)*Private::kdelta(gh)*pabcd +
+            Private::kdelta(cd)*Private::kdelta(gh)*pabef +
+            Private::kdelta(cd)*Private::kdelta(ef)*pabgh +
+            Private::kdelta(ab)*Private::kdelta(cd)*pefgh +
+            Private::kdelta(ab)*Private::kdelta(ef)*pcdgh +
+            Private::kdelta(ab)*Private::kdelta(gh)*pcdef;
+
+        const double term1 = pabcd*pefgh + pabef*pcdgh +
+            pabgh*pcdef + 3.0*deltaprod - tmp;
+
+        const double term2 = pabcdefgh - 6.0*deltaprod -
+            Private::kdelta(ab)*pcdefgh - Private::kdelta(cd)*pabefgh -
+            Private::kdelta(ef)*pabcdgh - Private::kdelta(gh)*pabcdef -
+            pabcd*pefgh - pabef*pcdgh - pabgh*pcdef + 2.0*tmp;
+
+        return (term1 + term2/nPoints)/nPoints/nPoints;
+    }
+
+    template <typename Numeric>
+    double sampleVProductExp(const AbsClassicalOrthoPoly1D& poly,
+                             const Numeric* coords, const unsigned long nPoints,
+                             const UUPair ab, const UUPair cd,
+                             const UUPair ef, const UUPair gh)
+    {
+        Private::validateNPoints("sampleVProductExp", nPoints);
+        assert(coords);
+
+        if (Private::isZeroPair(ab) || Private::isZeroPair(cd) ||
+            Private::isZeroPair(ef) || Private::isZeroPair(gh))
+            return 0.0;
+
+        std::pair<double, double> dp;
+        unsigned degs[8];
+        degs[0] = ab.first;
+        degs[1] = ab.second;
+        degs[2] = cd.first;
+        degs[3] = cd.second;
+        degs[4] = ef.first;
+        degs[5] = ef.second;
+        degs[6] = gh.first;
+        degs[7] = gh.second;
+        dp = poly.twoJointSampleAverages(coords, nPoints, degs, 4, degs+4, 4);
+        const double pabcd = dp.first;
+        const double pefgh = dp.second;
+        
+        degs[2] = ef.first;
+        degs[3] = ef.second;
+        degs[4] = cd.first;
+        degs[5] = cd.second;
+        dp = poly.twoJointSampleAverages(coords, nPoints, degs, 4, degs+4, 4);
+        const double pabef = dp.first;
+        const double pcdgh = dp.second;
+
+        degs[2] = gh.first;
+        degs[3] = gh.second;
+        degs[6] = ef.first;
+        degs[7] = ef.second;
+        dp = poly.twoJointSampleAverages(coords, nPoints, degs, 4, degs+4, 4);
+        const double pabgh = dp.first;
+        const double pcdef = dp.second;
+
+        degs[2] = cd.first;
+        degs[3] = cd.second;
+        degs[4] = ef.first;
+        degs[5] = ef.second;
+        degs[6] = gh.first;
+        degs[7] = gh.second;
+        dp = poly.twoJointSampleAverages(coords, nPoints, degs, 8, degs, 6);
+        const double pabcdefgh = dp.first;
+        const double pabcdef = dp.second;
+
+        degs[4] = gh.first;
+        degs[5] = gh.second;
+        const double pabcdgh = poly.jointSampleAverage(coords, nPoints, degs, 6);
+
+        degs[2] = ef.first;
+        degs[3] = ef.second;
+        const double pabefgh = poly.jointSampleAverage(coords, nPoints, degs, 6);
+
+        degs[0] = cd.first;
+        degs[1] = cd.second;
+        const double pcdefgh = poly.jointSampleAverage(coords, nPoints, degs, 6);
+
+        const int deltaprod = Private::kdelta(ab)*Private::kdelta(cd)*
+                              Private::kdelta(ef)*Private::kdelta(gh);
+
+        const double tmp = Private::kdelta(ef)*Private::kdelta(gh)*pabcd +
+            Private::kdelta(cd)*Private::kdelta(gh)*pabef +
+            Private::kdelta(cd)*Private::kdelta(ef)*pabgh +
+            Private::kdelta(ab)*Private::kdelta(cd)*pefgh +
+            Private::kdelta(ab)*Private::kdelta(ef)*pcdgh +
+            Private::kdelta(ab)*Private::kdelta(gh)*pcdef;
+
+        const double term1 = pabcd*pefgh + pabef*pcdgh +
+            pabgh*pcdef + 3.0*deltaprod - tmp;
+
+        const double term2 = pabcdefgh - 6.0*deltaprod -
+            Private::kdelta(ab)*pcdefgh - Private::kdelta(cd)*pabefgh -
+            Private::kdelta(ef)*pabcdgh - Private::kdelta(gh)*pabcdef -
+            pabcd*pefgh - pabef*pcdgh - pabgh*pcdef + 2.0*tmp;
+
+        return (term1 + term2/nPoints)/nPoints/nPoints;
+    }
+
+    template <class Quadrature>
+    inline double expectedVCovariance(const AbsClassicalOrthoPoly1D& poly,
+                                      const Quadrature& quad,
+                                      const unsigned long nPoints,
+                                      const UUPair ab, const UUPair cd,
+                                      const UUPair ef, const UUPair gh)
+    {
+        Private::validateNPoints("expectedVCovariance", nPoints);
+        return expectedVProduct(poly, quad, nPoints, ab, cd, ef, gh) -
+               expectedVProduct(poly, quad, nPoints, ab, cd)*
+               expectedVProduct(poly, quad, nPoints, ef, gh);
+    }
+
+    template <class Quadrature>
+    inline double expectedVCovCov(const AbsClassicalOrthoPoly1D& poly,
+                                  const Quadrature& quad,
+                                  const unsigned long nPoints,
+                                  const UUPair ab, const UUPair cd,
+                                  const UUPair ef, const UUPair gh)
+    {
+        Private::validateNPoints("expectedVCovCov", nPoints);
+        if (Private::isZeroPair(ab) || Private::isZeroPair(cd) ||
+            Private::isZeroPair(ef) || Private::isZeroPair(gh))
+            return 0.0;
+
+        unsigned degs[8];
+        degs[0] = ab.first;
+        degs[1] = ab.second;
+        degs[2] = cd.first;
+        degs[3] = cd.second;
+        degs[4] = ef.first;
+        degs[5] = ef.second;
+        degs[6] = gh.first;
+        degs[7] = gh.second;
+        const double pabcd = poly.jointAverage(quad, degs, 4U);
+        const double pefgh = poly.jointAverage(quad, degs+4, 4U);
+        const double pabcdefgh = poly.jointAverage(quad, degs, 8U);
+        return (pabcdefgh - pabcd*pefgh)/nPoints/nPoints/nPoints;
+    }
+
+    template <typename Numeric>
+    inline double sampleVProduct(const AbsClassicalOrthoPoly1D& poly,
+                                 const Numeric* coords,
+                                 const unsigned long nPoints,
+                                 const UUPair ab)
+    {
+        Private::validateNPoints("sampleVProduct", nPoints);
+        assert(coords);
+        if (Private::isZeroPair(ab))
+            return 0.0;
+        else
+        {
+            unsigned degs[2];
+            degs[0] = ab.first;
+            degs[1] = ab.second;
+
+            return poly.jointSampleAverage(coords, nPoints, degs, 2) -
+                   Private::kdelta(ab);
+        }
+    }
+
+    template <typename Numeric>
+    inline double sampleVProduct(const AbsClassicalOrthoPoly1D& poly,
+                                 const Numeric* coords,
+                                 const unsigned long nPoints,
+                                 const UUPair ab, const UUPair cd)
+    {
+        Private::validateNPoints("sampleVProduct", nPoints);
+        assert(coords);
+        if (Private::isZeroPair(ab) || Private::isZeroPair(cd))
+            return 0.0;
+        else
+        {
+            unsigned degs1[2];
+            degs1[0] = ab.first;
+            degs1[1] = ab.second;
+
+            unsigned degs2[2];
+            degs2[0] = cd.first;
+            degs2[1] = cd.second;
+
+            const std::pair<double, double>& dp = poly.twoJointSampleAverages(
+                coords, nPoints, degs1, 2, degs2, 2);
+            return (dp.first - Private::kdelta(ab))*
+                   (dp.second - Private::kdelta(cd));
+        }
+    }
+
+    template <typename Numeric>
+    inline double sampleVCovariance(const AbsClassicalOrthoPoly1D& poly,
+                                    const Numeric* points,
+                                    const unsigned long nPoints,
+                                    const UUPair ab, const UUPair cd)
+    {
+        Private::validateNPoints("sampleVCovariance", nPoints);
+        return sampleVProductExp(poly, points, nPoints, ab, cd);
+    }
+
+    template <typename Numeric>
+    inline double sampleVProduct(const AbsClassicalOrthoPoly1D& poly,
+                                 const Numeric* coords,
+                                 const unsigned long nPoints,
+                                 const UUPair ab, const UUPair cd,
+                                 const UUPair ef)
+    {
+        Private::validateNPoints("sampleVProduct", nPoints);
+        assert(coords);
+        if (Private::isZeroPair(ab) || Private::isZeroPair(cd) ||
+            Private::isZeroPair(ef))
+            return 0.0;
+        else
+            return sampleVProduct(poly, coords, nPoints, ab, cd)*
+                   sampleVProduct(poly, coords, nPoints, ef);
+    }
+
+    template <typename Numeric>
+    inline double sampleVCovariance(const AbsClassicalOrthoPoly1D& poly,
+                                    const Numeric* points,
+                                    const unsigned long nPoints,
+                                    const UUPair ab, const UUPair cd,
+                                    const UUPair ef)
+    {
+        Private::validateNPoints("sampleVCovariance", nPoints);
+        return sampleVProductExp(poly, points, nPoints, ab, cd, ef);
+    }
+
+    template <typename Numeric>
+    inline double sampleVProduct(const AbsClassicalOrthoPoly1D& poly,
+                                 const Numeric* coords,
+                                 const unsigned long nPoints,
+                                 const UUPair ab, const UUPair cd,
+                                 const UUPair ef, const UUPair gh)
+    {
+        Private::validateNPoints("sampleVProduct", nPoints);
+        assert(coords);
+        if (Private::isZeroPair(ab) || Private::isZeroPair(cd) ||
+            Private::isZeroPair(ef) || Private::isZeroPair(gh))
+            return 0.0;
+        else
+            return sampleVProduct(poly, coords, nPoints, ab, cd)*
+                   sampleVProduct(poly, coords, nPoints, ef, gh);
+    }
+
+    template <typename Numeric>
+    inline double sampleVCovariance(const AbsClassicalOrthoPoly1D& poly,
+                                    const Numeric* points,
+                                    const unsigned long nPoints,
+                                    const UUPair ab, const UUPair cd,
+                                    const UUPair ef, const UUPair gh)
+    {
+        Private::validateNPoints("sampleVCovariance", nPoints);
+        assert(points);
+        return sampleVProductExp(poly, points, nPoints, ab, cd, ef, gh) -
+               sampleVProductExp(poly, points, nPoints, ab, cd)*
+               sampleVProductExp(poly, points, nPoints, ef, gh);
+    }
+
+    template <typename Numeric>
+    inline double sampleVCovCov(const AbsClassicalOrthoPoly1D& poly,
+                                const Numeric* points,
+                                const unsigned long nPoints,
+                                const UUPair ab, const UUPair cd,
+                                const UUPair ef, const UUPair gh)
+    {
+        Private::validateNPoints("sampleVCovCov", nPoints);
+        assert(points);
+
+        if (Private::isZeroPair(ab) || Private::isZeroPair(cd) ||
+            Private::isZeroPair(ef) || Private::isZeroPair(gh))
+            return 0.0;
+
+        std::pair<double, double> dp;
+        unsigned degs[8];
+        degs[0] = ab.first;
+        degs[1] = ab.second;
+        degs[2] = cd.first;
+        degs[3] = cd.second;
+        degs[4] = ef.first;
+        degs[5] = ef.second;
+        degs[6] = gh.first;
+        degs[7] = gh.second;
+        dp = poly.twoJointSampleAverages(points, nPoints, degs, 4, degs+4, 4);
+        const double pabcd = dp.first;
+        const double pefgh = dp.second;
+        const double pabcdefgh = poly.jointSampleAverage(points, nPoints, degs, 8);
+        return (pabcdefgh - pabcd*pefgh)/nPoints/nPoints/nPoints;
+    }
+
+    template <class Quadrature>
+    double oracleEpsExpectation(const AbsClassicalOrthoPoly1D& poly,
+                                const Quadrature& quad,
+                                const unsigned long nPoints,
+                                const unsigned m_in, const unsigned n_in,
+                                const bool highOrder)
+    {
+        if (highOrder)
+        {
+            Private::validateNPoints("oracleEpsExpectation", nPoints);
+
+            long double sum = 0.0L;
+            if (m_in || n_in)
+            {
+                const unsigned m = std::min(m_in, n_in);
+                const unsigned n = std::max(m_in, n_in);
+
+                for (unsigned k=0; k<=n; ++k)
+                {
+                    const double f = k == n ? 1.0 : (k > m ? 1.0 : 2.0);
+                    sum += f*poly.jointAverage(quad, k, k, m, n);
+                }
+                if (m == n)
+                    sum -= 1.0;
+                else
+                    sum -= (poly.jointAverage(quad, m, m, m, n) +
+                            poly.jointAverage(quad, m, n, n, n))/2.0;
+            }
+            return sum/nPoints;
+        }
+        else
+            return 0.0;
+    }
+
+    template <typename Numeric>
+    double sampleEpsExpectation(const AbsClassicalOrthoPoly1D& poly,
+                                const Numeric* coords, const unsigned long nPoints,
+                                const unsigned m_in, const unsigned n_in,
+                                const bool highOrder)
+    {
+        if (highOrder)
+        {
+            Private::validateNPoints("sampleEpsExpectation", nPoints);
+            assert(coords);
+
+            long double sum = 0.0L;
+            if (m_in || n_in)
+            {
+                const unsigned m = std::min(m_in, n_in);
+                const unsigned n = std::max(m_in, n_in);
+
+                unsigned degs1[4];
+                degs1[2] = m;
+                degs1[3] = n;
+                
+                for (unsigned k=0; k<=n; ++k)
+                {
+                    const double f = k == n ? 1.0 : (k > m ? 1.0 : 2.0);
+                    degs1[0] = k;
+                    degs1[1] = k;
+                    sum += f*poly.jointSampleAverage(coords, nPoints, degs1, 4);
+                }
+
+                if (m == n)
+                    sum -= 1.0;
+                else
+                {
+                    degs1[0] = m;
+                    degs1[1] = m;
+
+                    unsigned degs2[4];
+                    degs2[0] = m;
+                    degs2[1] = n;
+                    degs2[2] = n;
+                    degs2[3] = n;
+
+                    const std::pair<double,double>& aves = poly.twoJointSampleAverages(
+                        coords, nPoints, degs1, 4, degs2, 4);
+                    sum -= (aves.first + aves.second)/2.0;
+                }
+            }
+            return sum/nPoints;
+        }
+        else
+            return 0.0;
+    }
+
+    template <typename Numeric>
+    double sampleEpsValue(const AbsClassicalOrthoPoly1D& poly,
+                          const Numeric* coords, unsigned long nPoints,
+                          const unsigned m_in, const unsigned n_in,
+                          const bool highOrder)
+    {
+        Private::validateNPoints("sampleEpsValue", nPoints);
+        assert(coords);
+
+        if (highOrder)
+        {
+            long double sum = 0.0L;
+            if (m_in || n_in)
+            {
+                const unsigned m = std::min(m_in, n_in);
+                const unsigned n = std::max(m_in, n_in);
+
+                const double vmn = sampleVProduct(poly, coords, nPoints,
+                                                  UUPair(m, n));
+                if (m == n)
+                    sum -= (vmn + vmn*vmn);
+                else
+                {
+                    const double vnn = sampleVProduct(poly, coords, nPoints,
+                                                      UUPair(n, n));
+                    const double vmm = sampleVProduct(poly, coords, nPoints,
+                                                      UUPair(m, m));
+                    sum -= (vmn + 0.5*vmn*(vnn + vmm));
+                }
+                for (unsigned k=0; k<=n; ++k)
+                {
+                    const double f = k > m ? 1.0 : 2.0;
+                    const double vkmkn = sampleVProduct(poly, coords, nPoints,
+                                                        UUPair(k, m), UUPair(k, n));
+                    sum += f*vkmkn;
+                }
+            }
+            return sum;
+        }
+        else
+            return -sampleVProduct(poly, coords, nPoints, UUPair(m_in, n_in));
+    }
+
+#define npstat_EpsCovarianceCalculation_mainbody(calculator, argument) do {             \
+        const bool has0 = (m1_in == 0 && n1_in == 0) ||                                 \
+                          (m2_in == 0 && n2_in == 0);                                   \
+        if (has0)                                                                       \
+            return 0.0;                                                                 \
+        if (highOrder)                                                                  \
+        {                                                                               \
+            const unsigned m1 = std::min(m1_in, n1_in);                                 \
+            const unsigned n1 = std::max(m1_in, n1_in);                                 \
+            const unsigned m2 = std::min(m2_in, n2_in);                                 \
+            const unsigned n2 = std::max(m2_in, n2_in);                                 \
+            long double sum = 0.0L;                                                     \
+            /* Process the -v_{m1,n1} term */                                           \
+            sum += calculator (poly, argument, nPoints,                                 \
+                               UUPair(m2, n2), UUPair(m1, n1));                         \
+            sum += calculator (poly, argument, nPoints,                                 \
+                               UUPair(m2, n2), UUPair(n2, n2), UUPair(m1, n1))/2.0;     \
+            sum += calculator (poly, argument, nPoints,                                 \
+                               UUPair(m2, n2), UUPair(m2, m2), UUPair(m1, n1))/2.0;     \
+            for (unsigned k=0; k<=n2; ++k)                                              \
+            {                                                                           \
+                const double factor = k > m2 ? 1.0 : 2.0;                               \
+                sum -= factor*calculator (poly, argument, nPoints,                      \
+                                          UUPair(k, m2), UUPair(k, n2), UUPair(m1, n1));\
+            }                                                                           \
+            /* Process the term -v_{m1,n1}/2 (v_{n1,n1} + v_{m1,m1}) */                 \
+            unsigned idx[2];                                                            \
+            idx[0] = n1;                                                                \
+            idx[1] = m1;                                                                \
+            for (unsigned ii=0; ii<2; ++ii)                                             \
+            {                                                                           \
+                const unsigned mOrN = idx[ii];                                          \
+                sum += calculator (poly, argument, nPoints,                             \
+                                   UUPair(m1, n1), UUPair(mOrN, mOrN),                  \
+                                   UUPair(m2, n2))/2.0;                                 \
+                sum += calculator (poly, argument, nPoints,                             \
+                                   UUPair(m1, n1), UUPair(mOrN, mOrN),                  \
+                                   UUPair(m2, n2), UUPair(n2, n2))/4.0;                 \
+                sum += calculator (poly, argument, nPoints,                             \
+                                   UUPair(m1, n1), UUPair(mOrN, mOrN),                  \
+                                   UUPair(m2, n2), UUPair(m2, m2))/4.0;                 \
+                for (unsigned k=0; k<=n2; ++k)                                          \
+                {                                                                       \
+                    const double factor = k > m2 ? 1.0 : 2.0;                           \
+                    sum -= factor/2.0*calculator (poly, argument, nPoints,              \
+                                                  UUPair(m1, n1), UUPair(mOrN, mOrN),   \
+                                                  UUPair(k, m2), UUPair(k, n2));        \
+                }                                                                       \
+            }                                                                           \
+            /* Process the sum */                                                       \
+            for (unsigned k1=0; k1<=n1; ++k1)                                           \
+            {                                                                           \
+                const double f1 = k1 > m1 ? 1.0 : 2.0;                                  \
+                sum -= f1*calculator (poly, argument, nPoints,                          \
+                                      UUPair(k1, m1), UUPair(k1, n1), UUPair(m2, n2));  \
+                sum -= f1*calculator (poly, argument, nPoints,                          \
+                                      UUPair(k1, m1), UUPair(k1, n1),                   \
+                                      UUPair(m2, n2), UUPair(n2, n2))/2.0;              \
+                sum -= f1*calculator (poly, argument, nPoints,                          \
+                                      UUPair(k1, m1), UUPair(k1, n1),                   \
+                                      UUPair(m2, n2), UUPair(m2, m2))/2.0;              \
+                for (unsigned k=0; k<=n2; ++k)                                          \
+                {                                                                       \
+                    const double factor = k > m2 ? 1.0 : 2.0;                           \
+                    sum += f1*factor*calculator (poly, argument, nPoints,               \
+                                                 UUPair(k1, m1), UUPair(k1, n1),        \
+                                                 UUPair(k, m2), UUPair(k, n2));         \
+                }                                                                       \
+            }                                                                           \
+            return sum;                                                                 \
+        }                                                                               \
+        else                                                                            \
+            return calculator (poly, argument, nPoints,                                 \
+                               UUPair(m2_in, n2_in), UUPair(m1_in, n1_in));             \
+} while(0);
+
+    template <class Quadrature>
+    double oracleEpsCovariance(const AbsClassicalOrthoPoly1D& poly,
+                               const Quadrature& quad,
+                               const unsigned long nPoints,
+                               const unsigned m1_in, const unsigned n1_in,
+                               const unsigned m2_in, const unsigned n2_in,
+                               const bool highOrder)
+    {
+        Private::validateNPoints("oracleEpsCovariance", nPoints);
+        npstat_EpsCovarianceCalculation_mainbody(expectedVCovariance, quad);
+    }
+
+    template <typename Numeric>
+    double sampleEpsCovariance(const AbsClassicalOrthoPoly1D& poly,
+                               const Numeric* coords,
+                               const unsigned long nPoints,
+                               const unsigned m1_in, const unsigned n1_in,
+                               const unsigned m2_in, const unsigned n2_in,
+                               const bool highOrder)
+    {
+        Private::validateNPoints("sampleEpsCovariance", nPoints);
+        npstat_EpsCovarianceCalculation_mainbody(sampleVCovariance, coords);
+    }
+
+#define npstat_EpsCovarianceArray_mainbody(calculator, argument) do {                    \
+        const unsigned mdp1 = maxdeg + 1;                                                \
+        ArrayND<double> arr(mdp1, mdp1, mdp1, mdp1);                                     \
+        unsigned long nDefined = 0;                                                      \
+        for (unsigned i=0; i<=maxdeg; ++i)                                               \
+            for (unsigned j=0; j<=i; ++j)                                                \
+                for (unsigned k=0; k<=maxdeg; ++k)                                       \
+                    for (unsigned m=0; m<=k; ++m)                                        \
+                        if (std::make_pair(j,i) <= std::make_pair(m,k))                  \
+                        {                                                                \
+                            arr(j, i, m, k) = calculator (                               \
+                                poly, argument, nPoints, j, i, m, k, highOrder);         \
+                            ++nDefined;                                                  \
+                        }                                                                \
+        for (unsigned i=0; i<=maxdeg; ++i)                                               \
+            for (unsigned j=0; j<=maxdeg; ++j)                                           \
+                for (unsigned k=0; k<=maxdeg; ++k)                                       \
+                    for (unsigned m=0; m<=maxdeg; ++m)                                   \
+                       if (!(j<=i && m<=k && std::make_pair(j,i) <= std::make_pair(m,k)))\
+                       {                                                                 \
+                           unsigned i1 = i;                                              \
+                           unsigned j1 = j;                                              \
+                           unsigned k1 = k;                                              \
+                           unsigned m1 = m;                                              \
+                           if (!(j1 <= i1))                                              \
+                               std::swap(i1, j1);                                        \
+                           if (!(m1 <= k1))                                              \
+                               std::swap(m1, k1);                                        \
+                           if (!(std::make_pair(j1,i1) <= std::make_pair(m1,k1)))        \
+                           {                                                             \
+                               std::swap(m1, j1);                                        \
+                               std::swap(k1, i1);                                        \
+                           }                                                             \
+                           arr(j, i, m, k) = arr(j1, i1, m1, k1);                        \
+                           ++nDefined;                                                   \
+                       }                                                                 \
+        assert(nDefined == arr.length());                                                \
+        return arr;                                                                      \
+} while (0);
+
+    template <class Quadrature>
+    ArrayND<double> oracleEpsCovarianceArray(
+        const AbsClassicalOrthoPoly1D& poly, const Quadrature& quad,
+        const unsigned long nPoints, const unsigned maxdeg, const bool highOrder)
+    {
+        Private::validateNPoints("oracleEpsCovarianceArray", nPoints);
+        npstat_EpsCovarianceArray_mainbody(oracleEpsCovariance, quad);
+    }
+
+    template <typename Numeric>
+    ArrayND<double> sampleEpsCovarianceArray(
+        const AbsClassicalOrthoPoly1D& poly, const Numeric* coords,
+        const unsigned long nPoints, const unsigned maxdeg, const bool highOrder)
+    {
+        Private::validateNPoints("sampleEpsCovarianceArray", nPoints);
+        npstat_EpsCovarianceArray_mainbody(sampleEpsCovariance, coords);
+    }
+
+    namespace Private {
+        template <typename Numeric>
+        inline double sampleVCovarianceAdapter(const AbsClassicalOrthoPoly1D& poly,
+                                               const Numeric* coords, unsigned long nCoords,
+                                               unsigned m1, unsigned n1,
+                                               unsigned m2, unsigned n2, bool /* dummy */)
+            {return sampleVCovariance(poly, coords, nCoords, UUPair(m1,n1), UUPair(m2,n2));}
+    }
+
+    template <typename Numeric>
+    ArrayND<double> sampleVCovarianceArray(
+        const AbsClassicalOrthoPoly1D& poly, const Numeric* coords,
+        const unsigned long nPoints, const unsigned maxdeg)
+    {
+        Private::validateNPoints("sampleVCovarianceArray", nPoints);
+        const bool highOrder = false;
+        npstat_EpsCovarianceArray_mainbody(Private::sampleVCovarianceAdapter, coords);
+    }
+}

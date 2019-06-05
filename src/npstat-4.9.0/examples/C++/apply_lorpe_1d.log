@@ -1,0 +1,32 @@
+
+Usage: apply_lorpe_1d -- power degree bandwidth b_method n_intervals \
+            x_min x_max input_file input_column output_file
+
+  power         power of the symmetric Beta kernel. Use a negative number
+                here in order to employ the Gaussian kernel.
+
+  degree        LOrPE polynomial degree to use. Use a negative number here in
+                order to use the polynomial degree from the AMISE plugin rule.
+
+  bandwidth     LOrPE bandwidth to use. Use zero or a negative number here
+                in order to use the bandwidth from the AMISE plugin rule.
+
+  b_method      The type of boundary correction to perform for the kernel.
+                Should be one of BM_TRUNCATE, BM_STRETCH, BM_FOLD, BM_CONSTSQ, BM_FOLDSQ, BM_CONSTVAR or BM_FOLDVAR.
+
+  n_intervals   Number of intervals to use for splitting the density support.
+
+  x_min, x_max  Density support interval. Data points outside of this interval
+                will be ignored.
+
+  input_file    The input file which contains data columns separated by white
+                space. Lines which start with the "#" character are ignored.
+
+  input_column  The column number in the input file for which LOrPE density
+                estimation should be performed.
+
+  output_file   The name of the output file. This file will contain two
+                columns: the interval center will be in the first column
+                and the estimated density will be in the second column.
+
+PASS apply_lorpe_1d (exit status: 0)

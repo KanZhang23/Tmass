@@ -1,0 +1,106 @@
+#include <cmath>
+#include <stdexcept>
+
+#include "npstat/stat/AbsPolyFilterND.hh"
+
+namespace npstat {
+    // GCV for weighted samples
+    template<typename Numeric, class Array>
+    double BandwidthGCVPseudoLogliND<Numeric,Array>::operator()(
+        const HistoND<Numeric>& histo,
+        const double effectiveSampleSize,
+        const Array& densityEstimate,
+        const Array& looEstimate,
+        const AbsPolyFilterND& filterUsed) const
+    {
+        // Check arguments for consistency
+        if (!densityEstimate.isShapeCompatible(histo.binContents()))
+            throw std::invalid_argument(
+                "In npstat::BandwidthGCVPseudoLogliND::operator(): "
+                "histogram and density estimate are not compatible");
+        if (!densityEstimate.isShapeCompatible(looEstimate))
+            throw std::invalid_argument(
+                "In npstat::BandwidthGCVPseudoLogliND::operator(): "
+                "density estimates are not mutually compatible");
+        if (!densityEstimate.isCompatible(filterUsed.dataShape()))
+            throw std::invalid_argument(
+                "In npstat::BandwidthGCVPseudoLogliND::operator(): "
+                "filter and density estimate are not compatible");
+        if (effectiveSampleSize <= 1.0) throw std::invalid_argument(
+            "In npstat::BandwidthGCVPseudoLogliND::operator(): "
+            "not enough data for cross validation");
+        const double sqrtN = pow(effectiveSampleSize, renormPow_);
+        const double wsum = histo.binContents().template sum<long double>();
+
+        // Check that the density estimate normalization is "reasonable"
+        const double binWidth = histo.binVolume();
+        const unsigned long nbins = histo.nBins();
+        const typename Array::value_type* densData = densityEstimate.data();
+        {    
+            long double densitySum = 0.0L;
+            for (unsigned long ibin=0; ibin<nbins; ++ibin)
+                densitySum += densData[ibin];
+            const double densityInteg = densitySum*binWidth;
+            if (fabs(densityInteg - 1.0) >= 0.01) throw std::invalid_argument(
+                "In npstat::BandwidthGCVPseudoLogliND::operator(): "
+                "input density is not properly normalized");
+        }
+
+        const typename Array::value_type* looData = looEstimate.data();
+        {
+            long double densitySum = 0.0L;
+            for (unsigned long ibin=0; ibin<nbins; ++ibin)
+                densitySum += looData[ibin];
+            const double densityInteg = densitySum*binWidth;
+            if (fabs(densityInteg - 1.0) >= 0.01) throw std::invalid_argument(
+                "In npstat::BandwidthGCVPseudoLogliND::operator(): "
+                "LOO density is not properly normalized");
+        }
+
+        // Start accumulating the leaving-one-out log-likelihoods
+        long double logli = 0.0L;
+        const Numeric* bins = histo.binContents().data();
+        const Numeric zero = static_cast<Numeric>(0);
+        nonZeroCount_ = 0UL;
+        renormCount_ = 0UL;
+        for (unsigned long ibin=0; ibin<nbins; ++ibin)
+            if (bins[ibin] > zero)
+            {
+                ++nonZeroCount_;
+
+                // Figure out the contribution of unit weight falling
+                // into this histogram bin into the density estimate
+                // at this bin
+                const double fVal = filterUsed.linearSelfContribution(ibin);
+                const double weightOf1 = fVal/wsum/binWidth;
+
+                // Construct the density at this bin without the contribution
+                // from the bin itself
+                const double densityBinOut = looData[ibin];
+
+                // Construct the minimum density regularizing the criterion
+                const double minDensity = bins[ibin]*weightOf1/sqrtN;
+                if (densityBinOut <= minDensity)
+                {
+                    logli += bins[ibin]*log(minDensity);
+                    ++renormCount_;
+                }
+                else
+                    logli += bins[ibin]*log(densityBinOut);
+            }
+
+        return static_cast<double>(logli);
+    }
+
+    // GCV for unweighted samples
+    template<typename Numeric, class Array>
+    inline double BandwidthGCVPseudoLogliND<Numeric,Array>::operator()(
+        const HistoND<Numeric>& histo,
+        const Array& densityEstimate,
+        const Array& looEstimate,
+        const AbsPolyFilterND& f) const
+    {
+        const unsigned long N = histo.nFillsInRange();
+        return (*this)(histo, N, densityEstimate, looEstimate, f);
+    }
+}

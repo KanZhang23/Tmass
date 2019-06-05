@@ -1,0 +1,504 @@
+test 3dhisto-1.1 {creation of a 3d histogram} {} {
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 1 2 1.5 3 4 8]
+    expr {$id > 0}
+} {1}
+
+test 3dhisto-1.2 {verifying self-similarity of a 3d histogram} {} {
+    set id [hs::create_3d_hist [next_uid] "Example histogram 3d" "Test"\
+            X Y Z V 2 3 4 1 2 1.5 3 4 8]
+    hs::fill_3d_hist $id 1.5 2 5 1
+    verify_similarity $id $id 0
+} {}
+
+test 3dhisto-1.3 {filling 3d histogram without overflows} {} {
+    foreach {nxbins xmin xmax nybins ymin ymax nzbins zmin zmax} \
+	    {  2    1.0   2.5   3    1.5  3.0     4    4.0  8.0} {}
+    set id [hs::create_3d_hist [next_uid] "Example histogram 3d" "Test"\
+            X Y Z V $nxbins $nybins $nzbins $xmin $xmax $ymin $ymax $zmin $zmax]
+    for {set i 0} {$i < $nxbins} {incr i} {
+	for {set j 0} {$j < $nybins} {incr j} {
+	    for {set k 0} {$k < $nzbins} {incr k} {
+		set arr($i,$j,$k) 0.0
+	    }
+	}
+    }
+    for {set cycle 0} {$cycle < 5} {incr cycle} {
+	for {set i 0} {$i < $nxbins} {incr i} {
+	    set x [expr {$xmin + $i*($xmax-$xmin)/$nxbins + 0.1}]
+	    for {set j 0} {$j < $nybins} {incr j} {
+		set y [expr {$ymin + $j*($ymax-$ymin)/$nybins + 0.1}]
+		for {set k 0} {$k < $nzbins} {incr k} {
+		    set z [expr {$zmin + $k*($zmax-$zmin)/$nzbins + 0.1}]
+		    set w [expr {rand()}]
+		    set arr($i,$j,$k) [expr {$arr($i,$j,$k) + $w}]
+		    hs::fill_3d_hist $id $x $y $z $w
+		}
+	    }
+	}
+    }
+    for {set i 0} {$i < $nxbins} {incr i} {
+	for {set j 0} {$j < $nybins} {incr j} {
+	    for {set k 0} {$k < $nzbins} {incr k} {
+		set val [hs::3d_hist_bin_value $id $i $j $k]
+		assert_same_double $val $arr($i,$j,$k) 0.001
+	    }
+	}
+    }
+    expr [hs::num_entries $id] - $nxbins*$nybins*$nzbins*$cycle
+} {0}
+
+test 3dhisto-1.4 {filling 3d histogram with overflows} {} {
+    set id [hs::create_3d_hist [next_uid] "Example histogram 3d" "Test"\
+            X Y Z V 4 4 4 0.25 0.5 0.25 0.5 0.25 0.5]
+    catch {array unset arr}
+    for {set i 0} {$i < 3} {incr i} {
+	for {set j 0} {$j < 3} {incr j} {
+	    for {set k 0} {$k < 3} {incr k} {
+		set arr($i,$j,$k) 0.0
+	    }
+	}
+    }
+    for {set cycle 0} {$cycle < 1000} {incr cycle} {
+	set x [expr {rand()}]
+	set y [expr {rand()}]
+	set z [expr {rand()}]
+	set w [expr {rand()}]
+	hs::fill_3d_hist $id $x $y $z $w
+	if {$x >= 0.25 && $x < 0.5} {
+	    set i 1
+	} elseif {$x < 0.25} {
+	    set i 0
+	} else {
+	    set i 2
+	}
+	if {$y >= 0.25 && $y < 0.5} {
+	    set j 1
+	} elseif {$y < 0.25} {
+	    set j 0
+	} else {
+	    set j 2
+	}
+	if {$z >= 0.25 && $z < 0.5} {
+	    set k 1
+	} elseif {$z < 0.25} {
+	    set k 0
+	} else {
+	    set k 2
+	}
+	set arr($i,$j,$k) [expr $arr($i,$j,$k) + $w]
+    }
+    assert_same_double [expr $arr(1,1,1) * [hs::hist_bin_width $id]] \
+	    [hs::hist_integral $id] 0.001
+    set arr(1,1,1) 0.0
+    hs::3d_hist_overflows $id ovfl
+    for {set i 0} {$i < 3} {incr i} {
+	for {set j 0} {$j < 3} {incr j} {
+	    for {set k 0} {$k < 3} {incr k} {
+		assert_same_double $ovfl($i,$j,$k) $arr($i,$j,$k) 0.001
+	    }
+	}
+    }
+    expr [hs::num_entries $id] - 1000
+} {0}
+
+test 3dhisto-1.5 {block-filling 3d histogram, no errors} {} {
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 1 2 1.5 3 4 8]
+    set data {}
+    for {set i 0} {$i < 24} {incr i} {
+	lappend data $i
+    }
+    hs::3d_hist_block_fill $id $data
+    set cycle 0
+    for {set i 0} {$i < 2} {incr i} {
+	for {set j 0} {$j < 3} {incr j} {
+	    for {set k 0} {$k < 4} {incr k} {
+		set val [hs::3d_hist_bin_value $id $i $j $k]
+		assert_same_double $val [lindex $data $cycle] 0
+		incr cycle
+	    }
+	}
+    }
+} {}
+
+test 3dhisto-1.6 {block-filling 3d histogram, with errors} {} {
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 1 2 1.5 3 4 8]
+    set data {}
+    set poserr {}
+    set negerr {}
+    for {set i 0} {$i < 24} {incr i} {
+	lappend data $i
+	lappend poserr [expr {0.5*$i+0.1}]
+	lappend negerr [expr {0.1*$i+0.2}]
+    }
+    hs::3d_hist_block_fill $id $data $poserr $negerr
+    set cycle 0
+    for {set i 0} {$i < 2} {incr i} {
+	for {set j 0} {$j < 3} {incr j} {
+	    for {set k 0} {$k < 4} {incr k} {
+		set val [hs::3d_hist_bin_value $id $i $j $k]
+		assert_same_double $val [lindex $data $cycle] 0
+		incr cycle
+	    }
+	}
+    }
+    hs::swap_data_errors $id pos
+    set cycle 0
+    for {set i 0} {$i < 2} {incr i} {
+	for {set j 0} {$j < 3} {incr j} {
+	    for {set k 0} {$k < 4} {incr k} {
+		set val [hs::3d_hist_bin_value $id $i $j $k]
+		assert_same_double $val [lindex $poserr $cycle] 0.000001
+		incr cycle
+	    }
+	}
+    }
+    hs::swap_data_errors $id neg
+    set cycle 0
+    for {set i 0} {$i < 2} {incr i} {
+	for {set j 0} {$j < 3} {incr j} {
+	    for {set k 0} {$k < 4} {incr k} {
+		set val [hs::3d_hist_bin_value $id $i $j $k]
+		assert_same_double $val [lindex $negerr $cycle] 0.000001
+		incr cycle
+	    }
+	}
+    }
+} {}
+
+test 3dhisto-1.7 {setting 3d histogram errors} {} {
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 1 2 1.5 3 4 8]
+    set data {}
+    set poserr {}
+    set negerr {}
+    for {set i 0} {$i < 24} {incr i} {
+	lappend data $i
+	lappend poserr [expr {0.5*$i+0.1}]
+	lappend negerr [expr {0.1*$i+0.2}]
+    }
+    hs::3d_hist_block_fill $id $data
+    hs::set_3d_errors $id [hs::list_to_data $poserr] [hs::list_to_data $negerr]
+    hs::swap_data_errors $id pos
+    set cycle 0
+    for {set i 0} {$i < 2} {incr i} {
+	for {set j 0} {$j < 3} {incr j} {
+	    for {set k 0} {$k < 4} {incr k} {
+		set val [hs::3d_hist_bin_value $id $i $j $k]
+		assert_same_double $val [lindex $poserr $cycle] 0.000001
+		incr cycle
+	    }
+	}
+    }
+    hs::swap_data_errors $id neg
+    set cycle 0
+    for {set i 0} {$i < 2} {incr i} {
+	for {set j 0} {$j < 3} {incr j} {
+	    for {set k 0} {$k < 4} {incr k} {
+		set val [hs::3d_hist_bin_value $id $i $j $k]
+		assert_same_double $val [lindex $negerr $cycle] 0.000001
+		incr cycle
+	    }
+	}
+    }
+} {}
+
+test 3dhisto-1.8 {getting the number of bins in a 3d histogram} {} {
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 1 2 1.5 3 4 8]
+    hs::3d_hist_num_bins $id
+} {2 3 4}
+
+test 3dhisto-1.9 {getting range of a 3d histogram} {} {
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 1 2 1.5 3 4 8]
+    hs::3d_hist_range $id
+} {1.0 2.0 1.5 3.0 4.0 8.0}
+
+test 3dhisto-1.10 {getting bin contents of a 3d histogram} {} {
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 1 2 1.5 3 4 8]
+    set data {}
+    for {set i 0} {$i < 24} {incr i} {
+	lappend data $i
+    }
+    hs::3d_hist_block_fill $id $data
+    set data2 [hs::data_to_list [hs::3d_hist_bin_contents $id]]
+    set k 0
+    foreach i $data2 j $data {
+	assert_same_double $i $j 0
+	incr k
+    }
+    set k
+} {24}
+
+test 3dhisto-1.11 {getting positive errors of a 3d histogram} {} {
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 1 2 1.5 3 4 8]
+    set data {}
+    set poserr {}
+    for {set i 0} {$i < 24} {incr i} {
+	lappend data $i
+	lappend poserr [expr {0.5*$i+0.1}]
+    }
+    hs::3d_hist_block_fill $id $data $poserr
+    set data2 [hs::data_to_list [hs::3d_hist_errors $id p]]
+    set k 0
+    foreach i $data2 j $poserr {
+	assert_same_double $i $j 0.000001
+	incr k
+    }
+    set k
+} {24}
+
+test 3dhisto-1.12 {getting negative errors of a 3d histogram} {} {
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 1 2 1.5 3 4 8]
+    set data {}
+    set poserr {}
+    set negerr {}
+    for {set i 0} {$i < 24} {incr i} {
+	lappend data $i
+	lappend poserr [expr {0.5*$i+0.1}]
+	lappend negerr [expr {0.1*$i+0.2}]
+    }
+    hs::3d_hist_block_fill $id $data $poserr $negerr
+    set data2 [hs::data_to_list [hs::3d_hist_errors $id n]]
+    set k 0
+    foreach i $data2 j $negerr {
+	assert_same_double $i $j 0.000001
+	incr k
+    }
+    set k
+} {24}
+
+test 3dhisto-1.13 {retrieving 3d histogram bin values using coordinates} {} {
+    foreach {nxbins xmin xmax nybins ymin ymax nzbins zmin zmax} \
+	    {  2    1.0   2.5   3    1.5  3.0     4    4.0  8.0} {}
+    set id [hs::create_3d_hist [next_uid] "Example histogram 3d" "Test"\
+            X Y Z V $nxbins $nybins $nzbins $xmin $xmax $ymin $ymax $zmin $zmax]
+    set data {}
+    for {set i 0} {$i < 24} {incr i} {
+	lappend data $i
+    }
+    hs::3d_hist_block_fill $id $data
+    set cycle 0
+    for {set i 0} {$i < $nxbins} {incr i} {
+	set x [expr {$xmin + $i*($xmax-$xmin)/$nxbins + 0.1}]
+	for {set j 0} {$j < $nybins} {incr j} {
+	    set y [expr {$ymin + $j*($ymax-$ymin)/$nybins + 0.1}]
+	    for {set k 0} {$k < $nzbins} {incr k} {
+		set z [expr {$zmin + $k*($zmax-$zmin)/$nzbins + 0.1}]
+		assert_same_double [hs::3d_hist_xyz_value $id $x $y $z] \
+			[lindex $data $cycle] 0
+		incr cycle
+	    }
+	}
+    }
+} {}
+
+test 3dhisto-1.14 {getting labels of a 3d histogram} {} {
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 1 2 1.5 3 4 8]
+    hs::3d_hist_labels $id
+} {X Y Z V}
+
+test 3dhisto-1.15 {setting 3d histogram overflows} {} {
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 1 2 1.5 3 4 8]
+    array unset arr
+    for {set i 0} {$i < 3} {incr i} {
+	for {set j 0} {$j < 3} {incr j} {
+	    for {set k 0} {$k < 3} {incr k} {
+		set arr($i,$j,$k) [expr {rand()}]
+	    }
+	}
+    }
+    hs::3d_hist_set_overflows $id arr
+    hs::3d_hist_overflows $id ovfl
+    for {set i 0} {$i < 3} {incr i} {
+	for {set j 0} {$j < 3} {incr j} {
+	    for {set k 0} {$k < 3} {incr k} {
+		assert_same_double $ovfl($i,$j,$k) $arr($i,$j,$k) 0.001
+	    }
+	}
+    }
+} {}
+
+test 3dhisto-1.16 {minimal 3d histogram bin} {} {
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 1 2 1.5 3 4 8]
+    set data {}
+    for {set i 0} {$i < 24} {incr i} {
+	lappend data $i
+    }
+    set data2 [lreplace $data 10 10 -1.5]
+    hs::3d_hist_block_fill $id $data2
+    hs::3d_hist_minimum $id
+} {1.0 2.5 6.0 0 2 2 -1.5}
+
+test 3dhisto-1.17 {maximal 3d histogram bin} {} {
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 1 2 1.5 3 4 8]
+    set data {}
+    for {set i 0} {$i < 24} {incr i} {
+	lappend data $i
+    }
+    set data2 [lreplace $data 10 10 100.0]
+    hs::3d_hist_block_fill $id $data2
+    hs::3d_hist_maximum $id
+} {1.0 2.5 6.0 0 2 2 100.0}
+
+test 3dhisto-1.18 {3d histogram statistics} {} {
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 1 2 1.5 3 4 8]
+    set data {}
+    for {set i 0} {$i < 24} {incr i} {
+	lappend data $i
+    }
+    hs::3d_hist_block_fill $id $data
+    set data2 ""
+    foreach val [hs::3d_hist_stats $id] {
+	append data2 [format { %f} $val]
+    }
+    set data2
+} { 1.630435 2.365942 6.108696 0.213664 0.392150 1.114759}
+
+test 3dhisto-1.19 {storing 3d histograms} {} {
+    hs::delete_category "..."
+    set id1 [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 1 6 1.5 7 4 8]
+    set id2 [hs::create_3d_hist [next_uid] "Example histogram 3d" "Test"\
+            XX YY ZZ VV 4 3 5 2 5 3 8 5 9]
+    for {set cycle 0} {$cycle < 2000} {incr cycle} {
+	set x [expr {10.0*rand()}]
+	set y [expr {10.0*rand()}]
+	set z [expr {10.0*rand()}]
+	set w [expr {rand()}]
+	hs::fill_3d_hist $id1 $x $y $z $w
+	hs::fill_3d_hist $id2 $x $y $z $w
+    }
+    set poserr {}
+    for {set i 0} {$i < [hs::hist_num_bins $id1]} {incr i} {
+	lappend poserr $i
+    }
+    hs::set_3d_errors $id1 [hs::list_to_data $poserr]
+    set ofile [file join $::tcltest::temporaryDirectory "tmp.hs"]
+    set i [hs::save_file $ofile]
+    if {$i != 2} {
+	error "Failed to save the histograms"
+    }
+    set j [hs::read_file $ofile "Tmp"]
+    file delete $ofile
+    if {$j != 2} {
+	error "Failed to read the histograms"
+    }
+    set id1_r [hs::id_from_title "Example 3d histogram" "Tmp/Test"]
+    verify_similarity $id1 $id1_r 0
+    set id2_r [hs::id_from_title "Example histogram 3d" "Tmp/Test"]
+    verify_similarity $id2 $id2_r 0
+} {}
+
+test 3dhisto-1.20 {arithmetic operations on 3d histograms} {} {
+    set id1 [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 0 1 0 1 0 1]
+    set id2 [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 0 1 0 1 0 1]
+    set id [hs::create_3d_hist [next_uid] "Example 3d histogram" "Test"\
+            X Y Z V 2 3 4 0 1 0 1 0 1]
+    for {set cycle 0} {$cycle < 100} {incr cycle} {
+        set x [expr {rand()}]
+        set y [expr {rand()}]
+        set z [expr {rand()}]
+        set w [expr {rand()}]
+        hs::fill_3d_hist $id1 $x $y $z $w
+        hs::fill_3d_hist $id $x $y $z [expr {2.0*$w}]
+    }
+    for {set cycle 0} {$cycle < 100} {incr cycle} {
+        set x [expr {rand()}]
+        set y [expr {rand()}]
+        set z [expr {rand()}]
+        set w [expr {rand()}]
+        hs::fill_3d_hist $id2 $x $y $z $w
+        hs::fill_3d_hist $id $x $y $z [expr {3.0*$w}]
+    }
+
+    # Test addition first
+    set id1_r [hs::sum_histograms [next_uid] "Example 3d histogram"\
+            "Test" $id1 $id2 2 3]
+    # Numbers of entries differ at this point. 
+    # Do a block fill on $id in order to make them equal.
+    set data [hs::3d_hist_bin_contents $id]
+    hs::3d_hist_block_fill $id $data
+    verify_similarity $id $id1_r 0.00001
+
+    # Now test multiplication
+    set id1_r [hs::multiply_histograms [next_uid] "Example 3d histogram"\
+            "Test" $id1 $id2 2]
+    set data [hs::data_to_list [hs::3d_hist_bin_contents $id1]]
+    set data2 [hs::data_to_list [hs::3d_hist_bin_contents $id2]]
+    set data3 {}
+    foreach val $data val2 $data2 {
+        lappend data3 [expr {$val*$val2*2.0}]
+    }
+    hs::3d_hist_block_fill $id [hs::list_to_data $data3]
+    verify_similarity $id $id1_r 0.00001
+} {}
+
+test 3dhisto-1.21 {scaling 3d histogram data} {} {
+    set id [hs::create_3d_hist [next_uid] "Example histogram 3d" "Test"\
+            X Y Z V 2 3 4 1 2 1.5 3 4 8]
+    set data {}
+    for {set i 0} {$i < 24} {incr i} {
+	lappend data $i
+    }
+    for {set i 0} {$i < 3} {incr i} {
+	for {set j 0} {$j < 3} {incr j} {
+	    for {set k 0} {$k < 3} {incr k} {
+		set arr($i,$j,$k) [expr {$k+1.0}]
+	    }
+	}
+    }
+    hs::3d_hist_block_fill $id [hs::list_to_data $data]
+    hs::3d_hist_set_overflows $id arr
+
+    hs::hist_scale_data $id 2.0
+
+    hs::3d_hist_overflows $id arr
+    set i 0
+    foreach val [hs::data_to_list [hs::3d_hist_bin_contents $id]] {
+	assert_same_double $val [expr 2*$i] 0
+	incr i
+    }
+    for {set i 0} {$i < 3} {incr i} {
+	for {set j 0} {$j < 3} {incr j} {
+	    for {set k 0} {$k < 3} {incr k} {
+		assert_same_double $arr($i,$j,$k) [expr {($k+1.0)*2.0}] 0
+	    }
+	}
+    }
+} {}
+
+catch {unset id}
+catch {unset id1}
+catch {unset id1_r}
+catch {unset id2}
+catch {unset id2_r}
+catch {unset nxbins xmin xmax nybins ymin ymax nzbins zmin zmax}
+catch {unset x y z w}
+catch {unset i j k}
+catch {unset cycle}
+catch {array unset arr}
+catch {array unset ovfl}
+catch {unset val}
+catch {unset val2}
+catch {unset data}
+catch {unset data2}
+catch {unset data3}
+catch {unset poserr negerr}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

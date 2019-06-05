@@ -1,0 +1,32 @@
+test ntuple_subrange-1.1 {ntuple subrange} {} {
+    set id0 [hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c}]
+    hs::ntuple_block_fill $id0 [list \
+            1.0  1.0 1.0 \
+            1.0  1.0 1.0 \
+            2.0  1.0 1.0 \
+            1.0  1.5 1.0 \
+            0.0  1.0 1.0 \
+            1.0  0.5 1.0 \
+            1.0  1.0 0.75 \
+            1.0  1.0 1.25 \
+    ]
+    set id1 [hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c}]
+    hs::ntuple_block_fill $id1 [list \
+            1.0  1.5 1.0 \
+            0.0  1.0 1.0 \
+            1.0  0.5 1.0 \
+    ]
+    set id2 [hs::ntuple_subrange [next_uid] "Test ntuple" "tests" $id0 3 5]
+    verify_similarity $id1 $id2 0
+    set id3 [hs::ntuple_subrange [next_uid] "Test ntuple" "tests" $id0 -1 10]
+    verify_similarity $id0 $id3 0
+} {}
+
+catch {unset id0}
+catch {unset id1}
+catch {unset id2}
+catch {unset id3}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

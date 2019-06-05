@@ -1,0 +1,46 @@
+global test_data_1 test_data_2 reference_data
+set test_data_1 [list \
+    2.0  1.0  1.0 \
+    1.0  1.5  2.0 \
+    0.0  1.0  3.0 \
+]
+
+set test_data_2 [list \
+    3.0  7.0 -2.0 \
+    4.0  2.5  4.0 \
+    1.0  3.0  8.0 \
+]
+
+set reference_data [list \
+    1.0  1.0  2.0 \
+   -0.5  1.5  3.5 \
+   -1.0  1.0  4.0 \
+   -4.0  7.0  5.0 \
+    1.5  2.5  6.5 \
+]
+
+test ntuple_c_add_variables-1.1 {replacing ntuple variables in C} {} {
+    set id [hs::create_ntuple [next_uid] "Test ntuple" "tests" {a b c}]
+    set idref [hs::create_ntuple [next_uid] "Test ntuple" "tests" {d b e}]
+    global test_data_1 test_data_2 reference_data
+    hs::ntuple_block_fill $id $test_data_1
+    set idtest [hs::ntuple_c_replace_variables $id \
+        [next_uid] "Test ntuple" "tests" {c < 7.5} \
+        a d {a - b} c e {b + c}]
+    hs::reset $id
+    hs::ntuple_block_fill $id $test_data_2
+    set idtest [hs::ntuple_c_replace_variables -project 1 $id \
+        [hs::uid $idtest] "Test ntuple" "tests" {c < 7.5} \
+        a d {a - b} c e {b + c}]
+    hs::ntuple_block_fill $idref $reference_data
+    verify_similarity $idref $idtest 0.0
+} {}
+
+unset test_data_1 test_data_2 reference_data
+catch {unset id}
+catch {unset idref}
+catch {unset idtest}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

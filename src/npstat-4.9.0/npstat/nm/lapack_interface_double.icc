@@ -1,0 +1,1047 @@
+#include <algorithm>
+
+namespace npstat {
+    template<>
+    inline void gen_matrix_eigenvalues<double>(const double* in,
+                                               const unsigned dim,
+                                               std::complex<double>* eigen)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufv;
+        static unsigned lastDim = 0U;
+        static int LWORK = -1;
+
+        assert(in);
+        assert(dim);
+        assert(eigen);
+
+        char JOBVL[] = "N", JOBVR[] = "N";
+        int N = dim, LDA = dim, INFO = 0, LDVL = 1, LDVR = 1;
+        double *A = 0, *WR = 0, *WI = 0, *VL = 0, *VR = 0, *WORK = 0;
+
+        if (dim != lastDim)
+        {
+            // Run the workspace query
+            LWORK = -1;
+            double worklen = 0.0;
+            dgeev_(JOBVL, JOBVR, &N, A, &LDA, WR, WI, VL, &LDVL, VR,
+                   &LDVR, &worklen, &LWORK, &INFO, 1, 1);
+            assert(INFO == 0);
+            LWORK = worklen;
+            bufv.resize(N*N + 4*N + LWORK);
+        }
+
+        // Partition the memory
+        A = &bufv[0];
+        WR = A + N*N;
+        WI = WR + N;
+        VL = WI + N;
+        VR = VL + N;
+        WORK = VR + N;
+
+        // Run the eigenvalue calculation
+        transposeBuffer(A, in, dim);
+        dgeev_(JOBVL, JOBVR, &N, A, &LDA, WR, WI, VL, &LDVL, VR,
+               &LDVR, WORK, &LWORK, &INFO, 1, 1);
+        Private::check_lapack_status(INFO, "gen_matrix_eigenvalues", "DGEEV");
+
+        for (unsigned i=0; i<dim; ++i)
+            eigen[i] = std::complex<double>(WR[i], WI[i]);
+    }
+
+    template<>
+    inline void gen_matrix_eigensystem<double>(const double* in,
+                                               const unsigned dim,
+                                               std::complex<double>* eigen,
+                                               double* rightEigenvectors,
+                                               double* leftEigenvectors)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufv;
+        static unsigned lastDim = 0U;
+        static int LWORK = -1;
+
+        assert(in);
+        assert(dim);
+        assert(eigen);
+
+        char JOBVL[] = "V", JOBVR[] = "V";
+        int N = dim, LDA = dim, INFO = 0, LDVL = dim, LDVR = dim;
+        double *A = 0, *WR = 0, *WI = 0, *WORK = 0;
+        double *VL = leftEigenvectors;
+        double *VR = rightEigenvectors;
+
+        if (dim != lastDim)
+        {
+            // Run the workspace query
+            LWORK = -1;
+            double worklen = 0.0;
+            dgeev_(JOBVL, JOBVR, &N, A, &LDA, WR, WI, VL, &LDVL, VR,
+                   &LDVR, &worklen, &LWORK, &INFO, 1, 1);
+            assert(INFO == 0);
+            LWORK = worklen;
+            bufv.resize(N*N + 4*N + LWORK);
+        }
+
+        // Partition the memory
+        A = &bufv[0];
+        WR = A + N*N;
+        WI = WR + N;
+        if (!VL)
+        {
+            VL = WI + N;
+            LDVL = 1;
+            JOBVL[0] = 'N';
+        }
+        if (!VR)
+        {
+            VR = WI + 2*N;
+            LDVR = 1;
+            JOBVR[0] = 'N';
+        }
+        WORK = WI + 3*N;
+
+        // Run the eigenvalue/eigenvector calculation
+        transposeBuffer(A, in, dim);
+        dgeev_(JOBVL, JOBVR, &N, A, &LDA, WR, WI, VL, &LDVL, VR,
+               &LDVR, WORK, &LWORK, &INFO, 1, 1);
+        Private::check_lapack_status(INFO, "gen_matrix_eigensystem", "DGEEV");
+
+        for (unsigned i=0; i<dim; ++i)
+            eigen[i] = std::complex<double>(WR[i], WI[i]);
+    }
+
+    template<>
+    inline void sym_matrix_eigenvalues<double>(const double* in,
+                                               const unsigned dim,
+                                               double* eigenvalues)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufv;
+
+        assert(in);
+        assert(dim);
+        assert(eigenvalues);
+
+        char UPLO[] = "U", JOBZ[] = "N";
+        int N = dim, LDA = dim, INFO = 0, LWORK = 34*dim;
+
+        if (bufv.size() < dim*dim + LWORK)
+            bufv.resize(dim*dim + LWORK);
+        double* buf = &bufv[0];
+        double* work = buf + dim*dim;
+        for (unsigned i=0; i<dim; ++i)
+            for (unsigned j=0; j<=i; ++j)
+            {
+                const unsigned idx = i*dim + j;
+                buf[idx] = (in[idx] + in[j*dim + i])/2.0;
+            }
+        dsyev_(JOBZ, UPLO, &N, buf, &LDA, eigenvalues,
+               work, &LWORK, &INFO, 1, 1);
+        Private::check_lapack_status(INFO, "sym_matrix_eigenvalues", "DSYEV");
+    }
+
+    template<>
+    inline void sym_matrix_eigensystem<double>(const double* in,
+                                               const unsigned dim,
+                                               double* eigenvalues,
+                                               double* eigenvectors)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufv;
+
+        assert(in);
+        assert(dim);
+        assert(eigenvalues);
+        assert(eigenvectors);
+
+        char UPLO[] = "U", JOBZ[] = "V";
+        int N = dim, LDA = dim, INFO = 0, LWORK = 34*dim;
+
+        for (unsigned i=0; i<dim; ++i)
+            for (unsigned j=0; j<=i; ++j)
+            {
+                const unsigned idx = i*dim + j;
+                eigenvectors[idx] = (in[idx] + in[j*dim + i])/2.0;
+            }
+        if (bufv.size() < static_cast<unsigned>(LWORK))
+            bufv.resize(LWORK);
+        dsyev_(JOBZ, UPLO, &N, eigenvectors, &LDA, eigenvalues,
+               &bufv[0], &LWORK, &INFO, 1, 1);
+        Private::check_lapack_status(INFO, "sym_matrix_eigensystem", "DSYEV");
+    }
+
+    template<>
+    inline void sym_matrix_eigenvalues_dc<double>(const double* in,
+                                                  const unsigned dim,
+                                                  double* eigenvalues)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufv;
+        static std::vector<int> ibufv;
+        static unsigned maxDim = 0;
+
+        assert(in);
+        assert(dim);
+        assert(eigenvalues);
+
+        if (dim > maxDim)
+        {
+            // Calculate optimal buffer sizes and allocate the memory
+            char UPLO[] = "U", JOBZ[] = "N";
+            int N = dim, LDA = dim, INFO = 0, LWORK = -1, LIWORK = -1;
+            double work = 0.0, buf = 0.0;
+            int IWORK = 0;
+
+            dsyevd_(JOBZ, UPLO, &N, &buf, &LDA, eigenvalues,
+                    &work, &LWORK, &IWORK, &LIWORK, &INFO, 1, 1);
+            assert(INFO == 0);
+            assert(IWORK > 0);
+            assert(work > 0.0);
+
+            bufv.resize(dim*dim + static_cast<unsigned>(work));
+            ibufv.resize(IWORK);
+
+            maxDim = dim;
+        }
+
+        char UPLO[] = "U", JOBZ[] = "N";
+        int N = dim, LDA = dim, INFO = 0, LWORK = bufv.size() - dim*dim;
+        int LIWORK = ibufv.size();
+        double* buf = &bufv[0];
+        double* work = buf + dim*dim;
+        int* IWORK = &ibufv[0];
+
+        for (unsigned i=0; i<dim; ++i)
+            for (unsigned j=0; j<=i; ++j)
+            {
+                const unsigned idx = i*dim + j;
+                buf[idx] = (in[idx] + in[j*dim + i])/2.0;
+            }
+        dsyevd_(JOBZ, UPLO, &N, buf, &LDA, eigenvalues,
+                work, &LWORK, IWORK, &LIWORK, &INFO, 1, 1);
+        Private::check_lapack_status(INFO, "sym_matrix_eigenvalues_dc",
+                                     "DSYEVD");
+    }
+
+    template<>
+    inline void sym_matrix_eigenvalues_rrr<double>(const double* in,
+                                                   const unsigned dim,
+                                                   double* eigenvalues)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufv;
+        static std::vector<int> ibufv;
+        static unsigned maxDim = 0;
+
+        assert(in);
+        assert(dim);
+        assert(eigenvalues);
+
+        if (dim > maxDim)
+        {
+            // Calculate optimal buffer sizes and allocate the memory
+            char UPLO[] = "U", RANGE[] = "A", JOBZ[] = "N";
+            int N = dim, LDA = dim, INFO = 0, LWORK = -1, LIWORK = -1;
+            double work = 0.0, buf = 0.0, VL = 0.0, VU = 0.0, Z = 0.0;
+            int IWORK = 0, IL = 0, IU = 0, M = 0, LDZ = dim, ISUPPZ = 0;
+            double ABSTOL = 0.0;
+
+            dsyevr_(JOBZ, RANGE, UPLO, &N, &buf, &LDA,
+                    &VL, &VU, &IL, &IU, &ABSTOL, &M, eigenvalues,
+                    &Z, &LDZ, &ISUPPZ,
+                    &work, &LWORK, &IWORK, &LIWORK, &INFO, 1, 1, 1);
+            assert(INFO == 0);
+            assert(IWORK > 0);
+            assert(work > 0.0);
+
+            bufv.resize(dim*dim + static_cast<unsigned>(work));
+            ibufv.resize(IWORK + 2*dim);
+
+            maxDim = dim;
+        }
+
+        char UPLO[] = "U", RANGE[] = "A", JOBZ[] = "N";
+        int N = dim, LDA = dim, INFO = 0, LWORK = bufv.size() - dim*dim;
+        int LIWORK = ibufv.size() - 2*dim;
+        double VL = 0.0, VU = 0.0, Z = 0.0;
+        int IL = 0, IU = 0, M = 0, LDZ = dim;
+        double ABSTOL = 0.0;
+        double* buf = &bufv[0];
+        double* work = buf + dim*dim;
+        int* ISUPPZ = &ibufv[0];
+        int* IWORK = ISUPPZ + 2*dim;
+
+        for (unsigned i=0; i<dim; ++i)
+            for (unsigned j=0; j<=i; ++j)
+            {
+                const unsigned idx = i*dim + j;
+                buf[idx] = (in[idx] + in[j*dim + i])/2.0;
+            }
+        dsyevr_(JOBZ, RANGE, UPLO, &N, buf, &LDA,
+                &VL, &VU, &IL, &IU, &ABSTOL, &M, eigenvalues,
+                &Z, &LDZ, ISUPPZ,
+                work, &LWORK, IWORK, &LIWORK, &INFO, 1, 1, 1);
+        Private::check_lapack_status(INFO, "sym_matrix_eigenvalues_rrr",
+                                     "DSYEVR");
+        assert(M == N);
+    }
+
+    template<>
+    inline void td_sym_matrix_eigenvalues_rrr<double>(const double* in,
+                                                      const unsigned dim,
+                                                      double* eigenvalues)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufv;
+        static std::vector<int> ibufv;
+        static unsigned maxDim = 0;
+
+        assert(in);
+        assert(dim);
+        assert(eigenvalues);
+
+        if (dim > maxDim)
+        {
+            // Calculate optimal buffer sizes and allocate the memory
+            char RANGE[] = "A", JOBZ[] = "N";
+            int N = dim, INFO = 0, LWORK = -1, LIWORK = -1;
+            double work = 0.0, D = 0.0, E = 0.0, VL = 0.0, VU = 0.0, Z = 0.0;
+            int IWORK = 0, IL = 0, IU = 0, M = 0, LDZ = dim, ISUPPZ = 0;
+            double ABSTOL = 0.0;
+
+            dstevr_(JOBZ, RANGE, &N, &D, &E,
+                    &VL, &VU, &IL, &IU, &ABSTOL, &M, eigenvalues,
+                    &Z, &LDZ, &ISUPPZ,
+                    &work, &LWORK, &IWORK, &LIWORK, &INFO, 1, 1);
+            assert(INFO == 0);
+            assert(IWORK > 0);
+            assert(work > 0.0);
+
+            bufv.resize(2*dim + static_cast<unsigned>(work));
+            ibufv.resize(IWORK + 2*dim);
+
+            maxDim = dim;
+        }
+
+        char RANGE[] = "A", JOBZ[] = "N";
+        int N = dim, INFO = 0, LWORK = bufv.size() - 2*dim;
+        int LIWORK = ibufv.size() - 2*dim;
+        double VL = 0.0, VU = 0.0, Z = 0.0;
+        int IL = 0, IU = 0, M = 0, LDZ = dim;
+        double ABSTOL = 0.0;
+        double* D = &bufv[0];
+        double* E = D + dim;
+        double* work = E + dim;
+        int* ISUPPZ = &ibufv[0];
+        int* IWORK = ISUPPZ + 2*dim;
+
+        for (unsigned i=0; i<dim; ++i)
+        {
+            if (i)
+                E[i-1] = in[i-1+dim*i];
+            D[i] = in[i+dim*i];
+        }
+
+        dstevr_(JOBZ, RANGE, &N, D, E,
+                &VL, &VU, &IL, &IU, &ABSTOL, &M, eigenvalues,
+                &Z, &LDZ, ISUPPZ,
+                work, &LWORK, IWORK, &LIWORK, &INFO, 1, 1);
+        Private::check_lapack_status(INFO, "td_sym_matrix_eigenvalues_rrr",
+                                     "DSTEVR");
+        assert(M == N);
+    }
+
+    template<>
+    inline void sym_matrix_eigensystem_dc<double>(const double* in,
+                                                  const unsigned dim,
+                                                  double* eigenvalues,
+                                                  double* eigenvectors)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufv;
+        static std::vector<int> ibufv;
+        static unsigned maxDim = 0;
+
+        assert(in);
+        assert(dim);
+        assert(eigenvalues);
+        assert(eigenvectors);
+
+        if (dim > maxDim)
+        {
+            // Calculate optimal buffer sizes and allocate the memory
+            char UPLO[] = "U", JOBZ[] = "V";
+            int N = dim, LDA = dim, INFO = 0, LWORK = -1, LIWORK = -1;
+            double work = 0.0, buf = 0.0;
+            int IWORK = 0;
+
+            dsyevd_(JOBZ, UPLO, &N, &buf, &LDA, eigenvalues,
+                    &work, &LWORK, &IWORK, &LIWORK, &INFO, 1, 1);
+            assert(INFO == 0);
+            assert(IWORK > 0);
+            assert(work > 0.0);
+
+            bufv.resize(static_cast<unsigned>(work));
+            ibufv.resize(IWORK);
+
+            maxDim = dim;
+        }
+
+        char UPLO[] = "U", JOBZ[] = "V";
+        int N = dim, LDA = dim, INFO = 0, LWORK = bufv.size();
+        int LIWORK = ibufv.size();
+        double* work = &bufv[0];
+        int* IWORK = &ibufv[0];
+
+        for (unsigned i=0; i<dim; ++i)
+            for (unsigned j=0; j<=i; ++j)
+            {
+                const unsigned idx = i*dim + j;
+                eigenvectors[idx] = (in[idx] + in[j*dim + i])/2.0;
+            }
+        dsyevd_(JOBZ, UPLO, &N, eigenvectors, &LDA, eigenvalues,
+                work, &LWORK, IWORK, &LIWORK, &INFO, 1, 1);
+        Private::check_lapack_status(INFO, "sym_matrix_eigensystem_dc",
+                                     "DSYEVD");
+    }
+
+    template<>
+    inline void sym_matrix_eigensystem_rrr<double>(const double* in,
+                                                   const unsigned dim,
+                                                   double* eigenvalues,
+                                                   double* eigenvectors)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufv;
+        static std::vector<int> ibufv;
+        static unsigned maxDim = 0;
+
+        assert(in);
+        assert(dim);
+        assert(eigenvalues);
+        assert(eigenvectors);
+
+        if (dim > maxDim)
+        {
+            // Calculate optimal buffer sizes and allocate the memory
+            char UPLO[] = "U", RANGE[] = "A", JOBZ[] = "V";
+            int N = dim, LDA = dim, INFO = 0, LWORK = -1, LIWORK = -1;
+            double work = 0.0, buf = 0.0, VL = 0.0, VU = 0.0, Z = 0.0;
+            int IWORK = 0, IL = 0, IU = 0, M = 0, LDZ = dim, ISUPPZ = 0;
+            double ABSTOL = 0.0;
+
+            dsyevr_(JOBZ, RANGE, UPLO, &N, &buf, &LDA,
+                    &VL, &VU, &IL, &IU, &ABSTOL, &M, eigenvalues,
+                    &Z, &LDZ, &ISUPPZ,
+                    &work, &LWORK, &IWORK, &LIWORK, &INFO, 1, 1, 1);
+            assert(INFO == 0);
+            assert(IWORK > 0);
+            assert(work > 0.0);
+
+            bufv.resize(dim*dim + static_cast<unsigned>(work));
+            ibufv.resize(IWORK + 2*dim);
+
+            maxDim = dim;
+        }
+
+        char UPLO[] = "U", RANGE[] = "A", JOBZ[] = "V";
+        int N = dim, LDA = dim, INFO = 0, LWORK = bufv.size() - dim*dim;
+        int LIWORK = ibufv.size() - 2*dim;
+        double VL = 0.0, VU = 0.0;
+        int IL = 0, IU = 0, M = 0, LDZ = dim;
+        double ABSTOL = 0.0;
+        double* buf = &bufv[0];
+        double* work = buf + dim*dim;
+        int* ISUPPZ = &ibufv[0];
+        int* IWORK = ISUPPZ + 2*dim;
+
+        for (unsigned i=0; i<dim; ++i)
+            for (unsigned j=0; j<=i; ++j)
+            {
+                const unsigned idx = i*dim + j;
+                buf[idx] = (in[idx] + in[j*dim + i])/2.0;
+            }
+        dsyevr_(JOBZ, RANGE, UPLO, &N, buf, &LDA,
+                &VL, &VU, &IL, &IU, &ABSTOL, &M, eigenvalues,
+                eigenvectors, &LDZ, ISUPPZ,
+                work, &LWORK, IWORK, &LIWORK, &INFO, 1, 1, 1);
+        Private::check_lapack_status(INFO, "sym_matrix_eigensystem_rrr",
+                                     "DSYEVR");
+        assert(M == N);
+    }
+
+    template<>
+    inline void td_sym_matrix_eigensystem_rrr<double>(const double* in,
+                                                      const unsigned dim,
+                                                      double* eigenvalues,
+                                                      double* eigenvectors)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufv;
+        static std::vector<int> ibufv;
+        static unsigned maxDim = 0;
+
+        assert(in);
+        assert(dim);
+        assert(eigenvalues);
+        assert(eigenvectors);
+
+        if (dim > maxDim)
+        {
+            // Calculate optimal buffer sizes and allocate the memory
+            char RANGE[] = "A", JOBZ[] = "V";
+            int N = dim, INFO = 0, LWORK = -1, LIWORK = -1;
+            double work = 0.0, D = 0.0, E = 0.0, VL = 0.0, VU = 0.0, Z = 0.0;
+            int IWORK = 0, IL = 0, IU = 0, M = 0, LDZ = dim, ISUPPZ = 0;
+            double ABSTOL = 0.0;
+
+            dstevr_(JOBZ, RANGE, &N, &D, &E,
+                    &VL, &VU, &IL, &IU, &ABSTOL, &M, eigenvalues,
+                    &Z, &LDZ, &ISUPPZ,
+                    &work, &LWORK, &IWORK, &LIWORK, &INFO, 1, 1);
+            assert(INFO == 0);
+            assert(IWORK > 0);
+            assert(work > 0.0);
+
+            bufv.resize(2*dim + static_cast<unsigned>(work));
+            ibufv.resize(IWORK + 2*dim);
+
+            maxDim = dim;
+        }
+
+        char RANGE[] = "A", JOBZ[] = "V";
+        int N = dim, INFO = 0, LWORK = bufv.size() - 2*dim;
+        int LIWORK = ibufv.size() - 2*dim;
+        double VL = 0.0, VU = 0.0;
+        int IL = 0, IU = 0, M = 0, LDZ = dim;
+        double ABSTOL = 0.0;
+        double* D = &bufv[0];
+        double* E = D + dim;
+        double* work = E + dim;
+        int* ISUPPZ = &ibufv[0];
+        int* IWORK = ISUPPZ + 2*dim;
+
+        for (unsigned i=0; i<dim; ++i)
+        {
+            if (i)
+                E[i-1] = in[i-1+dim*i];
+            D[i] = in[i+dim*i];
+        }
+
+        dstevr_(JOBZ, RANGE, &N, D, E,
+                &VL, &VU, &IL, &IU, &ABSTOL, &M, eigenvalues,
+                eigenvectors, &LDZ, ISUPPZ,
+                work, &LWORK, IWORK, &LIWORK, &INFO, 1, 1);
+        Private::check_lapack_status(INFO, "td_sym_matrix_eigensystem_rrr",
+                                     "DSTEVR");
+        assert(M == N);
+    }
+
+    template<>
+    inline void invert_posdef_sym_matrix<double>(const double* in,
+                                                 const unsigned dim,
+                                                 double* out)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufv;
+
+        assert(in);
+        assert(out);
+
+        if (bufv.size() < dim*dim)
+            bufv.resize(dim*dim);
+        double* buf = &bufv[0];
+        for (unsigned i=0; i<dim; ++i)
+            for (unsigned j=0; j<=i; ++j)
+            {
+                const unsigned idx = i*dim + j;
+                buf[idx] = (in[idx] + in[j*dim + i])/2.0;
+            }
+        int N = dim, LDA = dim, INFO = 0;
+        char U[] = "U";
+        dpotrf_(U, &N, buf, &LDA, &INFO, 1);
+        Private::check_lapack_status(INFO,"invert_posdef_sym_matrix","DPOTRF");
+        dpotri_(U, &N, buf, &LDA, &INFO, 1);
+        Private::check_lapack_status(INFO,"invert_posdef_sym_matrix","DPOTRI");
+        for (unsigned i=0; i<dim; ++i)
+            for (unsigned j=0; j<=i; ++j)
+            {
+                const unsigned idx = i*dim + j;
+                out[idx] = buf[idx];
+                out[j*dim + i] = buf[idx];
+            }
+    }
+
+    template<>
+    inline void invert_sym_matrix<double>(const double* in,
+                                          const unsigned dim,
+                                          double* out)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufv;
+        static std::vector<int> bufPiv;
+
+        assert(in);
+        assert(out);
+
+        if (bufv.size() < dim*(dim + 32U))
+            bufv.resize(dim*(dim + 32U));
+        double* buf = &bufv[0];
+        double* WORK = buf + dim*dim;
+        for (unsigned i=0; i<dim; ++i)
+            for (unsigned j=0; j<=i; ++j)
+            {
+                const unsigned idx = i*dim + j;
+                buf[idx] = (in[idx] + in[j*dim + i])/2.0;
+            }
+        if (bufPiv.size() < dim)
+            bufPiv.resize(dim);
+        int* IPIV = &bufPiv[0];
+        int N = dim, LDA = dim, INFO = 0, LWORK = dim*32;
+        char U[] = "U";
+
+        dsytrf_(U, &N, buf, &LDA, IPIV, WORK, &LWORK, &INFO, 1);
+        Private::check_lapack_status(INFO, "invert_sym_matrix", "DSYTRF");
+
+        dsytri_(U, &N, buf, &LDA, IPIV, WORK, &INFO, 1);
+        Private::check_lapack_status(INFO, "invert_sym_matrix", "DSYTRI");
+
+        for (unsigned i=0; i<dim; ++i)
+            for (unsigned j=0; j<=i; ++j)
+            {
+                const unsigned idx = i*dim + j;
+                out[idx] = buf[idx];
+                out[j*dim + i] = buf[idx];
+            }
+    }
+
+    template<>
+    inline double lu_decomposition_matrix_det<double>(const double* in,
+                                                      const unsigned dim)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufv;
+        static std::vector<int> bufPiv;
+
+        assert(in);
+
+        const unsigned len = dim*dim;
+        if (bufv.size() < len)
+            bufv.resize(len);
+        double* buf = &bufv[0];
+        for (unsigned i=0; i<len; ++i)
+            buf[i] = in[i];
+        if (bufPiv.size() < dim)
+            bufPiv.resize(dim);
+        int* IPIV = &bufPiv[0];
+
+        int M = dim, N = dim, LDA = dim, INFO = 0;
+        dgetrf_(&M, &N, buf, &LDA, IPIV, &INFO);
+        if (INFO > 0)
+            return 0.0;
+        else
+        {
+            Private::check_lapack_status(INFO, "lu_decomposition_matrix_det",
+                                         "DGETRF");
+            long double prod = 1.0L;
+            for (unsigned i=0; i<dim; ++i)
+                prod *= buf[i*dim + i];
+            for (int i=0; i<static_cast<int>(dim); ++i)
+                if (IPIV[i] != i + 1)
+                    prod *= -1.0L;
+            return prod;
+        }
+    }
+
+    template<>
+    inline void invert_general_matrix<double>(const double* in,
+                                              const unsigned dim,
+                                              double* out)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufv;
+        static std::vector<int> bufPiv;
+
+        assert(in);
+        assert(out);
+
+        const unsigned len = dim*dim;
+        if (bufv.size() < dim*(dim + 32U))
+            bufv.resize(dim*(dim + 32U));
+        double* buf = &bufv[0];
+        double* WORK = buf + dim*dim;
+        for (unsigned i=0; i<len; ++i)
+            buf[i] = in[i];
+        if (bufPiv.size() < dim)
+            bufPiv.resize(dim);
+        int* IPIV = &bufPiv[0];
+
+        int M = dim, N = dim, LDA = dim, INFO = 0, LWORK = dim*32;
+        dgetrf_(&M, &N, buf, &LDA, IPIV, &INFO);
+        Private::check_lapack_status(INFO, "invert_general_matrix", "DGETRF");
+
+        dgetri_(&N, buf, &LDA, IPIV, WORK, &LWORK, &INFO);
+        Private::check_lapack_status(INFO, "invert_general_matrix", "DGETRI");
+
+        for (unsigned i=0; i<len; ++i)
+            out[i] = buf[i];
+    }
+
+    template<>
+    inline bool solve_linear_system(const double* in, const unsigned dim,
+                                    const double* rhs, double* solution)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufv;
+        static std::vector<int> bufPiv;
+
+        assert(in);
+        assert(rhs);
+        assert(solution);
+
+        const unsigned len = dim*dim;
+        if (bufv.size() < len)
+            bufv.resize(len);
+        double* buf = &bufv[0];
+        for (unsigned i=0; i<len; ++i)
+            buf[i] = in[i];
+        if (bufPiv.size() < dim)
+            bufPiv.resize(dim);
+        int* IPIV = &bufPiv[0];
+
+        int M = dim, N = dim, LDA = dim, INFO = 0;
+        dgetrf_(&M, &N, buf, &LDA, IPIV, &INFO);
+        if (INFO > 0)
+            return false;
+        else
+        {
+            Private::check_lapack_status(INFO, "solve_linear_system", "DGETRF");
+            for (unsigned i=0; i<dim; ++i)
+                solution[i] = rhs[i];
+            int NRHS = 1, LDB = dim;
+            char T[] = "T";
+            dgetrs_(T, &N, &NRHS, buf, &LDA, IPIV,
+		    solution, &LDB, &INFO, 1);
+            Private::check_lapack_status(INFO, "solve_linear_system", "DGETRS");
+            return true;
+        }
+    }
+
+    template<>
+    inline bool solve_linear_systems(const double* in, const unsigned dim,
+                                     const unsigned ncols,
+                                     const double* rhs, double* solution)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufv;
+        static std::vector<int> bufPiv;
+
+        assert(in);
+        assert(rhs);
+        assert(solution);
+
+        const unsigned len = dim*dim;
+        const unsigned slen = dim*ncols;
+        if (bufv.size() < len+slen)
+            bufv.resize(len+slen);
+        double* buf = &bufv[0];
+        for (unsigned i=0; i<len; ++i)
+            buf[i] = in[i];
+        if (bufPiv.size() < dim)
+            bufPiv.resize(dim);
+        int* IPIV = &bufPiv[0];
+
+        int M = dim, N = dim, LDA = dim, INFO = 0;
+        dgetrf_(&M, &N, buf, &LDA, IPIV, &INFO);
+        if (INFO > 0)
+            return false;
+        else
+        {
+            Private::check_lapack_status(INFO, "solve_linear_systems", "DGETRF");
+            double* rhst = buf + len;
+            for (unsigned row=0; row<dim; ++row)
+                for (unsigned col=0; col<ncols; ++col)
+                    rhst[col*dim+row] = rhs[row*ncols+col];
+            int NRHS = ncols, LDB = dim;
+            char T[] = "T";
+            dgetrs_(T, &N, &NRHS, buf, &LDA, IPIV,
+		    rhst, &LDB, &INFO, 1);
+            Private::check_lapack_status(INFO, "solve_linear_systems", "DGETRS");
+            for (unsigned row=0; row<dim; ++row)
+                for (unsigned col=0; col<ncols; ++col)
+                    solution[row*ncols+col] = rhst[col*dim+row];
+            return true;
+        }
+    }
+
+    template<>
+    inline bool linear_least_squares(const double* in, const unsigned nrows,
+                                     const unsigned ncols,
+                                     const double* rhs, double* solution)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> workBuf;
+        static std::vector<int> intBuf;
+
+        assert(in);
+        assert(rhs);
+        assert(solution);
+        assert(nrows >= ncols);
+
+        // Call the LAPACK linear least squares solver
+        int M = nrows;
+        int N = ncols;
+        int NRHS = 1;
+        int LDA = nrows;
+        int LDB = nrows;
+        double RCOND = 1.0e-12;
+        int RANK = 0;
+        int INFO = 1;
+        double stmp = 0.0, Atmp = 0.0, wtmp = 0.0;
+        int itmp;
+
+        // Figure out the workspace needed
+        int LWORK = -1;
+        dgelsd_(&M, &N, &NRHS, &Atmp,
+                &LDA, solution, &LDB, &stmp,
+                &RCOND, &RANK, &wtmp,
+                &LWORK, &itmp, &INFO);
+        assert(INFO == 0);
+        const int MINMN = std::min(nrows, ncols);
+        const int NLVL = Private::lapack_nlvl_dgelsd(MINMN);
+        itmp =  3 * MINMN * NLVL + 11 * MINMN;
+
+        // Grab more memory if necessary
+        if (itmp > static_cast<int>(intBuf.size()))
+            intBuf.resize(itmp);
+        const unsigned needDoub = static_cast<unsigned>(wtmp);
+        const unsigned memNeeded = nrows*ncols + nrows + ncols + needDoub;
+        if (memNeeded > workBuf.size())
+            workBuf.resize(memNeeded);
+
+        double* A = &workBuf[0];
+        double* rhscopy = A + nrows*ncols;
+        double* S = rhscopy + nrows;
+        double* work = S + ncols;
+        LWORK = needDoub + workBuf.size() - memNeeded;
+
+        // Make copies of various things so that we do not destroy them        
+        for (unsigned irow=0; irow<nrows; ++irow)
+            for (unsigned icol=0; icol<ncols; ++icol)
+                A[icol*nrows + irow] = in[irow*ncols + icol];
+
+        for (unsigned i=0; i<nrows; ++i)
+            rhscopy[i] = rhs[i];
+
+        // Perform the real work now
+        INFO = -1;
+        dgelsd_(&M, &N, &NRHS, A,
+                &LDA, rhscopy, &LDB, S,
+                &RCOND, &RANK, work,
+                &LWORK, &intBuf[0], &INFO);
+        if (INFO > 0)
+            return false;
+        else
+        {
+            Private::check_lapack_status(INFO, "linear_least_squares", "DGELSD");
+            for (unsigned i=0; i<ncols; ++i)
+                solution[i] = rhscopy[i];
+            return true;
+        }
+    }
+
+    template<>
+    inline bool constrained_least_squares(const double* in, const unsigned nrows,
+                                          const unsigned ncols, const double* rhs,
+                                          const double* constraintMatrix,
+                                          const unsigned cRows, const unsigned cCols,
+                                          const double* cRhs, double* solution)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> workBuf;
+
+        assert(in);
+        assert(rhs);
+        assert(constraintMatrix);
+        assert(cRhs);
+        assert(solution);
+
+        int M = nrows;
+        int N = ncols;
+        int P = cRows;
+        int LDA = nrows;
+        int LDB = cRows;
+        int INFO = 1;
+        double Atmp = 0.0, Btmp = 0.0, wtmp = 0.0, rhstmp = 0.0, cRhstmp = 0.0;
+
+        // Figure out the workspace needed
+        int LWORK = -1;
+        dgglse_(&M, &N, &P, &Atmp, &LDA,
+                &Btmp, &LDB, &rhstmp, &cRhstmp,
+                solution, &wtmp, &LWORK, &INFO);
+        assert(INFO == 0);
+        const unsigned needDoub = static_cast<unsigned>(wtmp);
+        const unsigned memNeeded = nrows*ncols + nrows + cRows*cCols + cRows + needDoub;
+        if (memNeeded > workBuf.size())
+            workBuf.resize(memNeeded);
+
+        double* A = &workBuf[0];
+        double* rhscopy = A + nrows*ncols;
+        double* B = rhscopy + nrows;
+        double* cRhscopy = B + cRows*cCols;
+        double* work = cRhscopy + cRows;
+        LWORK = needDoub + workBuf.size() - memNeeded;
+
+        // Make copies of various things so that we do not destroy them        
+        for (unsigned irow=0; irow<nrows; ++irow)
+            for (unsigned icol=0; icol<ncols; ++icol)
+                A[icol*nrows + irow] = in[irow*ncols + icol];
+
+        for (unsigned irow=0; irow<cRows; ++irow)
+            for (unsigned icol=0; icol<cCols; ++icol)
+                B[icol*cRows + irow] = constraintMatrix[irow*cCols + icol];
+
+        for (unsigned i=0; i<nrows; ++i)
+            rhscopy[i] = rhs[i];
+
+        for (unsigned i=0; i<cRows; ++i)
+            cRhscopy[i] = cRhs[i];
+
+        // Perform the real work now
+        INFO = -1;
+        dgglse_(&M, &N, &P, A, &LDA,
+                B, &LDB, rhscopy, cRhscopy,
+                solution, work, &LWORK, &INFO);
+        if (INFO > 0)
+            return false;
+        else
+        {
+            Private::check_lapack_status(INFO, "constrained_least_squares", "DGGLSE");
+            return true;
+        }
+    }
+
+    template<>
+    inline bool gen_matrix_svd(const double* in,
+                               const unsigned iM, const unsigned iN,
+                               double* U, double* singularValues, double* VT)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufa;
+        static std::vector<double> workbuf;
+        static unsigned oldM = 0;
+        static unsigned oldN = 0;
+
+        const unsigned long lN = static_cast<unsigned long>(iN);
+        const unsigned long len = iM*lN + lN*lN;
+        if (bufa.size() < len)
+            bufa.resize(len);
+        transposeBuffer(&bufa[0], in, iM, iN);
+        double* vtbuf = &bufa[0] + iM*lN;
+
+        char JOBU[] = "A", JOBVT[] = "A";
+        int M = iM;
+        int N = iN;
+        int LDA = iM;
+        int LDU = iM;
+        int LDVT = iN;
+        int INFO = -1;
+
+        if (iM > oldM || iN > oldN)
+        {
+            // Make a workspace query
+            oldM = iM;
+            oldN = iN;
+            int LWORK = -1;
+            double wsize = 0.0;
+            dgesvd_(JOBU, JOBVT, &M, &N,
+                    &bufa[0], &LDA, singularValues,
+                    U, &LDU, vtbuf, &LDVT,
+                    &wsize, &LWORK, &INFO, 1, 1);
+            assert(!INFO);
+            const unsigned sz = static_cast<unsigned>(wsize);
+            assert(sz);
+            if (workbuf.size() < sz)
+                workbuf.resize(sz);
+        }
+
+        int LWORK = workbuf.size();
+        dgesvd_(JOBU, JOBVT, &M, &N,
+                &bufa[0], &LDA, singularValues,
+                U, &LDU, vtbuf, &LDVT,
+                &workbuf[0], &LWORK, &INFO, 1, 1);
+        if (INFO > 0)
+            return false;
+        else
+        {
+            Private::check_lapack_status(INFO, "gen_matrix_svd", "DGESVD");
+            transposeBuffer(VT, vtbuf, lN);
+            return true;
+        }
+    }
+
+    template<>
+    inline bool gen_matrix_svd_dc(const double* in,
+                                  const unsigned iM, const unsigned iN,
+                                  double* U, double* singularValues, double* VT)
+    {
+        // The following code is not thread safe!
+        static std::vector<double> bufa;
+        static std::vector<double> workbuf;
+        static std::vector<int> ibuf;
+        static unsigned oldM = 0;
+        static unsigned oldN = 0;
+
+        const unsigned long lN = static_cast<unsigned long>(iN);
+        const unsigned long len = iM*lN + lN*lN;
+        if (bufa.size() < len)
+            bufa.resize(len);
+        transposeBuffer(&bufa[0], in, iM, iN);
+        double* vtbuf = &bufa[0] + iM*lN;
+
+        const unsigned iblen = 8U*std::min(iM,iN);
+        if (ibuf.size() < iblen)
+            ibuf.resize(iblen);
+
+        char JOBZ[] = "A";
+        int M = iM;
+        int N = iN;
+        int LDA = iM;
+        int LDU = iM;
+        int LDVT = iN;
+        int INFO = -1;
+
+        if (iM > oldM || iN > oldN)
+        {
+            // Make a workspace query
+            oldM = iM;
+            oldN = iN;
+            int LWORK = -1;
+            double wsize = 0.0;
+            dgesdd_(JOBZ, &M, &N,
+                    &bufa[0], &LDA, singularValues,
+                    U, &LDU, vtbuf, &LDVT,
+                    &wsize, &LWORK, &ibuf[0], &INFO, 1);
+            assert(!INFO);
+            const unsigned sz = static_cast<unsigned>(wsize);
+            assert(sz);
+            if (workbuf.size() < sz)
+                workbuf.resize(sz);
+        }
+
+        int LWORK = workbuf.size();
+        dgesdd_(JOBZ, &M, &N,
+                &bufa[0], &LDA, singularValues,
+                U, &LDU, vtbuf, &LDVT,
+                &workbuf[0], &LWORK, &ibuf[0], &INFO, 1);
+        if (INFO > 0)
+            return false;
+        else
+        {
+            Private::check_lapack_status(INFO, "gen_matrix_svd_dc", "DGESDD");
+            transposeBuffer(VT, vtbuf, lN);
+            return true;
+        }
+    }
+}

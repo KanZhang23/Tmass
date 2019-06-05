@@ -1,0 +1,125 @@
+#include <cassert>
+#include <algorithm>
+#include <stdexcept>
+
+#ifdef SWIG_VERBOSEDTORS
+#include <iostream>
+#endif
+
+namespace npstat {
+    template <typename Real>
+    inline LinInterpolatedTable1D::LinInterpolatedTable1D(
+        const Real* data, const unsigned npoints,
+        const double x_min, const double x_max,
+        const bool leftExtrapolationLinear,
+        const bool rightExtrapolationLinear)
+        : data_(data, data+npoints),
+          xmin_(x_min),
+          xmax_(x_max),
+          binwidth_((x_max - x_min)/(npoints - 1U)),
+          npoints_(npoints),
+          leftExtrapolationLinear_(leftExtrapolationLinear),
+          rightExtrapolationLinear_(rightExtrapolationLinear),
+          monotonous_(false),
+          monotonicityKnown_(false)
+    {
+        if (npoints < 2U) throw std::invalid_argument(
+            "In npstat::LinInterpolatedTable1D constructor: "
+            "insufficient number of table points");
+        assert(data);
+    }
+
+    template <typename Real>
+    LinInterpolatedTable1D::LinInterpolatedTable1D(
+        const std::vector<std::pair<Real,Real> >& v,
+        const unsigned npoints,
+        const bool leftExtrapolationLinear,
+        const bool rightExtrapolationLinear)
+        : xmin_(v[0].first),
+          xmax_(v[v.size() - 1U].first),
+          binwidth_((xmax_ - xmin_)/(npoints - 1U)),
+          npoints_(npoints),
+          leftExtrapolationLinear_(leftExtrapolationLinear),
+          rightExtrapolationLinear_(rightExtrapolationLinear),
+          monotonous_(false),
+          monotonicityKnown_(false)
+    {
+        const unsigned len = v.size();
+        if (len < 2U) throw std::invalid_argument(
+            "In npstat::LinInterpolatedTable1D constructor: "
+            "insufficient number of data points");
+        if (npoints < 2U) throw std::invalid_argument(
+            "In npstat::LinInterpolatedTable1D constructor: "
+            "insufficient number of table points");
+
+        const std::pair<Real,Real>* vdata = &v[0];
+        for (unsigned i=1; i<len; ++i)
+            if (vdata[i-1U].first >= vdata[i].first)
+            {
+                if (vdata[i-1U].first > vdata[i].first)
+                    throw std::invalid_argument(
+                        "In npstat::LinInterpolatedTable1D constructor: "
+                        "table points are not sorted properly");
+                else
+                    throw std::invalid_argument(
+                        "In npstat::LinInterpolatedTable1D constructor: "
+                        "table points nave duplicate abscissae");
+            }
+
+        unsigned shift = 0U;
+        if (leftExtrapolationLinear)
+        {
+            ++npoints_;
+            xmin_ -= binwidth_;
+            shift = 1U;
+        }
+        if (rightExtrapolationLinear)
+        {
+            ++npoints_;
+            xmax_ += binwidth_;
+        }
+
+        data_.resize(npoints_);
+
+        if (leftExtrapolationLinear)
+        {
+            data_[0] = interpolateSimple(
+                vdata[0].first, vdata[1].first,
+                vdata[0].second, vdata[1].second, xmin_);
+        }
+        if (rightExtrapolationLinear)
+        {
+            data_[npoints_-1U] = interpolateSimple(
+                vdata[len - 2U].first, vdata[len - 1U].first,
+                vdata[len - 2U].second, vdata[len - 1U].second, xmax_);
+        }
+
+        data_[shift] = vdata[0].second;
+        data_[npoints - 1U + shift] = vdata[len - 1U].second;
+        unsigned ibelow = 0, iabove = 1;
+        for (unsigned i=1; i<npoints-1; ++i)
+        {
+            const double x = xmin_ + (i + shift)*binwidth_;
+            while (static_cast<double>(v[iabove].first) <= x)
+            {
+                ++ibelow;
+                ++iabove;
+            }
+            if (v[ibelow].first == v[iabove].first)
+                data_[i + shift] = (v[ibelow].second + v[iabove].second)/2.0;
+            else
+                data_[i + shift] = interpolateSimple(
+                    v[ibelow].first, v[iabove].first,
+                    v[ibelow].second, v[iabove].second, x);
+        }
+    }
+
+#ifdef SWIG_VERBOSEDTORS
+    inline LinInterpolatedTable1D::~LinInterpolatedTable1D()
+    {
+        std::cout << classname() << " destructor called" << std::endl;
+    }
+#else
+    inline LinInterpolatedTable1D::~LinInterpolatedTable1D() {}
+#endif
+}

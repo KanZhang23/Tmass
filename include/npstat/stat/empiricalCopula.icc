@@ -1,0 +1,151 @@
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/nm/KDTree.hh"
+#include "npstat/stat/StatUtils.hh"
+
+namespace npstat {
+    template <class Point, class Array>
+    void calculateEmpiricalCopula(
+        const std::vector<Point>& data,
+        const unsigned* dimsToUse, const unsigned nDimsToUse,
+        Array* result)
+    {
+        typedef typename Array::value_type Numeric;
+
+        // Check that we have some input points
+        const std::size_t datasize = data.size();
+        if (!datasize) throw std::invalid_argument(
+            "In npstat::calculateEmpiricalCopula: empty data vector");
+
+        // Check that the resulting array shape makes sense
+        assert(result);
+        ArrayShape shape(result->shape());
+        if (shape.size() != nDimsToUse) throw std::invalid_argument(
+            "In npstat::calculateEmpiricalCopula: "
+            "invalid number of copula variables");
+        assert(dimsToUse);
+        for (unsigned i=0; i<nDimsToUse; ++i)
+            if (shape[i] <= 1U) throw std::invalid_argument(
+                "In npstat::calculateEmpiricalCopula: "
+                "must have at least two copula bins in each dimension");
+
+        // Construct the data kd-tree
+        KDTree<Point,Numeric> tree(data, dimsToUse, nDimsToUse);
+
+        // Prepare the quantile tables
+        std::vector<Numeric> data1d(datasize);
+        std::vector<Numeric>* quantiles = new std::vector<Numeric>[nDimsToUse];
+        for (unsigned dimnum=0; dimnum<nDimsToUse; ++dimnum)
+        {
+            const unsigned i = dimsToUse[dimnum];
+            for (std::size_t k=0; k<datasize; ++k)
+                data1d[k] = data[k][i];
+            std::sort(data1d.begin(), data1d.end());
+
+            const unsigned npt = shape[dimnum];
+            const double qinterval = 1.0/(npt - 1U);
+
+            quantiles[dimnum].reserve(npt);
+            for (unsigned iq=0; iq<npt; ++iq)
+            {
+                const double q = iq == npt - 1U ? 1.0 : iq*qinterval;
+                Numeric quantile = empiricalQuantile(data1d, q, true);
+                quantiles[dimnum].push_back(quantile);
+            }
+        }
+
+        // Go over all array points and calculate the edf
+        std::vector<unsigned> indexVec(nDimsToUse);
+        unsigned* index = &indexVec[0];
+        std::vector<Numeric> upperVec(nDimsToUse);
+        Numeric* upper = &upperVec[0];
+        const unsigned long arrlen = result->length();
+        for (unsigned long ipt=0; ipt<arrlen; ++ipt)
+        {
+            result->convertLinearIndex(ipt, index, nDimsToUse);
+            bool hasZero = false;
+            for (unsigned i=0; i<nDimsToUse; ++i)
+            {
+                if (index[i] == 0U)
+                    hasZero = true;
+                upper[i] = quantiles[i][index[i]];
+            }
+            double edf = 0.0;
+            if (!hasZero)
+                edf = tree.nCdf(upper, nDimsToUse)*1.0/datasize;
+            result->linearValue(ipt) = static_cast<Numeric>(edf);
+        }
+        delete [] quantiles;
+    }
+
+    template <class Point, class Array>
+    void empiricalCopulaDensity(
+        const std::vector<Point>& data,
+        const unsigned* dimsToUse, const unsigned nDimsToUse,
+        Array* result)
+    {
+        typedef typename Array::value_type Numeric;
+
+        // Check that we have some input points
+        const std::size_t datasize = data.size();
+        if (!datasize) throw std::invalid_argument(
+            "In npstat::empiricalCopulaDensity: empty data vector");
+
+        // Check that the resulting array shape makes sense
+        assert(result);
+        ArrayShape shape(result->shape());
+        if (shape.size() != nDimsToUse) throw std::invalid_argument(
+            "In npstat::empiricalCopulaDensity: "
+            "invalid number of copula variables");
+        assert(dimsToUse);
+
+        // Construct the data kd-tree
+        KDTree<Point,Numeric> tree(data, dimsToUse, nDimsToUse);
+
+        // Prepare the quantile tables
+        std::vector<Numeric> data1d(datasize);
+        std::vector<Numeric>* quantiles = new std::vector<Numeric>[nDimsToUse];
+        for (unsigned idim=0; idim<nDimsToUse; ++idim)
+        {
+            const unsigned i = dimsToUse[idim];
+            for (std::size_t k=0; k<datasize; ++k)
+                data1d[k] = data[k][i];
+            std::sort(data1d.begin(), data1d.end());
+
+            const unsigned npt = shape[idim];
+            const double qinterval = 1.0/npt;
+
+            quantiles[idim].reserve(npt+1);
+            Numeric quantile;
+            for (unsigned iq=0; iq<npt; ++iq)
+            {
+                const double q = iq*qinterval;
+                quantile = empiricalQuantile(data1d, q, true);
+                quantiles[idim].push_back(quantile);
+            }
+            quantile = empiricalQuantile(data1d, 1.0, true);
+            quantiles[idim].push_back(quantile);
+        }
+
+        // Scale factor due to the bin size (array length
+        // is the inverse of the bin size)
+        const unsigned long arrlen = result->length();
+        const double scale = arrlen*1.0/datasize;
+
+        // Go over all array points and calculate the density
+        std::vector<unsigned> indexVec(nDimsToUse);
+        unsigned* index = &indexVec[0];
+        BoxND<Numeric> box(nDimsToUse);
+        for (unsigned long ipt=0; ipt<arrlen; ++ipt)
+        {
+            result->convertLinearIndex(ipt, index, nDimsToUse);
+            for (unsigned i=0; i<nDimsToUse; ++i)
+                box[i].setBounds(quantiles[i][index[i]],
+                                 quantiles[i][index[i]+1U]);
+            const double density = tree.nInBox(box)*scale;
+            result->linearValue(ipt) = static_cast<Numeric>(density);
+        }
+        delete [] quantiles;
+    }
+}

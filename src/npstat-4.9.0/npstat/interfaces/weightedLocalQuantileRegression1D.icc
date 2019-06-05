@@ -1,0 +1,342 @@
+#include <algorithm>
+#include <iostream>
+#include <sstream>
+#include <utility>
+
+#include "Minuit2/MnUserParameters.h"
+#include "Minuit2/FunctionMinimum.h"
+#include "Minuit2/MnSimplex.h"
+
+#include "npstat/stat/QuantileRegression1D.hh"
+#include "npstat/stat/Distributions1D.hh"
+#include "npstat/stat/StatUtils.hh"
+
+#include "npstat/interfaces/MinuitQuantileRegression1DFcn.hh"
+
+namespace npsi {
+    template<class Numeric, class Numeric2>
+    void weightedLocalQuantileRegression1D(
+        std::vector<npstat::Triple<Numeric,Numeric,double> > points,
+        const double symbetaPower, const double bandwidthInCDFUnits,
+        const unsigned polyDegree, const double quantile,
+        const double xmin, const double xmax, 
+        Numeric2* result, const unsigned nResultPoints,
+        const bool verbose)
+    {
+        typedef npstat::Triple<Numeric,Numeric,double> MyPoint;
+
+        const unsigned mnStrategy = 1U;
+        const unsigned maxUpCycles = 10;
+
+        const unsigned long nPoints = points.size();
+        assert(nPoints > 1UL);
+        assert(symbetaPower > -1.0);
+        assert(bandwidthInCDFUnits > 0.0);
+        assert(bandwidthInCDFUnits < 0.5);
+        assert(result);
+        assert(nResultPoints);
+        const double binwidth = (xmax - xmin)/nResultPoints;
+        const double lambda = symbetaPower + 0.5;
+        const Numeric zero = Numeric();
+
+        std::sort(points.begin(), points.end());
+
+        // Construct the array of cdf values
+        std::vector<double> cdfValuesVec(nPoints);
+        double* cdfValues = &cdfValuesVec[0];
+        {
+            long double sum = 0.0L;
+            for (unsigned long i=0; i<nPoints; ++i)
+            {
+                const double weight = points[i].third;
+                assert(weight >= 0.0);
+                sum += weight;
+                cdfValues[i] = sum;
+            }
+            const double wsum = cdfValues[nPoints - 1U];
+            assert(wsum > 0.0);
+            for (unsigned long i=0; i<nPoints; ++i)
+                cdfValues[i] /= wsum;
+        }
+
+        // Work space for the weights
+        std::vector<double> weight_mem(nPoints);
+        double* w = &weight_mem[0];
+
+        // Work space for sorting things along y
+        std::vector<std::pair<Numeric,double> > weightedY_mem;
+        weightedY_mem.reserve(nPoints);
+
+        // Work space for the fitted coefficients
+        std::vector<double> coeffs(polyDegree + 1U);
+
+        // The main problem is the usual: how to calculate a good bandwidth.
+        // The problem is, of course, with heavy-tailed distributions of
+        // the predictor. In there, conversions of cdf values into actual
+        // distances can result in very non-even bandwidth values to
+        // the left and to the right of the given point. The following
+        // approach seems to be reasonable:
+        //
+        // 1) In the "middle" of the distribution, always choose the
+        //    smallest of the left and the right bandwidth.
+        //
+        // 2) Close to the left edge (in cdf), always choose the right
+        //    bandwidth.
+        //
+        // 3) Close to the right edge (in cdf), always choose the left
+        //    bandwidth.
+
+        // Cycle over points
+        for (unsigned ires=0; ires<nResultPoints; ++ires)
+        {
+            const double x = xmin + (ires + 0.5)*binwidth;
+
+            // Assume that the probability of x values to coincide
+            // is negligible. If is is not, the sample should be
+            // smeared.
+            //
+            // Determine the cdf value to which the given x corresponds to.
+            //
+            unsigned long ibel, iab;
+            double cdf;
+            if (x <= points[0].first)
+            {
+                cdf = 0.0;
+                ibel = 0UL;
+                iab = 1UL;
+            }
+            else if (x >= points[nPoints-1UL].first)
+            {
+                cdf = 1.0;
+                iab = nPoints - 1UL;
+                ibel = iab - 1UL;
+            }
+            else
+            {
+                const npstat::Triple<Numeric,Numeric,double> cmp(x, zero, 0.0);
+                iab = std::lower_bound(
+                    points.begin(), points.end(), cmp) - points.begin();
+                ibel = iab - 1UL;
+                cdf = cdfValues[ibel];
+                if (points[iab].first > points[ibel].first)
+                    cdf += (cdfValues[iab] - cdf)*(x - points[ibel].first)/
+                        (points[iab].first - points[ibel].first);
+            }
+
+            // Figure out whether we are in the left, middle, or right
+            const double cdfmin = cdf - bandwidthInCDFUnits;
+            const double cdfmax = cdf + bandwidthInCDFUnits;
+            double xbw = 0.0;
+
+            if (cdfmin <= cdfValues[0])
+            {
+                // Left mode
+                double remainder;
+                const unsigned long ibelow = npstat::quantileBinFromCdf(
+                    cdfValues, nPoints, cdfmax, &remainder);
+                const unsigned long iabove = ibelow + 1UL;
+                xbw = points[ibelow].first 
+                    + (points[iabove].first-points[ibelow].first)*remainder
+                    - x;
+            }
+            else if (cdfmax >= 1.0)
+            {
+                // Right mode
+                double remainder;
+                const unsigned long ibelow = npstat::quantileBinFromCdf(
+                    cdfValues, nPoints, cdfmin, &remainder);
+                const unsigned long iabove = ibelow + 1UL;
+                xbw = points[ibelow].first 
+                    + (points[iabove].first-points[ibelow].first)*remainder
+                    - x;
+                xbw *= -1.0;
+            }
+            else
+            {
+                // Center mode
+              double xbw1, xbw2;
+              {
+                  double remainder;
+                  const unsigned long ibelow = npstat::quantileBinFromCdf(
+                      cdfValues, nPoints, cdfmax, &remainder);
+                  const unsigned long iabove = ibelow + 1UL;
+                  xbw1 = points[ibelow].first 
+                      + (points[iabove].first-points[ibelow].first)*remainder
+                      - x;
+              }
+              {
+                  double remainder;
+                  const unsigned long ibelow = npstat::quantileBinFromCdf(
+                      cdfValues, nPoints, cdfmin, &remainder);
+                  const unsigned long iabove = ibelow + 1UL;
+                  xbw2 = points[ibelow].first 
+                      + (points[iabove].first-points[ibelow].first)*remainder
+                      - x;
+                  xbw2 *= -1.0;
+              }
+              xbw = std::min(xbw1, xbw2);
+            }
+            assert(xbw > 0.0);
+
+            // Assign weight to the points
+            long double wsum = 0.0L;
+            unsigned long ilowest = 0UL;
+            const npstat::SymmetricBeta1D symbeta(x, xbw, symbetaPower);
+            for (long i = ibel; i >= 0; --i)
+            {
+                w[i] = symbeta.density(points[i].first);
+                if (w[i] == 0.0)
+                {
+                    ilowest = i + 1;
+                    break;
+                }
+                w[i] *= points[i].third;
+                wsum += w[i];
+            }
+
+            unsigned long ihighest = nPoints;
+            for (unsigned long i = iab; i < nPoints; ++i)
+            {
+                w[i] = symbeta.density(points[i].first);
+                if (w[i] == 0.0)
+                {
+                    ihighest = i;
+                    break;
+                }
+                w[i] *= points[i].third;
+                wsum += w[i];
+            }
+            assert(wsum > 0.0L);
+
+            // Get an idea about the 0th degree coefficient
+            // of the polynomial
+            weightedY_mem.clear();
+            for (unsigned long i=ilowest; i<ihighest; ++i)
+                weightedY_mem.push_back(std::pair<Numeric,double>(
+                                            points[i].second, w[i]));
+            std::sort(weightedY_mem.begin(), weightedY_mem.end());
+            const long double wlimit = wsum*quantile;
+            const unsigned long nYpoints = ihighest - ilowest;
+            assert(nYpoints > 1UL);
+            assert(nYpoints == weightedY_mem.size());
+            const std::pair<Numeric,double>* weightedY = &weightedY_mem[0];
+
+            double yval = weightedY[nYpoints - 1U].second;
+            long ymax = nYpoints - 1U;
+            long ymin = ymax - 10;
+            long double wsum2 = 0.0L;
+            for (unsigned long i = 0; i < nYpoints; ++i)
+            {
+                wsum2 += weightedY[i].second;
+                if (wsum2 > wlimit)
+                {
+                    if (i)
+                    {
+                        yval = (weightedY[i].first + 
+                                weightedY[i-1U].first)/2.0;
+                        ymax = i + 5U;
+                        ymin = ymax - 10;
+                    }
+                    else
+                    {
+                        yval = weightedY[i].first;
+                        ymin = 0;
+                        ymax = 10;
+                    }
+                    break;
+                }
+            }
+            if (ymax >= static_cast<long>(nYpoints))
+                ymax = nYpoints - 1U;
+            if (ymin < 0)
+                ymin = 0;
+            double ydelta = weightedY[ymax].first - weightedY[ymin].first;
+            if (ydelta == 0.0)
+                ydelta = 5.0*(weightedY[nYpoints - 1U].first - 
+                              weightedY[0].first)/(nYpoints - 1U);
+
+            // Create the object which will calculate the function
+            // to be minimized
+            npstat::QuantileRegression1D<MyPoint,double> qr(
+                &points[ilowest], w+ilowest, nYpoints, x, xbw,
+                quantile, polyDegree, true, lambda);
+
+            if (verbose)
+            {
+                std::cout << "x = " << x
+                          << ", xbw = " << xbw
+                          << ", q = " << quantile
+                          << ", c0 = " << yval
+                          << ", dc0 = " << ydelta
+                          << ", npt = " << nYpoints
+                          << std::endl;
+            }
+
+            // The simplex method of Minuit is, unfortunately, rather
+            // capricious. We will try to change the definition of "up"
+            // until things converge.
+            double up = ydelta/8.0;
+            bool converged = false;
+            for (unsigned iup=0; iup<maxUpCycles && !converged; ++iup)
+            {
+                up *= 2.0;
+                MinuitQuantileRegression1DFcn<MyPoint,double> fcn(qr, up);
+
+//          Note that the "simple" interface is buggy. For example,
+//          the code below (with another vector of doubles "coeffErrors")
+//          would not work.
+//              coeffs[0] = yval;
+//              coeffErrors[0] = ydelta;
+//              for (unsigned i=1; i<=polyDegree; ++i)
+//              {
+//                 coeffs[i] = 0.0;
+//                 coeffErrors[i] = 0.1;
+//              }
+//              ROOT::Minuit2::MnSimplex simplex(fcn, coeffs, coeffErrors,
+//                                               mnStrategy);
+
+                ROOT::Minuit2::MnUserParameters upar;
+                upar.Add("c0", yval, 5.0*ydelta);
+                for (unsigned i=1; i<=polyDegree; ++i)
+                {
+                    std::ostringstream os;
+                    os << 'c' << i;
+                    upar.Add(os.str(), 0.0, 0.01);
+                }
+                ROOT::Minuit2::MnSimplex simplex(fcn, upar, mnStrategy);
+
+                // Do some fix/release tricks
+                if (polyDegree)
+                {
+                    simplex.Fix(0U);
+                    simplex();
+                    simplex.Release(0U);
+                }
+
+                // Run the complete fit
+                ROOT::Minuit2::FunctionMinimum min(simplex());
+                if (min.IsValid())
+                {
+                    converged = true;
+                    for (unsigned i=0; i<=polyDegree; ++i)
+                        coeffs[i] = simplex.Value(i);
+                    result[ires] = npstat::gegenbauerSeriesSum(
+                        &coeffs[0], polyDegree, lambda, 0.0);
+
+                    if (verbose)
+                    {
+                        std::cout << "Fitted";
+                        for (unsigned i=0; i<=polyDegree; ++i)
+                        {
+                            if (i) {std::cout << ',';}
+                            std::cout << " c" << i << " = " << coeffs[i];
+                        }
+                        std::cout << std::endl;
+                        std::cout.flush();
+                    }
+                }
+            }
+            assert(converged);
+        }
+    }
+}

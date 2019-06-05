@@ -1,0 +1,25 @@
+
+Usage: template_io_boilerplate outputFile templateName Np p0_type p1_type ...
+
+  outputFile   -- The name of the output header file.
+
+  templateName -- The name of the template.
+
+  Np           -- Number of template parameters affecting serialized
+                  representation of the class. Specify some large number
+                  here if all template parameters contribute.
+
+  p0_type, etc -- Keywords indicating the kinds of template parameters used.
+                  Possible keywords are "class", "typename", "int", "unsigned",
+                  "long", "unsigned long", "std::size_t", and "bool".
+
+Example: suppose, you have a template whose declaration looks like
+
+template <typename Real, int N> MyTemplate { ... };
+
+and N does not substantially affect the output format except through its
+value known at the compile time. Then run this program as follows:
+
+template_io_boilerplate MyTemplateIO.hh MyTemplate 1 typename int
+
+PASS template_io_boilerplate (exit status: 0)

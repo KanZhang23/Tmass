@@ -1,0 +1,7 @@
+The Kolmogorov-Smirnov test statistic code was written by
+
+Richard Simard
+DIRO, Université de Montréal
+http://www.iro.umontreal.ca/~simardr/
+
+Repackaged for C++ and GNU autotools by Igor Volobouev, Texas Tech University

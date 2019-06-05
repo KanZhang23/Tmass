@@ -1,0 +1,91 @@
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    template <typename T>
+    double LocalMultiFilter1D::convolute(
+        const T* data, const PolyFilter1D* filter) const
+    {
+        const unsigned len = filter->size();
+        const PolyFilter1D::value_type *f = &(*filter)[0];
+        long double sum = 0.0L;
+        for (unsigned i=0; i<len; ++i)
+            sum += f[i]*data[i];
+        return sum;
+    }
+
+
+    template <typename Tin, typename Tout>
+    void LocalMultiFilter1D::convolve(
+        const unsigned degree, const Tin* in,
+        const unsigned dataLen, Tout* out) const
+    {
+        if (dataLen != nbins_) throw std::invalid_argument(
+            "In npstat::LocalMultiFilter1D::convolve: incompatible data length");
+        assert(in);
+        assert(out);
+
+        clearSumBuffer();
+
+        const Tin zero = Tin();
+        for (unsigned i=0; i<dataLen; ++i)
+            if (!(in[i] == zero))
+                addWeightedFilter(in[i], degree, i);
+
+        long double* sum = &sumBuffer_[0];
+        for (unsigned i=0; i<dataLen; ++i)
+            out[i] = static_cast<Tout>(sum[i]);
+    }
+
+
+    template <typename Tin, typename Tout>
+    void LocalMultiFilter1D::filter(
+        const unsigned degree, const Tin* in,
+        const unsigned dataLen, Tout* out) const
+    {
+        if (dataLen != nbins_) throw std::invalid_argument(
+            "In npstat::LocalMultiFilter1D::filter: incompatible data length");
+        assert(in);
+        assert(out);
+
+        for (unsigned i=0; i<dataLen; ++i)
+        {
+            const PolyFilter1D* filter(bins_.at(degree)[i]);
+            const unsigned filterLen = filter->size();
+            assert(filterLen <= dataLen);
+            if (filterLen == dataLen)
+                out[i] = convolute(in, filter);
+            else
+            {
+                if (filterLen % 2)
+                {
+                    // Odd filter size. Are we in the center?
+                    const unsigned peak = filter->peakPosition();
+                    const unsigned center = filterLen/2;
+                    if (peak < center)
+                        // We are on the left side
+                        out[i] = convolute(in, filter);
+                    else if (peak == center)
+                    {
+                        // We are in the center
+                        assert(i >= center);
+                        out[i] = convolute(in + (i - center), filter);
+                    }
+                    else
+                        // We are on the right side
+                        out[i] = convolute(in + (dataLen - filterLen), filter);
+                }
+                else
+                {
+                    // Even size filter. This can't be in the center.
+                    if (filter->peakPosition() < filterLen/2)
+                        // We are on the left side
+                        out[i] = convolute(in, filter);
+                    else
+                        // We are on the right side
+                        out[i] = convolute(in + (dataLen - filterLen), filter);
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,65 @@
+#include <stdexcept>
+
+#include "npstat/nm/PreciseType.hh"
+
+namespace npstat {
+    template <class Point>
+    double sampleKendallsTau(const std::vector<Point>& data,
+                             const unsigned fd, const unsigned sd)
+    {
+        typedef typename Point::value_type Real;
+        const Real zero = Real();
+
+        long long concordant = 0;
+        long long discordant = 0;
+        const std::size_t datasize = data.size();
+        for (std::size_t i=1; i<datasize; ++i)
+            for (std::size_t j=0; j<i; ++j)
+            {
+                const Real prod = (data[i][fd] - data[j][fd])*
+                                  (data[i][sd] - data[j][sd]);
+                if (prod > zero)
+                    ++concordant;
+                else if (prod < zero)
+                    ++discordant;
+            }
+        const long long determined = concordant + discordant;
+        if (determined == 0LL) throw std::invalid_argument(
+            "In npstat::sampleKendallsTau: not enough points in the sample");
+        return (concordant - discordant)/static_cast<double>(determined);
+    }
+
+    template <class Array>
+    double kendallsTauFromCopula(const Array& copula)
+    {
+        typedef typename Array::value_type Real;
+        typedef typename PreciseType<Real>::type Precise;
+        const Real zero = Real();
+
+        if (copula.rank() != 2U) throw std::invalid_argument(
+            "In npstat::kendallsTauFromCopula: "
+            "incompatible array dimensionality");
+        const unsigned nx = copula.span(0);
+        const unsigned ny = copula.span(1);
+        if (nx < 2U || ny < 2U) throw std::invalid_argument(
+            "In npstat::kendallsTauFromCopula: insufficient array span");
+        Precise tausum = Precise();
+        for (unsigned i=1; i<nx; ++i)
+            for (unsigned j=1; j<ny; ++j)
+            {
+                const Real z11 = copula(i,j);
+                const Real z10 = copula(i,j-1);
+                const Real z01 = copula(i-1,j);
+                const Real z00 = copula(i-1,j-1);
+                const Real dc = (z11 - z10) - (z01 - z00);
+                if (dc > zero)
+                    tausum += (z11 + z10 + z01 + z00)*dc;
+            }
+        double tau = static_cast<double>(tausum) - 1.0;
+        if (tau < -1.0)
+            tau = -1.0;
+        else if (tau > 1.0)
+            tau = 1.0;
+        return tau;
+    }
+}

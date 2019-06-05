@@ -1,0 +1,22 @@
+
+Usage: cdump [-a] [-c] [-f] [-i] [-s] filename
+
+This program prints the contents of "geners" catalog files to the standard
+output. These files can be usually recognized by their ".gsbmf" extension
+(Generic Serialization Binary MetaFile). Normally, the program prints class
+names, item names in the archive, and archive categories for all items in
+the catalog. This default behavior can be modified with option switches.
+The meaning of the switches is as follows:
+
+ -a   Print catalog annotations, if any.
+
+ -c   Print default archive compression mode.
+
+ -f   Full dump. Print complete info for each catalog entry.
+
+ -i   Include the catalog item ids into the printout.
+
+ -s   Print only the summary statistics for item types. If option "-f" is given
+      together with "-s", the summary will be printed after the full dump.
+
+PASS cdump (exit status: 0)

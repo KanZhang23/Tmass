@@ -1,0 +1,174 @@
+#include <cmath>
+#include <cassert>
+#include <vector>
+
+namespace npstat {
+    template<typename Numeric>
+    long double polySeriesSum(const Numeric *a,
+                              const unsigned degree, const long double x)
+    {
+        // Dimension of "a" should be at least degree+1
+        assert(a);
+        long double sum = 0.0L;
+        for (int deg=degree; deg>=0; --deg)
+        {
+            sum *= x;
+            sum += a[deg];
+        }
+        return sum;
+    }
+
+    template<typename Numeric>
+    void polyAndDeriv(const Numeric *a, unsigned deg, const long double x,
+                      long double *value, long double *deriv)
+    {
+        // Dimension of "a" should be at least deg+1
+        assert(a);
+        long double sum = 0.0L, der = 0.0L;
+        for (; deg>=1; --deg)
+        {
+            sum *= x;
+            der *= x;
+            sum += a[deg];
+            der += deg*a[deg];
+        }
+        if (value)
+            *value = sum*x + a[0];
+        if (deriv)
+            *deriv = der;
+    }
+
+    template<typename Numeric>
+    long double legendreSeriesSum(const Numeric *a,
+                                  const unsigned degree, const long double x)
+    {
+        assert(a);
+        long double result = a[0], pminus2 = 1.0L, pminus1 = x;
+        if (degree)
+        {
+            result += a[1]*x;
+            for (unsigned i=2; i<=degree; ++i)
+            {
+                const long double p = ((2*i-1U)*x*pminus1 - (i-1U)*pminus2)/i;
+                result += p*a[i];
+                pminus2 = pminus1;
+                pminus1 = p;
+            }
+        }
+        return result;
+    }
+
+    template<typename Numeric>
+    long double hermiteSeriesSumProb(const Numeric *a,
+                                     const unsigned degree, const long double x)
+    {
+        assert(a);
+        long double result = a[0], pminus2 = 1.0L, pminus1 = x;
+        if (degree)
+        {
+            result += a[1]*x;
+            for (unsigned i=2; i<=degree; ++i)
+            {
+                const long double p = x*pminus1 - (i-1U)*pminus2;
+                result += p*a[i];
+                pminus2 = pminus1;
+                pminus1 = p;
+            }
+        }
+        return result;
+    }
+
+    template<typename Numeric>
+    long double hermiteSeriesSumPhys(const Numeric *a,
+                                     const unsigned degree, const long double x)
+    {
+        assert(a);
+        long double result = a[0], pminus2 = 1.0L, pminus1 = 2.0L*x;
+        if (degree)
+        {
+            result += a[1]*2.0L*x;
+            for (unsigned i=2; i<=degree; ++i)
+            {
+                const long double p = 2.0L*(x*pminus1 - (i-1U)*pminus2);
+                result += p*a[i];
+                pminus2 = pminus1;
+                pminus1 = p;
+            }
+        }
+        return result;
+    }
+
+    template<typename Numeric>
+    long double gegenbauerSeriesSum(const Numeric *a, const unsigned degree,
+                                    const long double lambda,
+                                    const long double x)
+    {
+        assert(a);
+        long double result = a[0], pminus2 = 1.0L, pminus1 = 2.0L*lambda*x;
+        if (degree)
+        {
+            result += a[1]*pminus1;
+            const long double lm = 2.0L*(lambda - 1.0L);
+            for (unsigned i=2; i<=degree; ++i)
+            {
+                const long double p = ((2*i+lm)*x*pminus1 - (i+lm)*pminus2)/i;
+                result += p*a[i];
+                pminus2 = pminus1;
+                pminus1 = p;
+            }
+        }
+        return result;
+    }
+
+    template<typename Numeric>
+    long double chebyshevSeriesSum(const Numeric *a,
+                                   const unsigned degree, const long double x)
+    {
+        assert(a);
+        const long double twox = 2.0L*x;
+
+        // Clenshaw recursion
+        long double rp2 = 0.0L, rp1 = 0.0L, r = 0.0L;
+        for (unsigned k = degree; k > 0U; --k)
+        {
+            r = twox*rp1 - rp2 + a[k];
+            rp2 = rp1;
+            rp1 = r;
+        }
+        return x*rp1 - rp2 + a[0];
+    }
+
+    template<typename Functor, typename Numeric>
+    void chebyshevSeriesCoeffs(const Functor& f, const long double xmin,
+                               const long double xmax,
+                               const unsigned degree, Numeric *coeffs)
+    {
+        const long double Pi = 3.141592653589793238462643383L;
+        assert(coeffs);
+        assert(xmin != xmax);
+
+        // Simple direct formula is used for calculations
+        // (faster calculations for large degrees can be done
+        // by the cosine transform).
+        const unsigned N = degree + 1U;
+        const long double halfwidth = (xmax - xmin)/2.0L;
+        std::vector<long double> fval(N);
+
+        for (unsigned k=0; k<N; ++k)
+        {
+            const long double t = (cosl(Pi*(k + 0.5L)/N)+1.0L)*halfwidth+xmin;
+            fval[k] = f(t);
+        }
+
+        const long double norm = 2.0L/N;
+        for (unsigned j=0; j<N; ++j)
+        {
+            long double sum = 0.0L;
+            for (unsigned k=0; k<N; ++k)
+                sum += fval[k]*cosl(Pi*j*(k + 0.5L)/N);
+            if (!j)
+                sum /= 2.0L;
+            coeffs[j] = static_cast<Numeric>(norm*sum);
+        }
+    }
+}

@@ -1,0 +1,381 @@
+#include <cmath>
+#include <limits>
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/nm/LinearMapper1d.hh"
+
+namespace npstat {
+    template<class Numeric>
+    void LogisticRegressionBase<Numeric>::setRegressionBox(
+         const BoxND<Numeric>& regressionBox)
+    {
+        if (!(regressionBox.dim() == mydim_)) throw std::invalid_argument(
+            "In npstat::LogisticRegressionBase::setRegressionBox: "
+            "incompatible box dimensionality");
+        regressionBox_ = regressionBox;
+        mappingIsDone_ = false;
+        coeffs_.clear();
+    }
+
+    template<class Numeric>
+    void LogisticRegressionBase<Numeric>::setLinearMapping(
+         const double* location, const double* scale, const unsigned len)
+    {
+        if (len != mydim_) throw std::invalid_argument(
+            "In npstat::LogisticRegressionBase::setLinearMapping: "
+            "incompatible argument dimensionality");
+        location_.resize(mydim_);
+        scale_.resize(mydim_);
+        for (unsigned i=0; i<mydim_; ++i)
+        {
+            location_[i] = location[i];
+            scale_[i] = scale[i];
+        }
+        coeffs_.clear();
+        mappingIsDone_ = true;
+    }
+
+    template<class Numeric>
+    void LogisticRegressionBase<Numeric>::makeStandardMapping()
+    {
+        // We will map the points in such a manner that the
+        // regression box maps into the QuadraticOrthoPolyND box
+        location_.resize(mydim_);
+        scale_.resize(mydim_);
+        const BoxND<double>& pBox(poly_.boundingBox());
+        assert(regressionBox_.size() == mydim_);
+        for (unsigned i=0; i<mydim_; ++i)
+            regressionBox_[i].linearMap(pBox[i], &scale_[i], &location_[i]);
+    }
+
+    template<class Numeric>
+    LogisticRegressionBase<Numeric>::LogisticRegressionBase(
+        const QuadraticOrthoPolyND& poly,
+        const bool calculateLikelihoodGradient)
+        : poly_(poly),
+          logli_(0.0L),
+          minlog_(log(std::numeric_limits<double>::min()) + 1.0),
+          maxlog_(log(std::numeric_limits<double>::max()) - 1.0),
+          mydim_(poly.dim()),
+          calcGradient_(calculateLikelihoodGradient),
+          mappingIsDone_(false)
+    {
+        coords_.resize(mydim_);
+    }
+
+    template<class Numeric>
+    double LogisticRegressionBase<Numeric>::calculateLogLikelihood(
+        const double* coeffs, const unsigned nCoeffs)
+    {
+        if (!nCoeffs) throw std::invalid_argument(
+            "In npstat::LogisticRegressionBase::calculateLogLikelihood: "
+            "must have at least one coefficient");
+        assert(coeffs);
+
+        logli_ = 0.0L;
+        passCount_ = 0.0L;
+        failCount_= 0.0L;
+        if (calcGradient_)
+        {
+            gradient_.resize(nCoeffs);
+            gradBuffer_.resize(nCoeffs);
+            for (unsigned i=0; i<nCoeffs; ++i)
+                gradient_[i] = 0.0L;
+        }
+        else
+        {
+            gradient_.clear();
+            gradBuffer_.clear();
+        }
+
+        if (!mappingIsDone_)
+        {
+            if (regressionBox_.dim() != mydim_) throw std::invalid_argument(
+                "In npstat::LogisticRegressionBase::calculateLogLikelihood: "
+                "incompatible regression box dimensionality");
+            makeStandardMapping();
+            mappingIsDone_ = true;
+        }
+
+        coeffs_.resize(nCoeffs);
+        for (unsigned i=0; i<nCoeffs; ++i)
+            coeffs_[i] = coeffs[i];
+
+        actualLogliCalculation();
+        return static_cast<double>(-logli_);
+    }
+
+    template<class Numeric>
+    void LogisticRegressionBase<Numeric>::getGradient(
+        double* buffer, const unsigned bufLen) const
+    {
+        if (!calcGradient_) throw std::runtime_error(
+            "In npstat::LogisticRegressionBase::getGradient: "
+            "this object is not set up to calculate likelihood gradient");
+
+        // make sure that the "calculateLogLikelihood" function
+        // was already called at least once since the reset
+        const unsigned ngrad = gradient_.size();
+        if (!(ngrad && ngrad == coeffs_.size())) throw std::runtime_error(
+            "In npstat::LogisticRegressionBase::getGradient: "
+            "likelihood was not evaluated yet");
+
+        if (bufLen < ngrad) throw std::invalid_argument(
+            "In npstat::LogisticRegressionBase::getGradient: "
+            "insufficient buffer length");
+        assert(buffer);
+        for (unsigned i=0; i<ngrad; ++i)
+            buffer[i] = static_cast<double>(-gradient_[i]);
+    }
+
+    template<class Numeric>
+    void LogisticRegressionBase<Numeric>::resetAccumulators()
+    {
+        logli_ = 0.0L;
+        passCount_ = 0.0L;
+        failCount_= 0.0L;
+        const unsigned ngrads = gradient_.size();
+        for (unsigned i=0; i<ngrads; ++i)
+            gradient_[i] = 0.0L;
+        coeffs_.clear();
+    }
+
+    template<class Point, class Numeric, class BooleanFunctor>
+    LogisticRegressionOnKDTree<Point,Numeric,BooleanFunctor
+                               >::LogisticRegressionOnKDTree(
+        const KDTree<Point,Numeric>& dataTree,
+        const BooleanFunctor& pointPassesOrFails,
+        const QuadraticOrthoPolyND& poly,
+        const bool calculateLikelihoodGradient)
+        : LogisticRegressionBase<Numeric>(poly, calculateLikelihoodGradient),
+          AbsVisitor<Point, double>(),
+          dataTree_(dataTree),
+          pointPassesOrFails_(pointPassesOrFails)
+    {
+        if (dataTree.dim() != this->mydim_) throw std::invalid_argument(
+            "In npstat::LogisticRegressionOnKDTree constructor: "
+            "incompatible argument dimensionalities");
+    }
+
+    template<class Point, class Numeric, class BooleanFunctor>
+    void LogisticRegressionOnKDTree<Point,Numeric,BooleanFunctor
+                                    >::process(const Point& value)
+    {
+        const bool passing = pointPassesOrFails_(value);
+        if (passing)
+            this->passCount_ += 1.0L;
+        else
+            this->failCount_ += 1.0L;
+        const unsigned nCoeffs = this->coeffs_.size();
+        double* grbuf = this->calcGradient_ ? &this->gradBuffer_[0] : 0;
+        long double* grad = this->calcGradient_ ? &this->gradient_[0] : 0;
+        double* coords = &this->coords_[0];
+
+        for (unsigned i=0; i<this->mydim_; ++i)
+        {
+            const double x = static_cast<double>(
+                value[dataTree_.pointIndex(i)]);
+            coords[i] = x*this->scale_[i] + this->location_[i];
+        }
+
+        const double w = this->poly_.weight()->density(coords, this->mydim_);
+        if (w <= 0.0)
+            return;
+
+        const double minusp = -this->poly_.series(
+            coords, this->mydim_, &this->coeffs_[0], nCoeffs, grbuf);
+
+        // While calculating the likelihood, we have to carefully
+        // avoid the underflow/overflow and rounding problems
+        if (minusp > this->maxlog_)
+        {
+            // The efficiency is 0. If the point
+            // does not pass, there is nothing to do.
+            if (passing)
+            {
+                this->logli_ -= w*minusp;
+                if (this->calcGradient_)
+                    for (unsigned i=0; i<nCoeffs; ++i)
+                        grad[i] += w*grbuf[i];
+            }
+        }
+        else if (minusp < this->minlog_)
+        {
+            // The efficiency is 1. If the point
+            // passes, there is nothing to do.
+            if (!passing)
+            {
+                this->logli_ += w*minusp;
+                if (this->calcGradient_)
+                    for (unsigned i=0; i<nCoeffs; ++i)
+                        grad[i] -= w*grbuf[i];
+            }
+        }
+        else
+        {
+            const double expterm = exp(minusp);
+            if (passing)
+            {
+                const double eff = 1.0/(1.0 + expterm);
+                this->logli_ += w*log(eff);
+                if (this->calcGradient_)
+                {
+                    const double oneminuseff = expterm/(1.0 + expterm);
+                    for (unsigned i=0; i<nCoeffs; ++i)
+                        grad[i] += w*oneminuseff*grbuf[i];
+                }
+            }
+            else
+            {
+                const double oneminuseff = expterm/(1.0 + expterm);
+                this->logli_ += w*log(oneminuseff);
+                if (this->calcGradient_)
+                {
+                    const double eff = 1.0/(1.0 + expterm);
+                    for (unsigned i=0; i<nCoeffs; ++i)
+                        grad[i] -= w*eff*grbuf[i];
+                }
+            }
+        }
+    }
+
+    template <typename Numeric, unsigned StackLen, unsigned StackDim>
+    LogisticRegressionOnGrid<Numeric,StackLen,StackDim
+                             >::LogisticRegressionOnGrid(
+        const ArrayND<Numeric,StackLen,StackDim>& numerator,
+        const ArrayND<Numeric,StackLen,StackDim>& denominator,
+        const QuadraticOrthoPolyND& poly,
+        const bool calculateLikelihoodGradient)
+        : LogisticRegressionBase<int>(poly, calculateLikelihoodGradient),
+          numerator_(numerator),
+          denominator_(denominator),
+          zero_(Numeric())
+    {
+        // Check that the input makes sense
+        if (numerator_.rank() != this->mydim_) throw std::invalid_argument(
+            "In npstat::LogisticRegressionOnGrid constructor: "
+            "incompatible argument dimensionalities");
+        if (!numerator_.isShapeCompatible(denominator_))
+            throw std::invalid_argument(
+                "In npstat::LogisticRegressionOnGrid constructor: "
+                "incompatible shapes of numerator and denominator");
+        if (!denominator_.isDensity()) throw std::invalid_argument(
+            "In npstat::LogisticRegressionOnGrid constructor: "
+            "denominator array is not a density");
+        const unsigned long len = denominator_.length();
+        const Numeric* dataNum = numerator_.data();
+        const Numeric* dataDenom = denominator_.data();
+        for (unsigned long i=0; i<len; ++i)
+            if (!(dataNum[i] >= zero_ && dataNum[i] <= dataDenom[i]))
+                throw std::invalid_argument(
+                    "In npstat::LogisticRegressionOnGrid constructor: "
+                    "inappropriate numerator data");
+    }
+
+    template <typename Numeric, unsigned StackLen, unsigned StackDim>
+    void LogisticRegressionOnGrid<Numeric,StackLen,StackDim>::process(
+        const unsigned *index, const unsigned /* indexLen */,
+        const unsigned long linearIndex, const Numeric& denom)
+    {
+        if (denom > zero_)
+        {
+            const Numeric num(numerator_.data()[linearIndex]);
+            const Numeric nfail = denom - num;
+            this->passCount_ += static_cast<long double>(num);
+            this->failCount_ += static_cast<long double>(nfail);
+
+            const unsigned nCoeffs = this->coeffs_.size();
+            double* grbuf = this->calcGradient_ ? &this->gradBuffer_[0] : 0;
+            long double* grad = this->calcGradient_ ? &this->gradient_[0] : 0;
+            double* coords = &this->coords_[0];
+
+            for (unsigned i=0; i<this->mydim_; ++i)
+                coords[i] = index[i]*this->scale_[i] + this->location_[i];
+
+            const double w = this->poly_.weight()->density(
+                coords, this->mydim_);
+            if (w <= 0.0)
+                return;
+
+            const double minusp = -this->poly_.series(
+                coords, this->mydim_, &this->coeffs_[0], nCoeffs, grbuf);
+
+            // While calculating the likelihood, we have to carefully
+            // avoid the underflow/overflow and rounding problems
+            if (minusp > this->maxlog_)
+            {
+                // The efficiency is 0. If no points in this cell
+                // pass, there is nothing to do.
+                if (num > zero_)
+                {
+                    this->logli_ -= num*w*minusp;
+                    if (this->calcGradient_)
+                        for (unsigned i=0; i<nCoeffs; ++i)
+                            grad[i] += num*w*grbuf[i];
+                }
+            }
+            else if (minusp < this->minlog_)
+            {
+                // The efficiency is 1. If all points in this cell
+                // pass, there is nothing to do.
+                if (nfail > zero_)
+                {
+                    this->logli_ += nfail*w*minusp;
+                    if (this->calcGradient_)
+                        for (unsigned i=0; i<nCoeffs; ++i)
+                            grad[i] -= nfail*w*grbuf[i];
+                }
+            }
+            else
+            {
+                const double expterm = exp(minusp);
+                const double eff = 1.0/(1.0 + expterm);
+                const double oneminuseff = expterm/(1.0 + expterm);
+
+                if (num > zero_)
+                {
+                    this->logli_ += num*w*log(eff);
+                    if (this->calcGradient_)
+                    {
+                        for (unsigned i=0; i<nCoeffs; ++i)
+                            grad[i] += num*w*oneminuseff*grbuf[i];
+                    }
+                }
+
+                if (nfail > zero_)
+                {
+                    this->logli_ += nfail*w*log(oneminuseff);
+                    if (this->calcGradient_)
+                    {
+                        for (unsigned i=0; i<nCoeffs; ++i)
+                            grad[i] -= nfail*w*eff*grbuf[i];
+                    }
+                }
+            }
+        }
+    }
+
+    template <typename Numeric, unsigned StackLen, unsigned StackDim>
+    void LogisticRegressionOnGrid<Numeric,StackLen,StackDim
+                                  >::makeStandardMapping()
+    {
+        // We will need to map the points in such a manner
+        // that the regression box maps naturally into the
+        // QuadraticOrthoPolyND box
+        location_.resize(mydim_);
+        scale_.resize(mydim_);
+        const BoxND<double>& polyBox(poly_.boundingBox());
+        for (unsigned i=0; i<mydim_; ++i)
+        {
+            // regressionBox_[i].min() - 0.5 maps into the
+            // corresponding lower bound of polyBox.
+            // regressionBox_[i].max() - 0.5 maps into the
+            // corresponding upper bound of polyBox.
+            LinearMapper1d m(regressionBox_[i].min()-0.5, polyBox[i].min(),
+                             regressionBox_[i].max()-0.5, polyBox[i].max());
+            scale_[i] = m.a();
+            location_[i] = m.b();
+        }
+    }
+}

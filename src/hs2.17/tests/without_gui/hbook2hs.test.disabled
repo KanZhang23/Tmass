@@ -1,0 +1,101 @@
+test hbook2hs-1.1 {HBOOK <--> Histo-Scope conversions} {[hs::have_cernlib]} {
+    # Check that we can find the relevant executables
+    set hbook2hs_exe [::auto_execok hbook2hs]
+    if {[string equal $hbook2hs_exe ""]} {
+        set hbook2hs_exe [file join $::tcltest::testsDirectory .. .. hbook2hs]
+        if {![file executable $hbook2hs_exe]} {
+            set hbook2hs_exe [file join . hbook2hs]
+            if {![file executable $hbook2hs_exe]} {
+                error "hbook2hs executable not found"
+            }
+        }
+    }
+    set tohbook_exe [::auto_execok tohbook]
+    if {[string equal $tohbook_exe ""]} {
+        global env
+        set tohbook_exe [file join $env(HISTO_DIR) bin tohbook]
+        if {![file executable $tohbook_exe]} {
+            error "tohbook executable not found"
+        }
+    }
+    set idlist {}
+    set uidlist {}
+
+    set uid [next_uid]
+    set id [hs::create_1d_hist $uid "1d histo without errors"\
+            "Histos/h1d" "X" "Y" 10 0 10]
+    hs::1d_hist_block_fill $id [hs::list_to_data {1 2 3 4 5 6 7 8 9 0}]
+    lappend idlist $id
+    lappend uidlist $uid
+
+    set uid [next_uid]
+    set id [hs::create_1d_hist $uid "1d histo with errors"\
+            "Histos/h1d" "X" "Y" 10 -4 6]
+    hs::1d_hist_block_fill $id [hs::list_to_data {1 2 3 4 5 6 7 8 9 0}] \
+            [hs::list_to_data {1 1 2 2 3 3 4 4 5 5}]
+    lappend idlist $id
+    lappend uidlist $uid
+
+    set uid [next_uid]
+    set id [hs::create_2d_hist $uid "2d histo without errors"\
+            "Histos/h2d" "X" "Y" "Z" 2 5 -1 1 -2 3]
+    hs::2d_hist_block_fill $id [hs::list_to_data {1 3 2 5 4 7 0 8 9 2}]
+    lappend idlist $id
+    lappend uidlist $uid
+
+    set uid [next_uid]
+    set id [hs::create_2d_hist $uid "2d histo with errors"\
+            "Histos/h2d" "X" "Y" "Z" 2 5 -1 1 -2 3]
+    hs::2d_hist_block_fill $id [hs::list_to_data {1 3 2 5 4 7 0 8 9 2}] \
+            [hs::list_to_data {2 4 5 6 7 8 2 0 4 8}]
+    lappend idlist $id
+    lappend uidlist $uid
+
+    set uid [next_uid]
+    set id [hs::create_ntuple $uid "example ntuple" "Histos/Nt" {a B c}]
+    hs::fill_ntuple $id [list 1 2 3]
+    hs::fill_ntuple $id [list 3 2 5]
+    hs::fill_ntuple $id [list 6 8 4]
+    lappend idlist $id
+    lappend uidlist $uid
+
+    # Save the histograms
+    set ofile [file join $::tcltest::temporaryDirectory "tmp.hs"]
+    set rzfile [file rootname [file tail $ofile]].rz
+    set convfile [file join $::tcltest::temporaryDirectory "tmp2.hs"]
+    ::tcltest::makeFile {} $ofile
+    ::tcltest::makeFile {} $rzfile
+    ::tcltest::makeFile {} $convfile
+    if {[hs::save_file_byids $ofile $idlist] != [llength $idlist]} {
+        error "Failed to save Hist-Scope items to file $ofile."
+    }
+
+    # Perform the double conversion
+    exec $tohbook_exe $ofile
+    exec $hbook2hs_exe -c "Example" -o $convfile $rzfile
+
+    # Load the histos back
+    hs::read_file $convfile
+
+    # Compare them
+    foreach id $idlist uid $uidlist {
+        set orig_categ [hs::category $id]
+        set new_categ "Example/[string toupper $orig_categ]"
+        set newid [hs::id $uid $new_categ]
+        if {$newid <= 0} {
+            error "Item with uid $uid, category $new_categ,\
+                    title \"[hs::title $id]\" not found"
+        }
+        verify_similarity $id $newid 0.0
+    }
+} {}
+
+foreach name {hbook2hs_exe tohbook_exe orig_categ new_categ\
+        id newid uid idlist udlist ofile rzfile convfile} {
+    catch {unset $name}
+}
+unset name
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

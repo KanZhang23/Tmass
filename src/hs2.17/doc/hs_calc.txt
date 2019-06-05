@@ -1,0 +1,232 @@
+The hs::calc command
+--------------------
+
+The "hs::calc" command has four different forms:
+
+hs::calc id
+
+Returns the name of a Tcl handle associated with the Histo-Scope
+histogram identified by id. A new handle is created if it does not
+exist and id refers to a histogram. "Handle" is a Tcl jargon for
+a command associated with some data structure. In this case the data
+structure is the Histo-Scope histogram. The handle name always starts
+with "hs::calc_". If you are using hs::calc, do not create your own
+Tcl commands or procedures whose names start with "hs::calc_".
+
+hs::calc purge
+
+Deletes all existing Tcl handles associated with Histo-Scope
+histograms. If a histogram is associated with a Tcl handle
+and belongs to the Histo-Scope category "Hs_calc_tmp" then it
+is also deleted. Use "hs::change_category" command if you want
+to preserve some of these histograms.
+
+hs::calc count
+
+Returns the number of Histo-Scope histogram handles created after
+the last purge operation.
+
+hs::calc manual
+
+Prints this description to the standard output.
+
+
+Usage of histogram handles
+--------------------------
+
+In the explanations below it is assumed that variables h1 and h2 have
+been created as follows:
+
+set h1 [hs::calc $id1]
+set h2 [hs::calc $id2]
+
+where $id1 and $id2 are some valid Histo-Scope histogram ids.
+
+$h1                returns the name of the handle
+
+$h1 id             returns id of the associated histogram
+
+$h1 type           returns type of the associated histogram (HS_1D_HISTOGRAM, 
+                   HS_2D_HISTOGRAM, or HS_3D_HISTOGRAM)
+
+$h1 uid            returns user id of the associated histogram
+
+$h1 title          returns histogram title
+
+$h1 categ          returns histogram category
+
+$h1 bin            returns binning information for the associated histogram.
+                   The info is returned as {xmin, xmax, nbins} list for 
+                   a 1d histogram, as {xmin, xmax, n_x_bins, ymin, ymax,
+                   n_y_bins} list for a 2d histogram, and as {xmin, xmax,
+                   n_x_bins, ymin, ymax, n_y_bins, zmin, zmax, n_z_bins}
+                   list for a 3d histogram.
+
+$h1 stats          returns statistics for the associated histogram.
+                   The info is returned as {mean, std_dev} list for a 1d
+                   histogram, as {x_mean, y_mean, x_std_dev, y_std_dev}
+                   list for a 2d histogram, and as {x_mean, y_mean, z_mean,
+                   x_std_dev, y_std_dev, z_std_dev} list for a 3d histogram.
+
+$h1 sum            returns the sum of all histogram bins
+
+$h1 integ          returns the associated histogram integral (sum of
+                   all bins multiplied by the bin size).
+
+$h1 min            returns info for the lowest value bin. {bin_coord,
+                   bin_number, bin_value} list is returned for a 1d histogram.
+                   {x_bin_coord, y_bin_coord, x_bin_number, y_bin_number,
+                   bin_value} list is returned for a 2d histogram.
+                   {x_bin_coord, y_bin_coord, z_bin_coord, x_bin_number,
+                   y_bin_number, z_bin_number, bin_value} list is returned
+                   for a 3d histogram.
+
+$h1 max            returns info for the highest value bin. The order of the
+                   elements in the returned list is the same as for the "min"
+                   operation.
+
+$h1 print          dumps histogram data to the standard output
+
+$h1 show           displays the histogram in a separate window
+
+$h1 del            deletes the handle. The associated histogram
+                   is deleted if it is in the "Hs_calc_tmp" category.
+
+
+Unary mathematical operations
+-----------------------------
+
+All unary operations return a handle for the new histogram which is
+created by applying, bin-by-bin, some unary operation to the bin
+contents of the associated histogram. The new histogram is placed 
+in the "Hs_calc_tmp" category, and it has no title. No attempt
+was made to ensure the correct propagation of errors in all these
+operations, so don't assume that the errors in the new histograms
+are correct. Overflow bins are discarded.
+
+$h1 /-/            unary minus 
+
+$h1 /+/            unary plus (histogram copy)
+
+$h1 deriv          derivative (the histogram associated with handle $h1 
+                   must be one-dimensional).
+
+$h1 ~              logical NOT
+
+$h1 abs            absolute value
+
+$h1 sign           "sign". The "sign" operation returns 1 for positive
+                   argument, -1 for negative argument, and 0 for zero argument.
+
+$h1 sqrt           square root
+
+$h1 ssqrt          "safe square root". The "safe square root" returns
+                   square root for positive arguments and 0 for non-positive.
+
+$h1 exp            exponent
+
+$h1 log            logarithm
+
+$h1 slog           "safe logarithm". Returns logarithm for positive arguments
+                   and -1000.f for non-positive.
+
+$h1 erf            error function
+
+$h1 gerf           Gaussian cumulative distribution function with mean 0
+                   and width 1.
+
+$h1 trans          transpose. Works with 2d histograms only.
+
+
+Binary mathematical operations
+------------------------------
+
+All binary operations return a handle for the new histogram which is
+created by applying, bin-by-bin, some binary operation to the bin
+contents of two histograms or to the bin contents of one histogram and
+to a constant. The new histogram is placed in the "Hs_calc_tmp"
+category, and it has no title. The usage is as follows:
+
+$h1 operator $h2
+
+or
+
+$h1 operator const
+
+where "operator" is one of the following: 
+
++, -, *, /, <, >, <=, >=, !=, ==, **, ^, |, &, ||, &&, @, min, max, hypot
+
+Both ** and ^ mean power. | and & mean bitwise OR and AND, respectively
+(arguments are converted to integers before the operation is performed,
+and the result is converted back to float). It is the responsibility of
+a user to ensure that bitwise operations make sense. || means logical OR,
+&& means logical AND, @ means concatenate histograms side by side
+(the histograms will be tested for bin-compatibility first).
+
+When the first form (with two handles) is used, the operation will
+result in error if the associated histograms are not bin-compatible.
+When the second form (with constant) is used, a temporary histogram
+is created and deleted in the "Hs_calc_tmp" category as a side effect.
+The operators must be separated by spaces from both first and second
+arguments. No attempt was made to ensure the correct propagation of
+errors in all these operations, so don't assume that the errors in
+the new histograms are correct. Overflow bins are discarded.
+
+
+Special histogram operations
+----------------------------
+
+ -- Get a value of a particular bin in a 1d histogram:
+
+$h1 value bin $x_bin_num
+$h1 value coord $x
+
+ -- Extract a part of a 1d histogram:
+
+$h1 subrange $x_bin_min $x_bin_max
+
+ -- Get a value of a particular bin in a 2d histogram:
+
+$h1 value bin $x_bin_num $y_bin_num
+$h1 value coord $x $y
+
+ -- Create a 2d histogram slice:
+
+$h1 slice bin x $x_bin_num
+$h1 slice bin y $y_bin_num
+$h1 slice coord x $x_value
+$h1 slice coord y $y_value
+
+ -- Extract a part of a 2d histogram:
+
+$h1 subrange x $x_bin_min $x_bin_max
+$h1 subrange y $y_bin_min $y_bin_max
+
+ -- Create a 2d histogram projection:
+
+$h1 project x $projection_type      (projects onto x axis)
+$h1 project y $projection_type      (projects onto y axis)
+
+where $projection_type is one of the following: "min", "max", 
+"sum", "mean", or "median".
+
+ -- Increment a histogram using bin contents of another histogram:
+
+$h1 += $h2
+
+ -- Decrement a histogram using bin contents of another histogram:
+
+$h1 -= $h2
+
+For the last two operations, the number of bins and the histogram
+dimensionality must be the same. These operations do not return anything.
+
+
+Example
+-------
+[[[hs::calc 14] + [hs::calc 17]] / 2] id  
+
+returns an id of the new histogram which is an average of histograms
+14 and 17 (provided that these histograms exist and have identical
+bin structure).

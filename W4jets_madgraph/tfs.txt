@@ -1,0 +1,35 @@
+Dear Colleagues:
+
+During our last meeting we have discussed in some detail what needs
+to be done in order to derive jet transfer functions for the W + 4 jets
+matrix element code. I would also like to recap the remaining functions
+that have to be derived from MC simulations:
+
+1) Jet reconstruction efficiencies. Just like transfer functions, these
+   have be derived as functions of tree-level parton Pt values in various
+   eta bins.
+
+2) The transverse momentum prior for the W + 4 jets system. My assumption
+   is that this prior can, in principle, depend on the observed quantities
+   (such as HT, etc) but this dependence should be mild in order not to
+   introduce another JES-related systematic uncertainty. It would be
+   interesting to understand if this prior could be sharpened by considering
+   the recoil (i.e., everything else visible in the detector besides the
+   lepton and the four leading jets). I remember that, for ttbar, we found
+   very little correlation between the Pt of the recoil and the "true" Pt
+   of the ttbar system (determined from HEPG), so we ended up using
+   a transverse momentum prior which was centered at (0,0) and did not
+   change event-by-event (this prior did depend on the top mass, however).
+   For W + jets, the recoil situation might be different.
+
+3) The transfer function for the tau. This is, basically, just the fraction
+   of the tau momentum carried away by the charged lepton in the decay
+   tau -> l nu nu (we will assume that the directions of the tau and
+   the lepton are the same). This fraction depends on the tau polarization
+   and can, in principle, be different for ttbar and W+jets.
+
+I hope that Igor S. and George will soon figure out how to get the relevant
+info from the W + jets HEPG banks.
+
+Regards,
+Igor

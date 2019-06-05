@@ -1,0 +1,507 @@
+#include <cassert>
+#include <stdexcept>
+#include <algorithm>
+#include <climits>
+#include <cmath>
+
+#include "npstat/nm/binomialCoefficient.hh"
+
+// Statements  "assert(nDims <= MaxDeg)"  in various strange places are
+// needed in order to prevent bogus g++ 4.9.2 optimizer diagnostics claiming
+// that "array subscript is above array bounds"
+
+namespace npstat {
+    template <unsigned MaxDeg>
+    OrthoPolyND<MaxDeg>::Monomial::Monomial(const unsigned maxdim,
+                                            const unsigned deg,
+                                            unsigned long imono)
+        : nDims(deg)
+    {
+        assert(deg <= MaxDeg);
+        if (deg)
+        {
+            unsigned long dimpow = 1;
+            for (unsigned i=1; i<deg; ++i)
+                dimpow *= maxdim;
+            for (int i=deg; i>0; --i)
+            {
+                dims[i-1] = imono / dimpow;
+                imono %= dimpow;
+                dimpow /= maxdim;
+            }
+            std::sort(dims, dims+deg);
+        }
+    }
+
+    template <unsigned MaxDeg>
+    bool OrthoPolyND<MaxDeg>::Monomial::operator<(const Monomial& r) const
+    {
+        if (nDims < r.nDims)
+            return true;
+        else if (nDims > r.nDims)
+            return false;
+        assert(nDims <= MaxDeg);
+        for (unsigned i=0; i<nDims; ++i)
+        {
+            if (dims[i] < r.dims[i])
+                return true;
+            else if (dims[i] > r.dims[i])
+                return false;
+        }
+        return false;
+    }
+
+    template <unsigned MaxDeg>
+    bool OrthoPolyND<MaxDeg>::Monomial::operator==(const Monomial& r) const
+    {
+        if (nDims != r.nDims)
+            return false;
+        assert(nDims <= MaxDeg);
+        for (unsigned i=0; i<nDims; ++i)
+            if (dims[i] != r.dims[i])
+                return false;
+        return true;
+    }
+
+    template <unsigned MaxDeg>
+    inline bool OrthoPolyND<MaxDeg>::Monomial::operator!=(
+        const Monomial& r) const
+    {
+        return !(*this == r);
+    }
+
+    template <unsigned MaxDeg>
+    inline unsigned OrthoPolyND<MaxDeg>::Monomial::degree() const
+    {
+        return nDims;
+    }
+
+    template <unsigned MaxDeg>
+    double OrthoPolyND<MaxDeg>::Monomial::operator()(
+        const double *x,
+#ifdef NDEBUG
+        const unsigned
+#else
+        const unsigned xlen
+#endif
+        ) const
+    {
+        assert(x);
+        assert(nDims <= MaxDeg);
+        double result = 1.0;
+        for (unsigned i=0; i<nDims; ++i)
+        {
+            assert(dims[i] < xlen);
+            result *= x[dims[i]];
+        }
+        return result;
+    }
+
+    template <unsigned MaxDeg>
+    OrthoPolyND<MaxDeg>::GridMonomial::GridMonomial(
+        const Monomial& m, const double* steps,
+        double* xwork, const unsigned nSteps)
+        : mono_(m), steps_(steps), xwork_(xwork), nSteps_(nSteps)
+    {
+    }
+
+    template <unsigned MaxDeg>
+    double OrthoPolyND<MaxDeg>::GridMonomial::operator()(
+        const unsigned* ind, const unsigned len) const
+    {
+        assert(len == nSteps_);
+        for (unsigned i=0; i<len; ++i)
+            xwork_[i] = ind[i]*steps_[i];
+        return mono_(xwork_, len);
+    }
+
+    template <unsigned MaxDeg>
+    void OrthoPolyND<MaxDeg>::generateMonomialSet(
+        const unsigned upDeg, std::vector<Monomial>* v) const
+    {
+        assert(v);
+        v->clear();
+        const unsigned mydim = weight_.rank();
+
+        // Figure out the total number of monomials we will need
+        unsigned long ntotal = 1;     // The 0th degree monomial
+        unsigned long dimpow = 1;
+        for (unsigned deg=1; deg<=upDeg; ++deg)
+        {
+            // For each degree we have a multichoose problem.
+            // Therefore, we need to add (dim + deg - 1)!/(deg! (dim - 1)!)
+            ntotal += binomialCoefficient(mydim + deg - 1U, deg);
+            dimpow *= mydim;
+        }
+        v->reserve(ntotal);
+        v->push_back(Monomial(mydim, 0U, 0UL));
+
+        // Generate monomials which include permutations for each degree
+        std::vector<Monomial> mono;
+        mono.reserve(dimpow);
+        dimpow = 1;
+        for (unsigned deg=1; deg<=upDeg; ++deg)
+        {
+            mono.clear();
+            dimpow *= mydim;
+            for (unsigned long imono=0; imono<dimpow; ++imono)
+                mono.push_back(Monomial(mydim, deg, imono));
+            std::sort(mono.begin(), mono.end());
+            v->push_back(mono[0]);
+            for (unsigned long imono=1; imono<dimpow; ++imono)
+                if (mono[imono] != mono[imono-1])
+                    v->push_back(mono[imono]);
+        }
+        assert(v->size() == ntotal);
+    }
+
+    template <unsigned MaxDeg>
+    double OrthoPolyND<MaxDeg>::scalarProduct(const ArrayND<double>& a1,
+                                              const ArrayND<double>& a2) const
+    {
+        const unsigned long len = weight_.length();
+
+        const double* x = a1.data();
+        const double* y = a2.data();
+        const double* w = weight_.data();
+
+        long double sum = 0.0L;
+        for (unsigned long i=0; i<len; ++i)
+            sum += x[i]*y[i]*w[i];
+
+        return sum*cellVolume_;
+    }
+
+    template <unsigned MaxDeg>
+    void OrthoPolyND<MaxDeg>::gramSchmidt(const unsigned startingMono)
+    {
+        const unsigned nmono = poly_.size();
+        for (unsigned ideg=startingMono; ideg<nmono; ++ideg)
+        {
+            for (unsigned i=0; i<ideg; ++i)
+            {
+                const double norm = scalarProduct(*poly_[ideg], *poly_[i]);
+                poly_[ideg]->addmul(*poly_[i], -norm);
+            }
+            const double norm = scalarProduct(*poly_[ideg], *poly_[ideg]);
+            assert(norm > 0.0);
+            *poly_[ideg] /= sqrt(norm);
+        }
+    }
+
+    template <unsigned MaxDeg>
+    template <unsigned StackLen, unsigned StackDim>
+    OrthoPolyND<MaxDeg>::OrthoPolyND(
+        const unsigned imaxDegree,
+        const ArrayND<double,StackLen,StackDim>& weight,
+        const double* const steps, unsigned nSteps)
+        : weight_(weight), cellVolume_(1.0), maxdeg_(imaxDegree)
+    {
+        if (maxdeg_ > MaxDeg) throw std::invalid_argument(
+            "In npstat::OrthoPolyND constructor: "
+            "requested polynomial degree is too high");
+        if (!weight.rank()) throw std::invalid_argument(
+            "In npstat::OrthoPolyND constructor: "
+            "rank zero array can not be used to represent weights");
+        if (!weight_.isDensity()) throw std::invalid_argument(
+            "In npstat::OrthoPolyND constructor: "
+            "array of weights is not a density");
+
+        // Figure out the steps
+        if (steps)
+        {
+            if (nSteps != weight.rank()) 
+                throw std::invalid_argument(
+                    "In npstat::OrthoPolyND constructor: "
+                    "incompatible dimensionality of the steps");
+            steps_.reserve(nSteps);
+            for (unsigned i=0; i<nSteps; ++i)
+            {
+                if (steps[i] <= 0.0) throw std::invalid_argument(
+                    "In npstat::OrthoPolyND constructor: "
+                    "all steps must be positive");
+                cellVolume_ *= steps[i];
+                steps_.push_back(steps[i]);
+            }
+        }
+        else
+        {
+            nSteps = weight.rank();
+            steps_.reserve(nSteps);
+            for (unsigned i=0; i<nSteps; ++i)
+            {
+                const double step = 1.0/weight_.span(i);
+                cellVolume_ *= step;
+                steps_.push_back(step);
+            }
+        }
+
+        // Generate the monomials
+        std::vector<Monomial> mono;
+        generateMonomialSet(imaxDegree, &mono);
+        const unsigned nmono = mono.size();
+        if (weight_.length() <= nmono) throw std::invalid_argument(
+            "In npstat::OrthoPolyND constructor: "
+            "insufficient number of elements in the array of weights");
+
+        // Remember the monomial (and subsequent polynomial) degrees
+        degs_.reserve(nmono);
+        for (unsigned imono=0; imono<nmono; ++imono)
+            degs_.push_back(mono[imono].degree());
+
+        // Normalize the weight
+        const ArrayShape myShape(weight_.shape());
+        poly_.reserve(nmono);
+        poly_.push_back(new ArrayND<double>(myShape));
+        poly_[0]->constFill(1.0);
+        const double norm = scalarProduct(*poly_[0], *poly_[0]);
+        assert(norm);
+        weight_ /= norm;
+
+        // Build the monomials on the grid
+        std::vector<double> tmp(nSteps);
+        for (unsigned imono=1; imono<nmono; ++imono)
+        {
+            poly_.push_back(new ArrayND<double>(myShape));
+            poly_[imono]->functorFill(
+                GridMonomial(mono[imono], &steps_[0], &tmp[0], nSteps));
+        }
+
+        // Apply the Gram-Schmidt process. Repeat it to improve orthogonality.
+        gramSchmidt(1);
+        gramSchmidt(1);
+    }
+
+    template <unsigned MaxDeg>
+    OrthoPolyND<MaxDeg>::~OrthoPolyND()
+    {
+        const unsigned npoly = poly_.size();
+        for (unsigned i=npoly; i>0; --i)
+            delete poly_[i-1];
+    }
+
+    template <unsigned MaxDeg>
+    double OrthoPolyND<MaxDeg>::series(
+        const double* coeffs, const unsigned lenCoeffs,
+        const unsigned* ix, const unsigned lenIx) const
+    {
+        if (lenCoeffs != poly_.size()) throw std::invalid_argument(
+            "In npstat::OrthoPolyND::series: "
+            "incompatible number of coefficients");
+        if (lenIx != weight_.rank()) throw std::invalid_argument(
+            "In npstat::OrthoPolyND::series: "
+            "incompatible index dimensionality");
+        assert(ix);
+        for (unsigned i=0; i<lenIx; ++i)
+            if (ix[i] >= weight_.span(i)) throw std::out_of_range(
+                "In npstat::OrthoPolyND::series: index out of range");
+        assert(coeffs);
+
+        long double sum = 0.0L;
+        for (unsigned i=0; i<lenCoeffs; ++i)
+            sum += coeffs[i]*poly_[i]->value(ix, lenIx);
+
+        return sum;
+    }
+
+    template <unsigned MaxDeg>
+    ArrayND<double> OrthoPolyND<MaxDeg>::arraySeries(
+        const double* coeffs, const unsigned lenCoeffs) const
+    {
+        if (lenCoeffs != poly_.size()) throw std::invalid_argument(
+            "In npstat::OrthoPolyND::arraySeries: "
+            "incompatible number of coefficients");
+        assert(coeffs);
+
+        ArrayND<double> sum(weight_.shape());
+        sum.clear();
+        for (unsigned i=0; i<lenCoeffs; ++i)
+            sum.addmul(*poly_[i], coeffs[i]);
+
+        return sum;
+    }
+
+    template <unsigned MaxDeg>
+    ArrayND<double>* OrthoPolyND<MaxDeg>::linearFilter(
+        const double* coeffs, const unsigned lenCoeffs,
+        const unsigned* ix, unsigned lenIx) const
+    {
+        if (lenCoeffs != poly_.size()) throw std::invalid_argument(
+            "In npstat::OrthoPolyND::linearFilter: "
+            "incompatible number of coefficients");
+        if (lenIx != weight_.rank()) throw std::invalid_argument(
+            "In npstat::OrthoPolyND::linearFilter: "
+            "incompatible index dimensionality");
+        assert(ix);
+        for (unsigned i=0; i<lenIx; ++i)
+            if (ix[i] >= weight_.span(i)) throw std::out_of_range(
+                "In npstat::OrthoPolyND::linearFilter: index out of range");
+        assert(coeffs);
+
+        ArrayND<double>* sum = new ArrayND<double>(weight_.shape());
+        sum->clear();
+        for (unsigned i=0; i<lenCoeffs; ++i)
+            sum->addmul(*poly_[i], cellVolume_*coeffs[i]*
+                        poly_[i]->value(ix, lenIx));
+        sum->inPlaceMul(weight_);
+
+        return sum;
+    }
+
+    template <unsigned MaxDeg>
+    template <unsigned StackLen, unsigned StackDim>
+    long double OrthoPolyND<MaxDeg>::windowProductLoop(
+        const unsigned level,
+        const ArrayND<double,StackLen,StackDim>& data,
+        const ArrayND<double>& poly,
+        const unsigned* polyShift,
+        unsigned long idxData,
+        unsigned long idxPoly) const
+    {
+        const unsigned imax = weight_.span(level);
+        const unsigned shift = (polyShift ? polyShift[level] : 0);
+        long double sum = 0.0L;
+        if (level == weight_.rank() - 1)
+        {
+            const double* x = data.data() + (idxData + shift);
+            const double* y = poly.data() + idxPoly;
+            const double* w = weight_.data() + idxPoly;
+            for (unsigned i=0; i<imax; ++i)
+                sum += x[i]*y[i]*w[i];
+        }
+        else
+        {
+            const unsigned long mystride = weight_.strides()[level];
+            const unsigned long datastride = data.strides()[level];
+            idxData += datastride*shift;
+            for (unsigned i=0; i<imax; ++i)
+            {
+                sum += windowProductLoop(level+1, data, poly,
+                                         polyShift, idxData, idxPoly);
+                idxData += datastride;
+                idxPoly += mystride;
+            }
+        }
+        return sum;
+    }
+
+    template <unsigned MaxDeg>
+    template <unsigned StackLen, unsigned StackDim>
+    void OrthoPolyND<MaxDeg>::calculateCoeffs(
+        const ArrayND<double,StackLen,StackDim>& gridData,
+        const unsigned* shift, const unsigned lenShift,
+        double *coeffs, const unsigned lenCoeffs) const
+    {
+        const unsigned mydim = weight_.rank();
+        if (mydim != gridData.rank()) throw std::invalid_argument(
+            "In npstat::OrthoPolyND::calculateCoeffs: "
+            "incompatible data dimensionality");
+        if (shift)
+            if (mydim != lenShift) throw std::invalid_argument(
+                "In npstat::OrthoPolyND::calculateCoeffs: "
+                "incompatible shift dimensionality");
+        if (poly_.size() != lenCoeffs) throw std::invalid_argument(
+            "In npstat::OrthoPolyND::calculateCoeffs: "
+            "incompatible length of the coefficient buffer");
+        assert(coeffs);
+
+        // If the array sizes are identical, all shifts must be 0.
+        // In this case we can use the simple scalar product.
+        bool sameShape = true;
+        for (unsigned i=0; i<mydim; ++i)
+        {
+            const unsigned myspan = weight_.span(i);
+            const unsigned myshift = (shift ? shift[i] : 0);
+            const unsigned dataspan = gridData.span(i);
+            if (!(myshift + myspan <= dataspan)) throw std::invalid_argument(
+                "In npstat::OrthoPolyND::calculateCoeffs: shift is too large");
+            if (dataspan != myspan)
+                sameShape = false;
+        }
+
+        if (sameShape)
+        {
+            for (unsigned ic=0; ic<lenCoeffs; ++ic)
+                coeffs[ic] = scalarProduct(gridData, *poly_[ic]);
+        }
+        else
+        {
+            for (unsigned ic=0; ic<lenCoeffs; ++ic)
+                coeffs[ic] = cellVolume_*windowProductLoop(
+                    0U, gridData, *poly_[ic], shift, 0UL, 0UL);
+        }
+    }
+
+    template <unsigned MaxDeg>
+    OrthoPolyND<MaxDeg>::OrthoPolyND(const OrthoPolyND& r)
+        : weight_(r.weight_), steps_(r.steps_), degs_(r.degs_),
+          cellVolume_(r.cellVolume_), maxdeg_(r.maxdeg_)
+    {
+        const unsigned npoly = r.poly_.size();
+        poly_.reserve(npoly);
+        for (unsigned i=0; i<npoly; ++i)
+            poly_.push_back(new ArrayND<double>(*r.poly_[i]));
+    }
+
+    template <unsigned MaxDeg>
+    OrthoPolyND<MaxDeg>& OrthoPolyND<MaxDeg>::operator=(const OrthoPolyND& r)
+    {
+        if (this != &r)
+        {
+            {
+                const unsigned npoly = poly_.size();
+                for (unsigned i=npoly; i>0; --i)
+                    delete poly_[i-1];
+                poly_.clear();
+            }
+
+            weight_.uninitialize() = r.weight_;
+
+            const unsigned npoly = r.poly_.size();
+            poly_.reserve(npoly);
+            for (unsigned i=0; i<npoly; ++i)
+                poly_.push_back(new ArrayND<double>(*r.poly_[i]));
+
+            steps_ = r.steps_;
+            degs_ = r.degs_;
+            cellVolume_ = r.cellVolume_;
+            maxdeg_ = r.maxdeg_;
+        }
+        return *this;
+    }
+
+    template <unsigned MaxDeg>
+    bool OrthoPolyND<MaxDeg>::operator==(const OrthoPolyND& r) const
+    {
+        if (weight_ != r.weight_)
+            return false;
+        const unsigned npoly = poly_.size();
+        if (r.poly_.size() != npoly)
+            return false;
+        assert(degs_.size() == npoly);
+        assert(r.degs_.size() == npoly);
+        for (unsigned i=0; i<npoly; ++i)
+            if (*poly_[i] != *r.poly_[i])
+                return false;
+        for (unsigned i=0; i<npoly; ++i)
+            if (degs_[i] != r.degs_[i])
+                return false;
+        const unsigned nsteps = steps_.size();
+        if (r.steps_.size() != nsteps)
+            return false;
+        for (unsigned i=0; i<nsteps; ++i)
+            if (r.steps_[i] != steps_[i])
+                return false;
+        if (cellVolume_ != r.cellVolume_)
+            return false;
+        if (maxdeg_ != r.maxdeg_)
+             return false;
+        return true;
+    }
+
+    template <unsigned MaxDeg>
+    inline bool OrthoPolyND<MaxDeg>::operator!=(const OrthoPolyND& r) const
+    {
+        return !(*this == r);
+    }
+}

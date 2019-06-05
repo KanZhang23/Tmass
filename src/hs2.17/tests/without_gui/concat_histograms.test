@@ -1,0 +1,51 @@
+test concat_histograms-1.1 {concatenation of 3d histograms} {} {
+    foreach {nxbins xmin xmax nybins ymin ymax nzbins zmin zmax} \
+            {  4    1.0   2.5   5    1.5  3.0     6    4.0  8.0} {}
+    set slice_bin_x 2
+    set slice_bin_y 3
+    set slice_bin_z 3
+    set id [hs::create_3d_hist [next_uid] "Example histogram 3d" "Test"\
+            X Y Z V $nxbins $nybins $nzbins $xmin $xmax $ymin $ymax $zmin $zmax]
+    for {set i 0} {$i < $nxbins} {incr i} {
+	set x [expr {$xmin + $i*($xmax-$xmin)/$nxbins + 0.1}]
+	for {set j 0} {$j < $nybins} {incr j} {
+	    set y [expr {$ymin + $j*($ymax-$ymin)/$nybins + 0.1}]
+	    for {set k 0} {$k < $nzbins} {incr k} {
+		set z [expr {$zmin + $k*($zmax-$zmin)/$nzbins + 0.1}]
+		hs::fill_3d_hist $id $x $y $z [expr {10.0*rand() + 1.0}]
+	    }
+	}
+    }
+    hs::hist_set_gauss_errors $id
+    foreach axis {x y z} {
+        set slice_bin [set slice_bin_$axis]
+        set id_low [hs::3d_hist_subrange [next_uid] "Dummy" "Test" \
+                $id $axis 0 $slice_bin]
+        set id_high [hs::3d_hist_subrange [next_uid] "Dummy" "Test" \
+                $id $axis [expr {$slice_bin+1}] [expr [set n${axis}bins] - 1]]
+        set id_concat1 [hs::concat_histograms [next_uid] [hs::title $id] \
+                "Test" $id_low $id_high]
+        set id_concat2 [hs::concat_histograms [next_uid] [hs::title $id] \
+                "Test" $id_high $id_low]
+        if {[catch {
+            verify_similarity $id $id_concat1 0
+            verify_similarity $id $id_concat2 0
+        }]} {
+            error "Concatenation along $axis axis failed"
+        }
+    }
+} {}
+
+foreach name {
+    nxbins xmin xmax nybins ymin ymax nzbins zmin zmax
+    slice_bin slice_bin_x slice_bin_y slice_bin_z
+    axis i j k x y z
+    id id_low id_high id_concat1 id_concat2
+} {
+    catch {unset $name}
+}
+unset name
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

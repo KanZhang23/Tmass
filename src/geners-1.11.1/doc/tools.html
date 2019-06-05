@@ -1,0 +1,53 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html><head><meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
+
+<title>Geners Tools</title></head><body>
+<h2 style="text-align: center;">Geners Tools</h2>
+The "tools" subdirectory of the "geners" package includes several
+programs which can be used to examine the contents of object archives
+and catalogs. By default, these programs are compiled during the normal
+package installation procedure but they are not installed in any other
+location on your computer. If invoked without any arguments, each
+program prints its usage instructions to the standard output.<br>
+
+<br>
+<span style="font-family: Courier New,Courier,monospace; color: rgb(0, 153, 0);">cdump</span>
+&mdash; "Catalog dump". This program can be used to print catalog contents
+to the standard output and to collect item type summaries.<br>
+<br style="font-family: Courier New,Courier,monospace; color: rgb(0, 153, 0);">
+<span style="font-family: Courier New,Courier,monospace; color: rgb(0, 153, 0);">gssa_dump</span>
+&mdash; "Catalog dump for .gssa or .gssaz files". This program can be used 
+to print catalogs of string archives saved in dedicated binary files. The convention
+here is to use extension .gssa (Generic Serialization String Archive) for such
+files without compression and .gssaz with compression.<br>
+<br style="color: rgb(0, 153, 0);">
+<span style="font-family: Courier New,Courier,monospace; color: rgb(0, 153, 0);">cmerge</span>
+&mdash; "Catalog merge". This program can be used to merge contents of
+multiple catalogs. The resulting catalog can be treated as a single
+combined "geners" archive. Object data files included as members of the
+new combined archive do not have to be modified.<br>
+<br style="color: rgb(0, 153, 0);">
+<span style="font-family: Courier New,Courier,monospace; color: rgb(0, 153, 0);">gssa_merge</span>
+&mdash; "String archive merge". This program can be used to merge contents of
+multiple .gssa or .gssaz files into a single archive.<br>
+<br style="color: rgb(0, 153, 0);">
+<span style="font-family: Courier New,Courier,monospace; color: rgb(0, 153, 0);">crecover</span>
+&mdash; "Catalog recover". This program can be used to recover catalog data
+from binary archive data files if a copy of the catalog was merged into
+the data stream. This mode of archive operation is useful mainly in the
+code development process, so that the catalog can be recovered in case
+of an unexpected program crash.<br>
+<br style="color: rgb(0, 153, 0);">
+<span style="font-family: Courier New,Courier,monospace; color: rgb(0, 153, 0);">print_items</span>
+&mdash; This program can be used to fetch items from an archive and to print
+them to the standard output. It is expected that this particular
+program will be extended by the users as they develop their own classes
+(see comments at the beginning of file "print_items.cc"). In its
+original form, the program can only print C++ strings and built-in
+numeric types.<br>
+<br style="color: rgb(0, 153, 0);">
+<span style="font-family: Courier New,Courier,monospace; color: rgb(0, 153, 0);">template_io_boilerplate</span>
+&mdash; This program generates a boilerplate header file for serializing
+templates that can not be modified by the user (<i>i.e.</i>, coming from an external library).<br>
+<br>
+</body></html>

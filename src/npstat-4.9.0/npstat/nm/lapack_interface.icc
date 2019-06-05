@@ -1,0 +1,317 @@
+#include <vector>
+#include <cassert>
+#include <sstream>
+#include <stdexcept>
+
+#include "npstat/nm/lapack.h"
+#include "npstat/nm/allocators.hh"
+
+namespace npstat {
+    namespace Private {
+        inline void check_lapack_status(const int INFO, const char* fcn1,
+                                        const char* fcnlap)
+        {
+            if (INFO)
+            {
+                std::ostringstream os;
+                os << "In npstat::" << fcn1 << ": LAPACK routine "
+                   << fcnlap << " failed with status " << INFO;
+                throw std::runtime_error(os.str());
+            }
+        }
+    }
+
+    template<typename Numeric>
+    inline void invert_posdef_sym_matrix(const Numeric* /* in */,
+                                         unsigned /* dim */,
+                                         Numeric* /* out */)
+    {
+        throw std::invalid_argument(
+            "In npstat::invert_posdef_sym_matrix: "
+            "matrix inversion is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline void invert_sym_matrix(const Numeric* /* in */,
+                                  unsigned /* dim */,
+                                  Numeric* /* out */)
+    {
+        throw std::invalid_argument(
+            "In npstat::invert_sym_matrix: "
+            "matrix inversion is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline void invert_general_matrix(const Numeric* /* in */,
+                                      unsigned /* dim */,
+                                      Numeric* /* out */)
+    {
+        throw std::invalid_argument(
+            "In npstat::invert_general_matrix: "
+            "matrix inversion is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline void sym_matrix_eigenvalues(const Numeric* /* in */,
+                                       unsigned /* dim */,
+                                       Numeric* /* eigenvalues */)
+    {
+        throw std::invalid_argument(
+            "In npstat::sym_matrix_eigenvalues: calculation "
+            "of eigenvalues is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline void td_sym_matrix_eigenvalues(const Numeric* /* in */,
+                                          unsigned /* dim */,
+                                          Numeric* /* eigenvalues */)
+    {
+        throw std::invalid_argument(
+            "In npstat::td_sym_matrix_eigenvalues: calculation "
+            "of eigenvalues is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline void gen_matrix_eigenvalues(
+        const Numeric* /* in */, unsigned /* dim */,
+        typename GeneralizedComplex<Numeric>::type * /* eigenvalues */)
+    {
+        throw std::invalid_argument(
+            "In npstat::gen_matrix_eigenvalues: calculation "
+            "of eigenvalues is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline void sym_matrix_eigenvalues_dc(const Numeric* /* in */,
+                                          unsigned /* dim */,
+                                          Numeric* /* eigenvalues */)
+    {
+        throw std::invalid_argument(
+            "In npstat::sym_matrix_eigenvalues_dc: calculation "
+            "of eigenvalues is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline void td_sym_matrix_eigenvalues_dc(const Numeric* /* in */,
+                                             unsigned /* dim */,
+                                             Numeric* /* eigenvalues */)
+    {
+        throw std::invalid_argument(
+            "In npstat::td_sym_matrix_eigenvalues_dc: calculation "
+            "of eigenvalues is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline void sym_matrix_eigenvalues_rrr(const Numeric* /* in */,
+                                           unsigned /* dim */,
+                                           Numeric* /* eigenvalues */)
+    {
+        throw std::invalid_argument(
+            "In npstat::sym_matrix_eigenvalues_rrr: calculation "
+            "of eigenvalues is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline void td_sym_matrix_eigenvalues_rrr(const Numeric* /* in */,
+                                              unsigned /* dim */,
+                                              Numeric* /* eigenvalues */)
+    {
+        throw std::invalid_argument(
+            "In npstat::td_sym_matrix_eigenvalues_rrr: calculation "
+            "of eigenvalues is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline void sym_matrix_eigensystem(const Numeric* /* in */,
+                                       unsigned /* dim */,
+                                       Numeric* /* eigenvalues */,
+                                       Numeric* /* eigenvectors */)
+    {
+        throw std::invalid_argument(
+            "In npstat::sym_matrix_eigensystem: calculation "
+            "of eigenvectors is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline void td_sym_matrix_eigensystem(const Numeric* /* in */,
+                                          unsigned /* dim */,
+                                          Numeric* /* eigenvalues */,
+                                          Numeric* /* eigenvectors */)
+    {
+        throw std::invalid_argument(
+            "In npstat::td_sym_matrix_eigensystem: calculation "
+            "of eigenvectors is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline void gen_matrix_eigensystem(
+        const Numeric* /* in */, unsigned /* dim */,
+        typename GeneralizedComplex<Numeric>::type *,
+        Numeric* /* rightEigenvectors */, Numeric* /* leftEigenvectors */)
+    {
+        throw std::invalid_argument(
+            "In npstat::gen_matrix_eigensystem: calculation "
+            "of eigenvectors is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline void sym_matrix_eigensystem_dc(const Numeric* /* in */,
+                                          unsigned /* dim */,
+                                          Numeric* /* eigenvalues */,
+                                          Numeric* /* eigenvectors */)
+    {
+        throw std::invalid_argument(
+            "In npstat::sym_matrix_eigensystem_dc: calculation "
+            "of eigenvectors is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline void td_sym_matrix_eigensystem_dc(const Numeric* /* in */,
+                                             unsigned /* dim */,
+                                             Numeric* /* eigenvalues */,
+                                             Numeric* /* eigenvectors */)
+    {
+        throw std::invalid_argument(
+            "In npstat::td_sym_matrix_eigensystem_dc: calculation "
+            "of eigenvectors is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline void sym_matrix_eigensystem_rrr(const Numeric* /* in */,
+                                           unsigned /* dim */,
+                                           Numeric* /* eigenvalues */,
+                                           Numeric* /* eigenvectors */)
+    {
+        throw std::invalid_argument(
+            "In npstat::sym_matrix_eigensystem_rrr: calculation "
+            "of eigenvectors is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline void td_sym_matrix_eigensystem_rrr(const Numeric* /* in */,
+                                              unsigned /* dim */,
+                                              Numeric* /* eigenvalues */,
+                                              Numeric* /* eigenvectors */)
+    {
+        throw std::invalid_argument(
+            "In npstat::td_sym_matrix_eigensystem_rrr: calculation "
+            "of eigenvectors is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline Numeric lu_decomposition_matrix_det(const Numeric* /* in */,
+                                               unsigned /* dim */)
+    {
+        throw std::invalid_argument(
+            "In npstat::lu_decomposition_matrix_det: calculation "
+            "of determinant is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline bool solve_linear_system(const Numeric* /* in */,
+                                    unsigned /* dim */,
+                                    const Numeric* /* rhs */,
+                                    Numeric* /* solution */)
+    {
+        throw std::invalid_argument(
+            "In npstat::solve_linear_system: solution of "
+            "linear systems is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline bool solve_linear_systems(const Numeric* /* in */,
+                                     unsigned /* nrows */,
+                                     unsigned /* ncols */,
+                                     const Numeric* /* rhs */,
+                                     Numeric* /* solution */)
+    {
+        throw std::invalid_argument(
+            "In npstat::solve_linear_systems: solution of "
+            "linear systems is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline bool linear_least_squares(const Numeric* /* in */,
+                                     unsigned /* nrows */,
+                                     unsigned /* ncols */,
+                                     const Numeric* /* rhs */,
+                                     Numeric* /* solution */)
+    {
+        throw std::invalid_argument(
+            "In npstat::linear_least_squares: least squares solution of "
+            "linear systems is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline bool constrained_least_squares(const Numeric* /* mat */,
+                                          unsigned /* nrows */,
+                                          unsigned /* ncols */,
+                                          const Numeric* /* rhs */,
+                                          const Numeric* /* constraintMatrix */,
+                                          unsigned /* constrRows */,
+                                          unsigned /* constrCols */,
+                                          const Numeric* /* constrRhs */,
+                                          Numeric* /* solution */)
+    {
+        throw std::invalid_argument(
+            "In npstat::constrained_least_squares: least squares "
+            "solution of constrained linear systems is not supported "
+            "for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline bool gen_matrix_svd(const Numeric* /* in */,
+                               unsigned /* M */,
+                               unsigned /* N */,
+                               Numeric* /* U */,
+                               Numeric* /* singularValues */,
+                               Numeric* /* VT */)
+    {
+        throw std::invalid_argument(
+            "In npstat::gen_matrix_svd: "
+            "SVD is not supported for this template parameter");
+    }
+
+    template<typename Numeric>
+    inline bool gen_matrix_svd_dc(const Numeric* /* in */,
+                                  unsigned /* M */,
+                                  unsigned /* N */,
+                                  Numeric* /* U */,
+                                  Numeric* /* singularValues */,
+                                  Numeric* /* VT */)
+    {
+        throw std::invalid_argument(
+            "In npstat::gen_matrix_svd_dc: "
+            "SVD is not supported for this template parameter");
+    }
+}
+
+#include "npstat/nm/lapack_interface_double.icc"
+#include "npstat/nm/lapack_interface_float.icc"
+
+/* Generate float interface from double as follows:
+
+   rm -f lapack_interface_float.icc
+   sed 's/long double/PRESERVE_THIS/g' lapack_interface_double.icc |\
+   sed 's/double/float/g' |\
+   sed 's/dgelsd/sgelsd/g'   | sed 's/DGELSD/SGELSD/g' |\
+   sed 's/dgetrs_/sgetrs_/g' | sed 's/DGETRS/SGETRS/g' |\
+   sed 's/dgeev_/sgeev_/g'   | sed 's/DGEEV/SGEEV/g' |\
+   sed 's/dsyev_/ssyev_/g'   | sed 's/DSYEV/SSYEV/g' |\
+   sed 's/dsyevd_/ssyevd_/g' | sed 's/dsyevr_/ssyevr_/g' |\
+   sed 's/dstevr_/sstevr_/g' | sed 's/DSTEVR/SSTEVR/g' |\
+   sed 's/dgetrf_/sgetrf_/g' | sed 's/DGETRF/SGETRF/g' |\
+   sed 's/dpotrf_/spotrf_/g' | sed 's/DPOTRF/SPOTRF/g' |\
+   sed 's/dsytrf_/ssytrf_/g' | sed 's/DSYTRF/SSYTRF/g' |\
+   sed 's/dgetri_/sgetri_/g' | sed 's/DGETRI/SGETRI/g' |\
+   sed 's/dsytri_/ssytri_/g' | sed 's/DSYTRI/SSYTRI/g' |\
+   sed 's/dpotri_/spotri_/g' | sed 's/DPOTRI/SPOTRI/g' |\
+   sed 's/dgesvd_/sgesvd_/g' | sed 's/DGESVD/SGESVD/g' |\
+   sed 's/dgesdd_/sgesdd_/g' | sed 's/DGESDD/SGESDD/g' |\
+   sed 's/dgglse_/sgglse_/g' | sed 's/DGGLSE/SGGLSE/g' |\
+   sed 's/dggglm_/sggglm_/g' | sed 's/DGGGLM/SGGGLM/g' |\
+   sed 's/RCOND = 1.0e-12/RCOND = 1.0e-6/g' |\
+   sed 's/PRESERVE_THIS/long double/g' > lapack_interface_float.icc
+
+   The names of the routines are in the lapack.h header
+*/

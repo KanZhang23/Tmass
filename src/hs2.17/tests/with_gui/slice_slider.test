@@ -1,0 +1,20 @@
+test slice_slider-1.1 {2d histogram slicer} {} {
+    # Make a 2d histogram to slice
+    set id [hs::create_2d_hist [next_uid] "Random filled 2d histogram"\
+	    "Example category" "X" "Y" "Z" 20 20 -5 5 -5 5]
+    for {set i 0} {$i < 10000} {incr i} {
+	hs::fill_2d_hist $id [gauss_random 0 1] [gauss_random 0 2] 1.0
+    }
+    # Make a slicer for this histogram
+    foreach w [hs::slice_slider $id x] break
+    tkwait visibility $w
+    tkwait window $w
+    hs::delete $id
+} {}
+
+catch {unset w}
+catch {unset id}
+catch {unset i}
+
+::tcltest::cleanupTests
+return

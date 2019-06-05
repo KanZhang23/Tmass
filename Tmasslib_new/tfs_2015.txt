@@ -1,0 +1,23 @@
+Tcl interface to functions declared in tfs_2015.h:
+
+/* Usage: load_tfs_2015 gssaFile minExceedance list_of_eta_bin_limits \
+ *             partonMassSplit drStretchFactor jetPtCutoff interpolateParam
+ */
+
+/* Usage: bare_transfer_function jetEta isB mparton partonPt \
+ *                   dr ptRatio xCut
+ *
+ * xCut should be set to tf_pt_cutoff*jes_at_cut/partonPt
+ */
+
+The following function generates a random direction around the given one
+
+/* Usage: randomize_sampling_fromrand id mparton pt eta phi isB nfills id2?
+ *
+ * If provided, 2-d histogram with id "id2" will be filled with density
+ * values calculated for the generated eta and phi.
+ */
+
+/* Usage: single_parton_eff mparton pt eta phi isB deltaJES sigmaAtCut */
+
+get_jet_pt_cutoff -- works

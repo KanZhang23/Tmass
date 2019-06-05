@@ -1,0 +1,46 @@
+
+The Kolmogorov-Smirnov test statistic D_n is defined by
+
+       D_n = sup_x |F(x) - S_n(x)|
+
+where n is the sample size, F(x) is a completely specified theoretical
+distribution, and S_n(x) is an empirical distribution function.
+
+This package defines two functions placed in the namespace "kstest".
+The function
+
+       double KScdf(unsigned n, double x);
+
+computes the cumulative probability P[D_n <= x] of the 2-sided
+1-sample Kolmogorov-Smirnov distribution with sample size n at x.
+It returns at least 13 decimal digits of precision for n <= 500,
+at least 7 decimal digits of precision for 500 < n <= 100000,
+and a few correct decimal digits for n > 100000.
+
+The function
+
+       double KSfbar(unsigned n, double x);
+
+computes the complementary cumulative probability P[D_n > x] of the
+2-sided 1-sample Kolmogorov-Smirnov distribution with sample size n at x.
+It returns at least 10 decimal digits of precision for n <= 500,
+at least 6 decimal digits of precision for 500 < n <= 200000,
+and a few correct decimal digits for n > 200000.
+
+The program "kscalc" in the "examples" directory takes values of n and x
+from the command line and prints the values returned by "KScdf" and "KSfbar"
+to the standard output.
+
+If you find this software useful, please cite
+
+@article{tSIM11a,
+  author =   {R. Simard and P. L'Ecuyer},
+  title =    {Computing the Two-Sided {Kolmogorov-Smirnov} Distribution},
+  journal =  {Journal of Statistical Software},
+  volume =   {39},
+  number =   {11},
+  note =     {URL is \url{http://www.jstatsoft.org/v39/i11}},
+  OPTpages = {1--18},
+  year =     {2011}
+}
+

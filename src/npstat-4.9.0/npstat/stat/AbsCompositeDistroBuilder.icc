@@ -1,0 +1,186 @@
+#include <sstream>
+#include <stdexcept>
+
+#include "geners/CPP11_auto_ptr.hh"
+#include "npstat/nm/PtrBufferHandle.hh"
+
+namespace npstat {
+    template <class Point>
+    CompositeDistributionND* AbsCompositeDistroBuilder<Point>::build(
+        const unsigned long uniqueId,
+        const double* predictorCoords, const unsigned nPredictors,
+        const BoxND<double>& predictorBox,
+        std::vector<OrderedPointND<Point> >& dataIn) const
+    {
+        unsigned long datasize = dataIn.size();
+        if (!datasize) throw std::invalid_argument(
+            "In npstat::AbsCompositeDistroBuilder::build: empty data set");
+        const unsigned dim = dataIn[0].size();
+        if (dim < 2) throw std::invalid_argument(
+            "In npstat::AbsCompositeDistroBuilder::build: "
+            "dimensionality can not be less than 2");
+
+        const BoxND<double>& responseBox = this->makeResponseBox(
+            uniqueId, predictorCoords, nPredictors, predictorBox, dataIn);
+        assert(responseBox.size() == dim);
+
+        // Check if this is just an empty box
+        bool doBox = false;
+        for (unsigned i=0; i<dim && !doBox; ++i)
+            if (responseBox[i].min() < responseBox[i].max())
+                doBox = true;
+
+        // If the box is not empty, select only the points in the box
+        std::vector<OrderedPointND<Point> > dataInBox;
+        if (doBox)
+        {
+            dataInBox.reserve(datasize);
+            double coords[CHAR_BIT*sizeof(unsigned long)];
+            for (unsigned long ipt=0; ipt<datasize; ++ipt)
+            {
+                const OrderedPointND<Point>& pt(dataIn[ipt]);
+                for (unsigned i=0; i<dim; ++i)
+                    coords[i] = pt[i];
+                if (responseBox.isInsideLower(coords, dim))
+                    dataInBox.push_back(pt);
+            }
+            datasize = dataInBox.size();
+            if (!datasize) throw std::invalid_argument(
+                "In npstat::AbsCompositeDistroBuilder::build: "
+                "empty data set after response box construction");
+        }
+
+        std::vector<const AbsDistribution1D*> marginals(dim, 0);
+        Private::PtrBufferHandle<const AbsDistribution1D> h(&marginals[0], dim);
+
+        std::vector<typename Point::value_type> edf;
+        edf.reserve(datasize);
+
+        std::vector<OrderedPointND<Point> >& data = doBox ? dataInBox : dataIn;
+        OrderedPointND<Point>* points = &data[0];
+        for (unsigned idim=0; idim<dim; ++idim)
+        {
+            if (idim)
+                for (unsigned long i=0; i<datasize; ++i)
+                    edf[i] = points[i][idim];
+            else
+                for (unsigned long i=0; i<datasize; ++i)
+                    edf.push_back(points[i][0]);
+            marginals[idim] = this->buildMarginal(
+                uniqueId, idim, responseBox[idim], edf);
+            if (!marginals[idim])
+            {
+                std::ostringstream os;
+                os << "In npstat::AbsCompositeDistroBuilder::build: failed to "
+                   << "construct marginal distribution for dimension "
+                   << idim;
+                throw std::runtime_error(os.str());
+            }
+        }
+
+        // Release the edf memory before building the copula
+        {std::vector<typename Point::value_type>().swap(edf);}
+
+        CPP11_auto_ptr<AbsDistributionND> pcopula(
+            this->buildCopula(uniqueId, data));
+        if (!pcopula.get()) throw std::runtime_error(
+            "In npstat::AbsCompositeDistroBuilder::build: "
+            "failed to construct the copula");
+
+        CompositeDistributionND* cd = new CompositeDistributionND(
+            pcopula.get(), marginals, true);
+        pcopula.release();
+        h.release();
+        return cd;
+    }
+
+    template <class Point>
+    CompositeDistributionND* AbsCompositeDistroBuilder<Point>::buildWeighted(
+        const unsigned long uniqueId,
+        const double* predictorCoords, const unsigned nPredictors,
+        const BoxND<double>& predictorBox, const WeightedPtrVec& dataIn,
+        const unsigned* dimsToUse, const unsigned dim) const
+    {
+        unsigned long datasize = dataIn.size();
+        if (!datasize) throw std::invalid_argument(
+            "In npstat::AbsCompositeDistroBuilder::buildWeighted: "
+            "empty data set");
+        if (dim < 2) throw std::invalid_argument(
+            "In npstat::AbsCompositeDistroBuilder::buildWeighted: "
+            "dimensionality can not be less than 2");
+        assert(dimsToUse);
+
+        const BoxND<double>& responseBox = this->makeResponseBoxW(
+            uniqueId, predictorCoords, nPredictors,
+            predictorBox, dataIn, dimsToUse, dim);
+        assert(responseBox.size() == dim);
+
+        bool doBox = false;
+        for (unsigned i=0; i<dim && !doBox; ++i)
+            if (responseBox[i].min() < responseBox[i].max())
+                doBox = true;
+
+        WeightedPtrVec dataInBox;
+        if (doBox)
+        {
+            dataInBox.reserve(datasize);
+            double coords[CHAR_BIT*sizeof(unsigned long)];
+            for (unsigned long ipt=0; ipt<datasize; ++ipt)
+            {
+                const Point& pt(*dataIn[ipt].first);
+                for (unsigned i=0; i<dim; ++i)
+                    coords[i] = pt[dimsToUse[i]];
+                if (responseBox.isInsideLower(coords, dim))
+                    dataInBox.push_back(dataIn[ipt]);
+            }
+            datasize = dataInBox.size();
+            if (!datasize) throw std::invalid_argument(
+                "In npstat::AbsCompositeDistroBuilder::buildWeighted: "
+                "empty data set after response box construction");
+        }
+
+        std::vector<const AbsDistribution1D*> marginals(dim, 0);
+        Private::PtrBufferHandle<const AbsDistribution1D> h(&marginals[0], dim);
+
+        WeightedValueVec edf;
+        edf.reserve(datasize);
+
+        const WeightedPtrVec& data = doBox ? dataInBox : dataIn;
+        for (unsigned dimind=0; dimind<dim; ++dimind)
+        {
+            const unsigned idim = dimsToUse[dimind];
+            const WeightedPointPtr* pt = &data[0];
+            if (dimind)
+                for (unsigned long i=0; i<datasize; ++i, ++pt)
+                    edf[i] = WeightedValue((*pt->first)[idim], pt->second);
+            else
+                for (unsigned long i=0; i<datasize; ++i, ++pt)
+                    edf.push_back(WeightedValue((*pt->first)[idim], pt->second));
+            marginals[dimind] = this->buildMarginalW(
+                uniqueId, idim, dimind, responseBox[dimind], edf);
+            if (!marginals[dimind])
+            {
+                std::ostringstream os;
+                os << "In npstat::AbsCompositeDistroBuilder::buildWeighted: "
+                   << "failed to construct marginal distribution for dimension "
+                   << idim;
+                throw std::runtime_error(os.str());
+            }
+        }
+
+        // Release the edf memory before building the copula
+        {WeightedValueVec().swap(edf);}
+
+        CPP11_auto_ptr<AbsDistributionND> pcopula(
+            this->buildCopulaW(uniqueId, data, dimsToUse, dim));
+        if (!pcopula.get()) throw std::runtime_error(
+            "In npstat::AbsCompositeDistroBuilder::buildWeighted: "
+            "failed to construct the copula");
+
+        CompositeDistributionND* cd = new CompositeDistributionND(
+            pcopula.get(), marginals, true);
+        pcopula.release();
+        h.release();
+        return cd;
+    }
+}

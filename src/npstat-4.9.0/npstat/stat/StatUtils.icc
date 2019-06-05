@@ -1,0 +1,239 @@
+#include <cmath>
+#include <cfloat>
+#include <cassert>
+#include <stdexcept>
+#include <algorithm>
+
+namespace npstat {
+    template<typename Data>
+    Data empiricalQuantile(const std::vector<Data>& data, const double x,
+                           const bool increaseRange)
+    {
+        if (!(x >= 0.0 && x <= 1.0)) throw std::domain_error(
+            "In npstat::empiricalQuantile: cdf argument "
+            "outside of [0, 1] interval");
+
+        const std::size_t sz = data.size();
+        if (!sz) throw std::invalid_argument(
+            "In npstat::empiricalQuantile: no data provided");
+
+        if ((x == 0.0 || x == 1.0) && increaseRange)
+        {
+            if (sz == 1U)
+            {
+                // There is no natural scale factor.
+                // We need to invent something
+                Data one = static_cast<Data>(1);
+                if (x == 0.0)
+                {
+                    Data dm1 = data[0] - one;
+                    if (dm1 != data[0])
+                        return dm1;
+                    else
+                        return data[0] - std::abs(data[0])*0.01;
+                }
+                else
+                {
+                    Data dp1 = data[0] + one;
+                    if (dp1 != data[0])
+                        return dp1;
+                    else
+                        return data[0] + std::abs(data[0])*0.01;
+                }
+            }
+            else
+            {
+                Data scale = (data[sz - 1] - data[0])*(1.0/sz);
+                if (scale == Data())
+                    scale = static_cast<Data>(1);
+                if (x == 0.0)
+                    return data[0] - scale*0.1;
+                else
+                    return data[sz - 1] + scale*0.1;
+            }
+        }
+
+        if (sz == 1U)
+            return data[0];
+        const double find = x*sz - 0.5;
+        if (find <= 0.0)
+            return data[0];
+        const std::size_t ibelow = static_cast<std::size_t>(floor(find));
+        const std::size_t iabove = ibelow + 1;
+        if (iabove >= sz)
+            return data[sz - 1];
+        else
+            return data[ibelow] + (data[iabove]-data[ibelow])*(find-ibelow);
+    }
+
+    template<typename Data>
+    double empiricalCdf(const std::vector<Data>& data, const Data& x)
+    {
+        const std::size_t sz = data.size();
+        if (!sz) throw std::invalid_argument(
+            "In npstat::empiricalCdf: no data provided");
+        if (sz == 1U)
+        {
+            if (x < data[0])
+                return 0.0;
+            else if (data[0] < x)
+                return 1.0;
+            else
+                return 0.5;
+        }
+
+        const std::size_t iabove = lower_bound(data.begin(), data.end(), x) -
+                                   data.begin();
+        if (iabove == 0)   
+            return 0.0;
+        else if (iabove == sz)
+            return 1.0;
+        else if (iabove == sz - 1 && x == data[sz - 1])
+            return 1.0;
+        else
+        {
+            const std::size_t ibelow = iabove - 1;
+            double cdf = ((x-data[ibelow])*1.0/(data[iabove]-data[ibelow])
+                          +ibelow+0.5)/sz;
+            if (cdf < 0.5/sz)
+                cdf = 0.5/sz;
+            if (cdf > (sz - 0.5)/sz)
+                cdf = (sz - 0.5)/sz;
+            return cdf;
+        }
+    }
+
+    template<typename Data>
+    unsigned long quantileBinFromCdf(
+        const Data* cdf, const unsigned long arrLen,
+        const Data q, Data* remainder)
+    {
+        if (!(arrLen > 1UL)) throw std::invalid_argument(
+            "In npstat::quantileBinFromCdf: insufficient amount of data");
+        assert(cdf);
+
+        if (remainder)
+            *remainder = static_cast<Data>(0.0);
+
+        if (q <= cdf[0])
+        {
+            unsigned long i = 1UL;
+	    for (; cdf[i] == cdf[0] && i < arrLen; ++i);
+	    return i - 1;
+        }
+
+        if (q >= cdf[arrLen - 1UL])
+        {
+            unsigned long i = arrLen - 1UL;
+	    for (; cdf[i-1UL] == cdf[arrLen-1UL] && i>0; --i);
+	    return i;
+        }
+
+        unsigned long imin = 0, imax = arrLen - 1UL;
+        while (imax - imin > 1UL)
+        {
+            const unsigned long i = (imax + imin)/2UL;
+            if (cdf[i] > q)
+                imax = i;
+            else if (cdf[i] < q)
+                imin = i;
+            else
+            {
+                for (imax = i; cdf[imax+1] == cdf[i]; ++imax);
+                for (imin = i; cdf[imin-1] == cdf[i]; --imin);
+                return (imin + imax)/2UL;
+            }
+        }
+
+        if (remainder && cdf[imax] > cdf[imin])
+            *remainder = (q - cdf[imin])/(cdf[imax] - cdf[imin]);
+
+        return imin;
+    }
+
+    template<typename Real>
+    Real squaredDerivativeIntegral(Real* fvalues, const unsigned long arrLen,
+                                   const unsigned deri, const Real h)
+    {
+        if (arrLen < 2UL || arrLen <= deri) throw std::invalid_argument(
+            "In npstat::squaredDerivativeIntegral: "
+            "insufficient amount of data");
+        assert(fvalues);
+        if (!(h > static_cast<Real>(0))) throw std::invalid_argument(
+            "In npstat::squaredDerivativeIntegral: "
+            "step size must be positive");
+
+        // Calculate the derivative
+        long double hprod = h;
+        unsigned long kmax = arrLen - 1;
+        for (unsigned i=0; i<deri; ++i, --kmax)
+        {
+            assert(kmax);
+            for (unsigned long k=0; k<kmax; ++k)
+                fvalues[k] = fvalues[k+1] - fvalues[k];
+            hprod /= (h*h);
+        }
+
+        // Calculate the integral. Assume that the derivatives
+        // on the left and on the right can be extrapolated from
+        // the corresponding endpoints.
+        kmax = arrLen - deri;
+        const long double leftderi = fvalues[0];
+        const long double rightderi = fvalues[kmax - 1];
+        long double sum = (leftderi*leftderi + rightderi*rightderi)*deri/2.0L;
+        for (unsigned long k=0; k<kmax; ++k)
+            sum += fvalues[k]*fvalues[k];
+
+        return static_cast<Real>(sum*hprod);
+    }
+
+    template<typename Real>
+    inline bool normalizeArrayAsDensity(Real* arr, const unsigned long n,
+                                        const double binwidth, double* pnorm)
+    {
+        bool hasNegatives = false;
+        if (n)
+        {
+            const Real zero = Real();
+            assert(arr);
+            long double integ = 0.0L;
+            for (unsigned long i=0; i<n; ++i)
+            {
+                if (arr[i] < zero)
+                {
+                    arr[i] = zero;
+                    hasNegatives = true;
+                }
+                else
+                    integ += arr[i];
+            }
+            const Real denom = integ*binwidth;
+            if (denom <= zero)
+                throw std::runtime_error(
+                    "In npstat::normalizeArrayAsDensity: "
+                    "input array is nowhere positive");
+            for (unsigned long i=0; i<n; ++i)
+                arr[i] /= denom;
+            if (pnorm)
+                *pnorm = static_cast<double>(1.0L/integ/binwidth);
+        }
+        else
+        {
+            if (pnorm)
+                *pnorm = 1.0;
+        }
+        return hasNegatives;
+    }
+
+    inline double aicc(const double k, const double logli, const double n)
+    {
+        const double aic = 2.0*k - 2.0*logli;
+        const double denom = n - k - 1;
+        if (denom > 0.0)
+            return aic + 2.0*k*(k + 1.0)/denom;
+        else if (k > 0.0)
+            return DBL_MAX;
+        else
+            return aic;
+    }
+}

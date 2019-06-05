@@ -1,0 +1,27 @@
+#include "npstat/stat/buildInterpolatedHelpers.hh"
+
+namespace npstat {
+    template <class Point>
+    inline CPP11_auto_ptr<GridInterpolatedDistribution>
+    buildInterpolatedCompositeDistroND(
+        const std::vector<Point>& data,
+        const unsigned* dimPredictors, const unsigned nPredictors,
+        const std::string* predictorNames,
+        const unsigned* predictorNumBins, const int predictorSymbetaPower,
+        const double effectiveEventsPerBin, const bool stretchPredKernels,
+        const unsigned* dimResponses, const unsigned nResponseVars,
+        const AbsCompositeDistroBuilder<Point>& builder,
+        const bool interpolateCopulas, const unsigned reportFrequency)
+    {
+        if (nResponseVars < 2U) throw std::invalid_argument(
+            "In npstat::buildInterpolatedCompositeDistroND: "
+            "must use at least two response variables");
+        return Private::buildInterpolatedHelper<
+            Point,GridInterpolatedDistribution,AbsCompositeDistroBuilder>(
+                data, dimPredictors, nPredictors, predictorNames,
+                predictorNumBins, predictorSymbetaPower,
+                effectiveEventsPerBin, stretchPredKernels,
+                dimResponses, nResponseVars, builder,
+                interpolateCopulas, reportFrequency);
+    }
+}

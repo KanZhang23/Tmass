@@ -1,0 +1,149 @@
+Version 1.11.1 - March 27 2017, by I. Volobouev
+
+* Fixed a problem with missing cmath header include statement in
+  "tuple_collections.cc" which shows up in newer g++ versions.
+
+
+Version 1.11.0 - February 10 2017, by I. Volobouev
+
+* Added a method which efficiently retrieves the collection of categories
+  from an archive.
+
+* Added "isStrictlyIncreasingSeq" utility function (used in the above).
+
+
+Version 1.10.0 - October 15 2015, by I. Volobouev
+
+* Allowed gs_specialize_template_id_T... macros to work with external
+  classes not wrapped for "geners" in case their MAX parameter is
+  less than the total number of template parameters.
+
+
+Version 1.9.0 - June 1 2015, by I. Volobouev
+
+* Published the "Base" type in DefaultReaderWriter class (this can be
+  used by the "read_base_obj" function in binaryIO.hh).
+
+* Inlined a number of trivial destructors.
+
+
+Version 1.8.0 - Apr 30 2015, by I. Volobouev
+
+* Fixed "unused parameter" warnings in "geners/arrayIO.hh".
+
+* Added "gssa_merge" program in the "tools" directory which merges
+  string archives saved in .gssa or .gssaz files.
+
+* Added "unregisterClass" method to the StaticReader template and
+  "unregisterWrapper" method to the StaticReaderWriter template. These
+  methods are needed for dynamical unloading of shared libraries.
+
+
+Version 1.7.0 - Apr 11 2015, by I. Volobouev
+
+* Made StaticReader::registerClass method exception-safe.
+
+* Added a templated factory for non-intrusive serialization of external
+  inheritance hierarchies (new header file "geners/AbsReaderWriter.hh").
+
+* Added "gs_associate_serialization_factory" macro in the new header file
+  "geners/associate_serialization_factory.hh".
+
+* Added example code "serializing_external_templates.cc" illustrating
+  serialization of external inheritance hierarchies.
+
+
+Version 1.6.0 - Apr 04 2015, by I. Volobouev
+
+* Better handling of regex compilation error messages for POSIX extended
+  regex matching (these are not used by compilers with C++11 support).
+
+* Added "gs_enable_pseudo_io" macro in the new "geners/pseudoIO.hh" header
+  file. This macro is needed in order to use classes which do not need I/O
+  inside templates which expect I/O-enabled template parameters.
+
+
+Version 1.5.1 - Jan 13 2015, by I. Volobouev
+
+* More careful handling of "assert" statements so that the code compiles
+  correctly and without warnings with the -DNDEBUG switch.
+
+
+Version 1.5.0 - Oct 08 2014, by I. Volobouev
+
+* Added a code generator for boilerplate template serialization.
+
+* Added "BooleanString" template.
+
+* Fixes for MS C++ compiler.
+
+* Added an example illustrating how to serialize external templates.
+
+
+Version 1.4.1 - Jul 17 2014, by I. Volobouev
+
+* More clang fixes.
+
+
+Version 1.4.0 - May 02 2014, by I. Volobouev
+
+* A few fixes to quell the complaints from the clang compiler. If your
+  compiler is happy with 1.3.0, you do not have to upgrade to this version.
+
+
+Version 1.3.0 - June 14 2013, by I. Volobouev
+
+* Added new "Record" and "Reference" signatures for use with strings
+  in addition to char pointers.
+
+* Added convenience functions for string archive I/O.
+
+* Added "gssaDump" executable to the "tools" directory.
+
+
+Version 1.2.0 - November 3 2012, by I. Volobouev
+
+* Added "copyItem" method to the AbsArchive class.
+
+
+Version 1.1.2 - September 5 2012, by I. Volobouev
+
+* Added the header "CPP11_config_disable.hh" useful in case C++11
+  features have to be explicitly disabled.
+
+
+Version 1.1.1 - July 30 2012, by I. Volobouev
+
+* Introduced a separate switch for the zlib location into configure.ac
+  and various Makefiles.
+
+
+Version 1.1.0 - July 26 2012, by I. Volobouev
+
+* Catalog version numbers upped to 2. They now write the number
+  of items stored before the entries. This allows for reading them
+  without reaching the end-of-file, so that they can now be saved
+  to a normal data stream. This means, in particular, that the
+  StringArchive class can now be stored in other archives.
+
+* Catalog reading code now removes the "eof" condition from
+  the stream. This allows for a normal reuse of the stream later.
+
+* Added "CompressedIO.hh" header for casual compression use.
+
+
+Version 1.0.2 - June 4 2012, by I. Volobouev
+
+* Added '#include "geners/GenericIO.hh"' statement to the ArchiveRecord.hh
+  header because it is using the "write_item" function.
+
+* Added '#include "geners/binaryIO.hh"' statement to the ArrayAdaptor.hh
+  header.
+
+
+Version 1.0.1 - April 5 2012, by I. Volobouev
+
+* Added "#include <cstring>" statements to several files in which
+  explicit inclusion is necessary. They were missed before due to
+  automatic inclusion of <cstring> in some other system headers.
+  The automatic inclusion changes from one compiler version to another.

@@ -1,0 +1,119 @@
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/stat/BandwidthGCVPseudoLogliND.hh"
+
+namespace npstat {
+    template<class F>
+    inline GCVCopulaSmoother<F>::GCVCopulaSmoother(
+        const unsigned* nBinsInEachDim, const unsigned dim,
+        const double marginTolerance,
+        const unsigned nNormCycles, const double initialBw,
+        const GCVCalc* cvCalc, const bool becomeCvCalcOwner,
+        const double cvFactor, const unsigned nGCV, const bool useConvolute)
+        : AbsCVCopulaSmoother(nBinsInEachDim, dim, marginTolerance, nNormCycles,
+                              initialBw, cvFactor, nGCV, useConvolute),
+          filters_(AbsCVCopulaSmoother::getNFilters(), 0),
+          looFilters_(AbsCVCopulaSmoother::getNFilters(), 0),
+          looDensity_(nBinsInEachDim, dim),
+          cvCalc_(cvCalc),
+          assumeCvCalcOwnership_(becomeCvCalcOwner)
+    {
+    }
+
+    template<class F>
+    inline GCVCopulaSmoother<F>::GCVCopulaSmoother(
+        const unsigned* nBinsInEachDim, const unsigned dim,
+        const double marginTolerance, const unsigned nNormCycles,
+        const std::vector<double>& i_bandwidthValues,
+        const GCVCalc* cvCalc, const bool becomeCvCalcOwner,
+        const bool useConvolute)
+        : AbsCVCopulaSmoother(nBinsInEachDim, dim, marginTolerance,
+                              nNormCycles, i_bandwidthValues, useConvolute),
+          filters_(i_bandwidthValues.size(), 0),
+          looFilters_(i_bandwidthValues.size(), 0),
+          looDensity_(nBinsInEachDim, dim),
+          cvCalc_(cvCalc),
+          assumeCvCalcOwnership_(becomeCvCalcOwner)
+    {
+    }
+
+    template<class F>
+    inline void GCVCopulaSmoother<F>::setFilter(const unsigned i,
+                                                Filter* filter,
+                                                Filter* looFilter)
+    {
+        delete filters_.at(i);
+        filters_[i] = filter;
+        delete looFilters_[i];
+        looFilters_[i] = looFilter;
+    }
+
+    template<class F>
+    inline GCVCopulaSmoother<F>::~GCVCopulaSmoother()
+    {
+        const unsigned nFilters = filters_.size();
+        for (unsigned i=0; i<nFilters; ++i)
+        {
+            delete filters_[i];
+            delete looFilters_[i];
+        }
+        if (assumeCvCalcOwnership_)
+            delete cvCalc_;
+    }
+
+    template<class F>
+    inline double GCVCopulaSmoother<F>::smoothAndCV(
+        const HistoND<double>& histo,
+        const double effSampleSize,
+        const bool isSampleWeighted,
+        const unsigned ifil,
+        const bool runCrossValidation,
+        ArrayND<double>* result,
+        double* regularizedFraction,
+        bool* isNonNegativeAndNormalized)
+    {
+        typedef BandwidthGCVPseudoLogliND<double,ArrayND<double> > PLCV;
+
+        if (this->isConvolving())
+            filters_.at(ifil)->convolve(histo.binContents(), result);
+        else
+            filters_.at(ifil)->filter(histo.binContents(), result);
+        result->makeNonNegative();
+        const unsigned long nBinsTotal = result->length();
+        double sum = result->sum<long double>();
+        assert(sum > 0.0);
+        *result *= (nBinsTotal/sum);
+        *regularizedFraction = 0.0;
+        *isNonNegativeAndNormalized = true;
+
+        double cv = 0.0;
+        if (runCrossValidation)
+        {
+            if (this->isConvolving())
+                looFilters_[ifil]->convolve(histo.binContents(), &looDensity_);
+            else
+                looFilters_[ifil]->filter(histo.binContents(), &looDensity_);
+            looDensity_.makeNonNegative();
+            sum = looDensity_.sum<long double>();
+            assert(sum > 0.0);
+            assert(looDensity_.length() == nBinsTotal);
+            looDensity_ *= (nBinsTotal/sum);
+
+            if (isSampleWeighted)
+                cv = (*cvCalc_)(histo, effSampleSize, *result,
+                                looDensity_, *filters_[ifil]);
+            else
+                cv = (*cvCalc_)(histo, *result, looDensity_, *filters_[ifil]);
+
+            const PLCV* plcv = dynamic_cast<const PLCV*>(cvCalc_);
+            if (plcv)
+            {
+                const unsigned long nnot0 = plcv->getNonZeroCount();
+                if (nnot0)
+                    *regularizedFraction = plcv->getRenormCount()*1.0/nnot0;
+            }
+        }
+        return cv;
+    }
+}

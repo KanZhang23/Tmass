@@ -1,0 +1,16 @@
+
+Usage: crecover archive_name [annotation]
+
+This program recovers the "geners" catalog data from binary archives.
+The recovery is possible only if the archive mode string included the
+"cat=i" section which instructs the binary archive to write a duplicate
+copy of item metadata into the data stream. This mode of operation
+is recommended in the development stage of your project, so that the
+catalog can be recovered even after an unexpected program crash.
+
+The first command line argument is the name of the "geners" archive
+without extension or data file number. The second argument is optional.
+If provided, it will become the annotation string added to the recovered
+catalog.
+
+PASS crecover (exit status: 0)

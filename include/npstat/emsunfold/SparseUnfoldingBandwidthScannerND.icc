@@ -1,0 +1,656 @@
+#include <cmath>
+#include <cfloat>
+#include <climits>
+
+#include "geners/CPP11_auto_ptr.hh"
+
+#include "npstat/nm/discretizedDistance.hh"
+
+#include "npstat/stat/SequentialPolyFilterND.hh"
+#include "npstat/stat/StatUtils.hh"
+#include "npstat/stat/arrayStats.hh"
+#include "npstat/stat/UnfoldingBandwidthScanner1D.hh"
+
+#include "npstat/emsunfold/pruneCovariance.hh"
+
+namespace emsunfold {
+    namespace Private {
+        template<class Matrix>
+        inline double sparseNonZeroFraction(const Matrix& m)
+        {
+            const unsigned long no0 = m.nonZeros();
+            const unsigned long r = m.rows();
+            const unsigned long c = m.cols();
+            return no0/(r*1.0*c);
+        }
+
+        inline void printDoubleVec(std::ostream& os,
+                                   const std::vector<double>& v)
+        {
+            os << '{';
+            const unsigned sz = v.size();
+            for (unsigned i=0; i<sz; ++i)
+            {
+                if (i) os << ", ";
+                os << v[i];
+            }
+            os << '}';
+        }
+    }
+
+    template<class Matrix>
+    SparseUnfoldingBandwidthScannerND<Matrix>::SparseUnfoldingBandwidthScannerND(
+        unfolding_type& i_unfold,
+        const std::vector<npstat::SymbetaParams1D>& i_filterParameters,
+        const EigenParameters& i_trlanParameters,
+        const double i_minAbsoluteCorrelation,
+        const npstat::ArrayND<double>& i_observed,
+        const double i_nDoFCorrectionFactor,
+        const input_covariance_type* i_observationCovariance,
+        const npstat::ArrayND<double>* i_oracle)
+        : unfold_(i_unfold),
+          filterParameters_(i_filterParameters),
+          trlanParameters_(i_trlanParameters),
+          minAbsoluteCorrelation_(i_minAbsoluteCorrelation),
+          observed_(i_observed),
+          haveObservationCovariance_(false),
+          binVolume_(1.0),
+          nDoFCorr_(i_nDoFCorrectionFactor),
+          nObserved_(observed_.sum<long double>()),
+          obsNonZeroFraction_(getNonZeroFraction(observed_)),
+          //
+          bandwidthValues_(filterParameters_.size(), -2.0),
+          //
+          folded_(observed_.shapeData(), observed_.rank()),
+          //
+          unprunedNonZeroFrac_(-1.0),
+          nonZeroFrac_(-1.0),
+          //
+          foldedSum_(-1.0),
+          unfoldedSum_(-1.0),
+          smoothedOracleSum_(-1.0),
+          foldedLogli_(0.0),
+          //
+          unfoldedLogli_(0.0),
+          unfoldedISE_(-1.0),
+          unfoldedDiagChisq_(-1.0),
+          //
+          smoothedUnfoldedLogli_(0.0),
+          smoothedUnfoldedISE_(-1.0),
+          smoothedUnfoldedDiagChisq_(-1.0),
+          //
+          modelNDoFEntropic_(-1.0),
+          modelNDoFTrace_(-1.0),
+          AICcEntropic_(0.0),
+          AICcTrace_(0.0),
+          //
+          smoothingNormfactor_(0.0),
+          integratedVariance_(-1.0),
+          nIterations_(0),
+          unfoldingStatus_(false),
+          //
+          nVariables_(0),
+          oldFilter_(unfold_.getFilter()),
+          localFilter_(0),
+          localFilterBuf_(filterParameters_.size())
+    {
+        const unsigned dim = filterParameters_.size();
+        if (unfold_.getUnfoldedShape().size() != dim)
+            throw std::invalid_argument(
+                "In emsunfold::SparseUnfoldingBandwidthScannerND constructor: "
+                "incompatible number of filter parameters");
+        unfold_.validateObservedShape(observed_);
+
+        for (unsigned idim=0; idim<dim; ++idim)
+            binVolume_ *= filterParameters_[idim].binWidth();
+
+        if (i_observationCovariance)
+        {
+            const unsigned long len = observed_.length();
+            const unsigned long nrows = i_observationCovariance->rows();
+            const unsigned long ncols = i_observationCovariance->cols();
+            if (len != nrows || len != ncols) throw std::invalid_argument(
+                "In emsunfold::SparseUnfoldingBandwidthScannerND constructor: "
+                "incompatible dimensions of the input covariance matrix");
+            observationCovariance_ = *i_observationCovariance;
+            haveObservationCovariance_ = true;
+        }
+
+        if (i_oracle)
+        {
+            unfold_.validateUnfoldedShape(*i_oracle);
+            oracle_ = *i_oracle;
+        }
+    }
+
+    template<class Matrix>
+    SparseUnfoldingBandwidthScannerND<Matrix>::~SparseUnfoldingBandwidthScannerND()
+    {
+        unfold_.setFilter(oldFilter_);
+        delete localFilter_;
+    }
+
+    template<class Matrix>
+    bool SparseUnfoldingBandwidthScannerND<Matrix>::unfoldAndPrune(
+        const npstat::ArrayND<double>& observed,
+        const input_covariance_type* observationCovMat,
+        double* initialNonzeroFraction)
+    {
+        const bool st = unfold_.unfold(observed, observationCovMat,
+                                       &unfolded_, &unfoldedCovmat_);
+        if (initialNonzeroFraction)
+            *initialNonzeroFraction = 
+                Private::sparseNonZeroFraction(unfoldedCovmat_);
+        if (minAbsoluteCorrelation_ > 0.0)
+        {
+            typedef typename Matrix::Index index_type;
+            typedef Eigen::Triplet<double,index_type> T;
+            CPP11_auto_ptr<std::vector<T> > triplets = 
+                pruneCovariance(unfoldedCovmat_, minAbsoluteCorrelation_);
+            unfoldedCovmat_.setFromTriplets(triplets->begin(), triplets->end());
+        }
+        return st;
+    }
+
+    template<class Matrix>
+    inline double SparseUnfoldingBandwidthScannerND<Matrix>::getNonZeroFraction(
+        const npstat::ArrayND<double>& a)
+    {
+        double f = 1.0;
+        const unsigned long sz = a.length();
+        if (sz)
+        {
+            unsigned long cnt = 0;
+            const double* data = a.data();
+            for (unsigned long i=0; i<sz; ++i)
+                if (*data++)
+                    ++cnt;
+            f = cnt*1.0/sz;
+        }
+        return f;
+    }
+
+    template<class Matrix>
+    bool SparseUnfoldingBandwidthScannerND<Matrix>::process(
+        const std::vector<double>& bandwidthValues)
+    {
+        const unsigned dim = filterParameters_.size();
+        if (bandwidthValues.size() != dim) throw std::invalid_argument(
+            "In emsunfold::SparseUnfoldingBandwidthScannerND::process: "
+            "incompatible number of bandwidth values");
+        for (unsigned i=0; i<dim; ++i)
+            if (bandwidthValues[i] < 0.0) throw std::invalid_argument(
+                "In emsunfold::SparseUnfoldingBandwidthScannerND::process: "
+                "bandwidth values must not be negative");
+        if (nObserved_ <= 0.0) throw std::runtime_error(
+            "In emsunfold::SparseUnfoldingBandwidthScannerND::process: "
+            "insufficient number of observed events");
+
+        bandwidthValues_ = bandwidthValues;
+
+        const npstat::ArrayShape& ushape = unfold_.getUnfoldedShape();
+        assert(ushape.size() == dim);
+        for (unsigned i=0; i<dim; ++i)
+        {
+            const npstat::SymbetaParams1D& p(filterParameters_[i]);
+            localFilterBuf_[i] = filterProvider_.provideFilter(
+                p.symbetaPower(), bandwidthValues_[i], p.maxDegree(),
+                ushape[i], p.binWidth(),
+                p.boundaryMethod(), UINT_MAX, false).get();
+        }
+
+        CPP11_auto_ptr<const npstat::SequentialPolyFilterND> sfilter(
+            new npstat::SequentialPolyFilterND(&localFilterBuf_[0], dim, false));
+        delete localFilter_; localFilter_ = 0;
+        localFilter_ = new SparseUnfoldingFilterND<npstat::SequentialPolyFilterND>(
+            sfilter.get(), true);
+        sfilter.release();
+        unfold_.setFilter(localFilter_);
+
+        return performUnfolding();
+    }
+
+    template<class Matrix>
+    void SparseUnfoldingBandwidthScannerND<Matrix>::setBias(
+        const npstat::ArrayND<double>& bias)
+    {
+        unfold_.validateUnfoldedShape(bias);
+        bias_ = bias;
+    }
+
+    template<class Matrix>
+    void SparseUnfoldingBandwidthScannerND<Matrix>::setObservedData(
+        const npstat::ArrayND<double>& observed,
+        const input_covariance_type* i_observationCovariance)
+    {
+        unfold_.validateObservedShape(observed);
+
+        const double dsum = observed.sum<long double>();
+        if (dsum <= 0.0) throw std::invalid_argument(
+            "In emsunfold::SparseUnfoldingBandwidthScannerND::setObservedData: "
+            "input array sum is not positive");
+
+        if (i_observationCovariance)
+        {
+            const unsigned nrows = i_observationCovariance->rows();
+            if (nrows != observed_.length()) throw std::invalid_argument(
+              "In emsunfold::SparseUnfoldingBandwidthScannerND::setObservedData:"
+              " incompatible dimensions of the input covariance matrix");
+            observationCovariance_ = *i_observationCovariance;
+            haveObservationCovariance_ = true;
+        }
+        else
+            haveObservationCovariance_ = false;
+
+        observed_ = observed;
+        nObserved_ = dsum;
+        obsNonZeroFraction_ = getNonZeroFraction(observed_);
+    }
+
+    template<class Matrix>
+    bool SparseUnfoldingBandwidthScannerND<Matrix>::performUnfolding()
+    {
+        const bool oracleExists = oracle_.isShapeKnown();
+
+        if (oracleExists)
+        {
+            // Smooth the oracle
+            const long double sum = oracle_.sum<long double>();
+            const filter_type* filter = unfold_.getFilter(true);
+            smoothedOracle_.reshape(oracle_);
+            if (unfold_.usingConvolutions())
+                filter->convolve(oracle_, &smoothedOracle_);
+            else
+                filter->filter(oracle_, &smoothedOracle_);
+            npstat::normalizeArrayAsDensity(const_cast<double*>(smoothedOracle_.data()),
+                                            smoothedOracle_.length(), 1.0L/sum);
+            if (bias_.isShapeKnown())
+                smoothedOracle_ += bias_;
+            smoothedOracleSum_ = smoothedOracle_.sum<long double>();
+        }
+
+        // Figure out the number of degrees of freedom for the model
+        // in the folded space
+        getModelNDoF(&modelNDoFEntropic_, &modelNDoFTrace_, bandwidthValues_);
+
+        // Perform the unfolding
+        unfoldingStatus_ = unfoldAndPrune(
+            observed_,
+            haveObservationCovariance_ ? &observationCovariance_ : 0,
+            &unprunedNonZeroFrac_);
+        unfoldedCovmat_.makeCompressed();
+        nonZeroFrac_ = Private::sparseNonZeroFraction(unfoldedCovmat_);
+        unfoldedSum_ = unfolded_.sum<long double>();
+        const double uCovTrace = unfoldedCovmat_.diagonal().sum();
+        integratedVariance_ = uCovTrace*binVolume_;
+
+        SmoothedEMSparseUnfoldND<Matrix>* dago =
+            dynamic_cast<SmoothedEMSparseUnfoldND<Matrix>*>(&unfold_);
+        if (dago)
+        {
+            nIterations_ = dago->lastNIterations();
+            smoothingNormfactor_ = dago->lastSmoothingNormfactor();
+        }
+
+        // Fitted distribution in the folded space
+        const response_matrix_type& K = unfold_.responseMatrix();
+        Private::sparseMatTimesVector(K, unfolded_, &folded_);
+        foldedSum_ = folded_.sum<long double>();
+
+        // Calculate fit likelihood in the folded space
+        foldedLogli_ = foldedLogLikelihood(folded_, observed_);
+
+        // Calculate folded model AICc
+        AICcEntropic_ = npstat::aicc(modelNDoFEntropic_, foldedLogli_, nObserved_);
+        AICcTrace_ = npstat::aicc(modelNDoFTrace_, foldedLogli_, nObserved_);
+
+        // Calculate various oracle-dependent quantities
+        if (oracleExists)
+        {
+            const unsigned long lenUnfolded = unfolded_.length();
+            const double* unfolded = unfolded_.data();
+            const double* oracle = oracle_.data();
+            const double* smoothedOracle = smoothedOracle_.data();
+
+            // Likelihood in the unfolded space
+            unfoldedLogli_ = npstat::poissonLogLikelihood(
+                oracle, unfolded, lenUnfolded);
+            smoothedUnfoldedLogli_ = npstat::poissonLogLikelihood(
+                smoothedOracle, unfolded, lenUnfolded);
+
+            // Unfolded ISE
+            unfoldedISE_ = npstat::discretizedL2(
+                oracle, lenUnfolded, unfolded,
+                lenUnfolded, binVolume_, true);
+            smoothedUnfoldedISE_ = npstat::discretizedL2(
+                smoothedOracle, lenUnfolded, unfolded,
+                lenUnfolded, binVolume_, true);
+
+            // Unfolded diagonal "chi-square"
+            long double dsum = 0.0L, dsum2 = 0.0L;
+            for (unsigned i=0; i<lenUnfolded; ++i)
+            {
+                const double d1 = oracle[i] - unfolded[i];
+                const double d2 = smoothedOracle[i] - unfolded[i];
+                const double sigmaSq = unfoldedCovmat_.coeff(i, i);
+                dsum += d1*d1/sigmaSq;
+                dsum2 += d2*d2/sigmaSq;
+            }
+            unfoldedDiagChisq_ = dsum;
+            smoothedUnfoldedDiagChisq_ = dsum2;
+
+            // Eigenvector comparison
+            if (covEigenValues_.size() != lenUnfolded)
+            {
+                covEigenValues_.resize(lenUnfolded);
+                eigenDeltas_.resize(lenUnfolded);
+            }
+
+            // Get eigenvalues and eigenvectors
+            std::vector<double> eigenvec;
+            const int eigenError = trlanEigensystem(
+                unfoldedCovmat_, trlanParameters_,
+                &covEigenValues_, &eigenvec, &diagnose_);
+            if (eigenError)
+            {
+                std::ostringstream os;
+                os << "In emsunfold::SparseUnfoldingBandwidthScannerND::"
+                   << "performUnfolding: TRLAN failed with error code "
+                   << eigenError << '.'
+                   << " TRLAN parameters are " << trlanParameters_ << '.'
+                   << " TRLAN diagnostics is " << diagnose_ << '.'
+                   << " Bandwidth = ";
+                Private::printDoubleVec(os, bandwidthValues_);
+                os << '.';
+                throw std::runtime_error(os.str());
+            }
+            const int nEigen = diagnose_.nConverged();
+
+            double* delta = &eigenDeltas_[0];
+            for (unsigned i=0; i<lenUnfolded; ++i)
+                delta[i] = unfolded[i] - smoothedOracle[i];
+
+            // Calculate projections of "delta" onto eigenvectors
+            std::vector<double> edelta(nEigen);
+            for (int i = 0; i < nEigen; ++i)
+            {
+                const double* vec = &eigenvec[0] + lenUnfolded*i;
+                const double* a = delta;
+                long double sum = 0.0L;
+                for (unsigned u=lenUnfolded; u>0; --u)
+                    sum += *a++ * *vec++;
+                edelta[i] = sum;
+            }
+
+            unsigned ev = 0;
+            for (int i = nEigen-1; i>=0; --i, ++ev)
+            {
+                if (covEigenValues_[i] > 0.0)
+                {
+                    delta[ev] = edelta[i]/sqrt(covEigenValues_[i]);
+                    if (delta[ev] > FLT_MAX)
+                        delta[ev] = FLT_MAX;
+                    else if (delta[ev] < -FLT_MAX)
+                        delta[ev] = -FLT_MAX;
+                }
+                else
+                    delta[ev] = FLT_MAX;
+            }
+            eigenDeltas_.resize(nEigen);
+
+            covEigenValues_.resize(nEigen);
+            std::sort(covEigenValues_.begin(), covEigenValues_.end(),
+                      std::greater<double>());
+        }
+
+        return unfoldingStatus_;
+    }
+
+    template<class Matrix>
+    void SparseUnfoldingBandwidthScannerND<Matrix>::getModelNDoF(
+        double* ndof1, double* ndof2,
+        const std::vector<double>& bwValues)
+    {
+        std::pair<double,double> n;
+        std::map<std::vector<double>, std::pair<double,double> >::iterator it =
+            ndofMap_.find(bwValues);
+        if (it == ndofMap_.end())
+        {
+            {
+                npstat::ArrayND<double> uniform(unfold_.getObservedShape());
+                uniform.constFill(1.0);
+                if (!unfoldAndPrune(uniform, 0, 0))
+                {
+                    std::ostringstream os;
+                    os << "In emsunfold::SparseUnfoldingBandwidthScannerND::"
+                       << "getModelNDoF: unfolding failed for bandwidth ";
+                    Private::printDoubleVec(os, bwValues);
+                    throw std::runtime_error(os.str());
+                }
+            }
+            const response_matrix_type& K(unfold_.responseMatrix());
+            Matrix cmat((K * unfoldedCovmat_ * K.transpose()).pruned());
+            cmat.makeCompressed();
+
+            std::vector<double> eval;
+            TrlanDiagnostics diag;
+            {
+                std::vector<double> evec;
+                const int eigenError = trlanEigensystem(cmat, trlanParameters_,
+                                                        &eval, &evec, &diag);
+                if (eigenError)
+                {
+                    std::ostringstream os;
+                    os << "In emsunfold::SparseUnfoldingBandwidthScannerND::"
+                       << "getModelNDoF: TRLAN failed with error code "
+                       << eigenError << '.'
+                       << " TRLAN parameters are " << trlanParameters_ << '.'
+                       << " TRLAN diagnostics is " << diag << '.'
+                       << " Bandwidth = ";
+                    Private::printDoubleVec(os, bwValues);
+                    os << '.';
+                    throw std::runtime_error(os.str());
+                }
+            }
+            const unsigned nEigen = diag.nConverged();
+            assert(nEigen);
+            assert(eval.size() >= nEigen);
+
+            const double trace = cmat.diagonal().sum();
+            double tr;
+            {
+                long double sum = 0.0L;
+                for (unsigned i=0; i<nEigen; ++i)
+                    if (eval[i] > 0.0)
+                        sum += eval[i];
+                    else
+                        eval[i] = 0.0;
+                tr = sum;
+            }
+
+            double tail = trace - tr;
+            if (tail < 0.0)
+                tail = 0.0;
+
+            if (eval.size() > nEigen)
+                eval[nEigen] = tail;
+            else
+                eval.push_back(tail);
+
+            const double entropy = npstat::arrayEntropy(
+                &eval[0], nEigen + 1, true);
+
+            n.first = exp((nEigen+1)*entropy);
+            n.second = trace/eval[nEigen - 1];
+
+            ndofMap_.insert(std::make_pair(bwValues, n));
+        }
+        else
+            n = it->second;
+
+        const double corr = nDoFCorr_ > 0.0 ? nDoFCorr_ : obsNonZeroFraction_;
+        *ndof1 = n.first * corr;
+        *ndof2 = n.second * corr;
+    }
+
+    template<class Matrix>
+    double SparseUnfoldingBandwidthScannerND<Matrix>::foldedLogLikelihood(
+        const npstat::ArrayND<double>& fitted,
+        const npstat::ArrayND<double>& counts)
+    {
+        const unsigned len = fitted.length();
+        assert(len == counts.length());
+        const double* pcounts = counts.data();
+        const double* pfitted = fitted.data();
+
+        if (haveObservationCovariance_)
+        {
+            assert(len == static_cast<unsigned>(observationCovariance_.rows()));
+            long double sum = 0.0L;
+            for (unsigned i=0; i<len; ++i)
+            {
+                const double delta = pcounts[i] - pfitted[i];
+                if (delta)
+                {
+                    const double sigmasq = observationCovariance_.diagonal()[i];
+                    if (sigmasq <= 0.0) throw std::invalid_argument(
+                        "In emsunfold::SparseUnfoldingBandwidthScannerND::"
+                        "foldedLogLikelihood: found a non-positive element on "
+                        "the diagonal of the observation covariance matrix");
+                    sum += delta*delta/sigmasq;
+                }
+            }
+            return -0.5*sum;
+        }
+        else
+            return npstat::poissonLogLikelihood(pfitted, pcounts, len);
+    }
+
+    template<class Matrix>
+    std::vector<std::string>
+    SparseUnfoldingBandwidthScannerND<Matrix>::variableNames() const
+    {
+        static const char* simpleNames[] = {
+            "unprunedNonZeroFrac",
+            "nonZeroFrac",
+
+            "foldedSum",
+            "unfoldedSum",
+            "smoothedOracleSum",
+            "foldedLogli",
+
+            "unfoldedLogli",
+            "unfoldedISE",
+            "unfoldedDiagChisq",
+
+            "smoothedUnfoldedLogli",
+            "smoothedUnfoldedISE",
+            "smoothedUnfoldedDiagChisq",
+
+            "modelNDoFEntropic",
+            "modelNDoFTrace",
+            "AICcEntropic",
+            "AICcTrace",
+
+            "smoothingNormfactor",
+            "integratedVariance",
+            "nIterations",
+            "unfoldingStatus",
+
+            "trlan_finalTailFraction",
+            "trlan_status",
+            "trlan_nConverged",
+            "trlan_nLocked",
+            "trlan_nMatVec",
+            "trlan_nRestart",
+            "trlan_nOrth",
+            "trlan_nRand",
+            "trlan_tTotal",
+            "trlan_tMatVec",
+            "trlan_tOrth",
+            "trlan_tRestart"
+        };
+
+        std::vector<std::string> names;
+
+        const unsigned dim = filterParameters_.size();
+        names.reserve(dim + sizeof(simpleNames)/sizeof(simpleNames[0]));
+        npstat::UnfoldingBandwidthScanner1D::addNamesWithPrefix(
+            "bandwidth_", dim, &names);
+
+        for (unsigned i=0; i<sizeof(simpleNames)/sizeof(simpleNames[0]); ++i)
+            names.push_back(std::string(simpleNames[i]));
+
+        nVariables_ = names.size();
+        return names;
+    }
+
+    template<class Matrix>
+    inline unsigned
+    SparseUnfoldingBandwidthScannerND<Matrix>::variableCount() const
+    {
+        if (!nVariables_)
+            SparseUnfoldingBandwidthScannerND::variableNames();
+        return nVariables_;
+    }
+
+    template<class Matrix>
+    unsigned SparseUnfoldingBandwidthScannerND<Matrix>::ntuplize(
+        double* buf, const unsigned len) const
+    {
+        if (!nVariables_)
+            SparseUnfoldingBandwidthScannerND::variableNames();
+        if (len < nVariables_) throw std::invalid_argument(
+            "In emsunfold::SparseUnfoldingBandwidthScannerND::ntuplize: "
+            "insufficient buffer length");
+        assert(buf);
+
+        unsigned i = 0;
+
+        npstat::copyBuffer(buf + i, &bandwidthValues_[0],
+                           bandwidthValues_.size());
+        i += bandwidthValues_.size();
+
+        buf[i++] = unprunedNonZeroFrac_;
+        buf[i++] = nonZeroFrac_;
+
+        buf[i++] = foldedSum_;
+        buf[i++] = unfoldedSum_;
+        buf[i++] = smoothedOracleSum_;
+        buf[i++] = foldedLogli_;
+
+        buf[i++] = unfoldedLogli_;
+        buf[i++] = unfoldedISE_;
+        buf[i++] = unfoldedDiagChisq_;
+
+        buf[i++] = smoothedUnfoldedLogli_;
+        buf[i++] = smoothedUnfoldedISE_;
+        buf[i++] = smoothedUnfoldedDiagChisq_;
+
+        buf[i++] = modelNDoFEntropic_;
+        buf[i++] = modelNDoFTrace_;
+        buf[i++] = AICcEntropic_;
+        buf[i++] = AICcTrace_;
+
+        buf[i++] = smoothingNormfactor_;
+        buf[i++] = integratedVariance_;
+        buf[i++] = nIterations_;
+        buf[i++] = unfoldingStatus_;
+
+        buf[i++] = diagnose_.finalTailFraction();
+        buf[i++] = diagnose_.status();
+        buf[i++] = diagnose_.nConverged();
+        buf[i++] = diagnose_.nLocked();
+        buf[i++] = diagnose_.nMatVec();
+        buf[i++] = diagnose_.nRestart();
+        buf[i++] = diagnose_.nOrth();
+        buf[i++] = diagnose_.nRand();
+        buf[i++] = diagnose_.tTotal();
+        buf[i++] = diagnose_.tMatVec();
+        buf[i++] = diagnose_.tOrth();
+        buf[i++] = diagnose_.tRestart();
+
+        assert(i == nVariables_);
+        return i;
+    }
+}

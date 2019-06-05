@@ -1,0 +1,10 @@
+test function_browser-1.1 {hs function browser} {} {
+    set w [hs::function_browser]
+    tkwait visibility $w
+    tkwait window $w
+} {}
+
+catch {unset w}
+
+::tcltest::cleanupTests
+return

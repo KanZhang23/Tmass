@@ -1,0 +1,47 @@
+<h1>
+<a name="RTFToC3">Introduction</a><a name="bk0"><br>
+</h1>
+<p>
+Histo-Scope is a tool to select and display histograms, Ntuples, and scalar
+values from a program as data is being created or analyzed.  Using Histo-Scope,
+physicists can interactively "browse" through the large quantities of
+statistical data that their analysis and data acquisition programs gather as
+they run.  It is intended to complement existing physics applications, and
+provides new interactive methods for viewing data with immediate access to data
+while a program is running.<p>
+<p>
+Histo-Scope requires an X-based workstation (DEC/ULTRIX, DEC/OSF-1,
+SGI, Sun, or IBM/Risc) <b>or</b> an X Terminal or X-based workstation that can
+connect to one of these hosts.  In addition, if HBOOK histograms or Ntuples are
+to be viewed, the HBOOK software is required on the host that creates the data.
+<p>
+<p>
+Histo-Scope has two parts.  One part is a library of routines which can be
+inserted in the physics analysis or data acquisition code without significantly
+changing its behavior.   No restrictions are imposed upon the user analysis
+process except that it must periodically call an update routine.  It does not
+need to run on a workstation, and is not linked with any graphical user
+interface code.  These user library routines are described in Part III of this
+guide.<p>
+<p>
+The other part of Histo-Scope is the "scope" program.  Running as a separate,
+concurrent process (and possibly running on a diferent machine), the scope
+requests and displays data from the data creation process.  The scope is easy
+to use.  It responds to mouse and keyboard input and provides the interactive
+graphing and plotting that enable users to view their data quickly and
+effectively.  Using the Histo-Scope program is described in Part I of this
+guide.  Users familiar with graphical user interfaces will probably want to
+skim through this part of the manual, especially the section <i>User Interface
+Overview</i>. <p>
+<p>
+Histo-Scope is intended to be used in an online environment as well as in
+offline applications.  In contrast to other existing histogramming packages,
+Histo-Scope was designed to have somewhat limited capabilities for exhaustive
+analysis of histograms or Ntuples.  Instead, it is a small, highly interactive
+tool, written exclusively for workstations or X-terminals supporting Motif and
+X-Windows graphics.  It emphasizes graphics representation, graphics speed,
+and maximum exploitation of windowing and mouse interaction.  For example,
+while Histo-Scope does not provide curve fitting, it does provide a number of
+animation techniques such as  dynamic re-binning of Ntuple histograms and the
+ability to interactively rotate two dimensional histogram plots. <p>
+

@@ -1,0 +1,47 @@
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    template <typename Numeric>
+    void OrthoPoly1D::linearFilter(
+        const double *coeffs, const unsigned maxdeg,
+        const unsigned ix, Numeric *result, const unsigned lenResult) const
+    {
+        if (maxdeg > maxdeg_) throw std::out_of_range(
+            "In npstat::OrthoPoly1D::linearFilter: filter degree out of range");
+        if (ix >= nw_) throw std::out_of_range(
+            "In npstat::OrthoPoly1D::linearFilter: point index out of range");
+        if (lenResult != nw_)  throw std::invalid_argument(
+            "In npstat::OrthoPoly1D::linearFilter: "
+            "incompatible size of the output buffer");
+        if (!(poly_ && weight_)) throw std::invalid_argument(
+            "In npstat::OrthoPoly1D::linearFilter: "
+            "uninitilalized polynomial set");
+        assert(coeffs);
+        assert(result);
+
+        const long double* polyPt = poly_ + ix;
+        for (unsigned ux=0; ux<lenResult; ++ux)
+        {
+            long double sum = 0.0L;
+            const long double* localPoly = poly_ + ux;
+            for (unsigned deg=0; deg <= maxdeg; ++deg)
+                sum += coeffs[deg]*polyPt[deg*nw_]*localPoly[deg*nw_];
+            result[ux] = static_cast<Numeric>(sum*weight_[ux]*step_);
+        }
+    }
+
+    template <typename Numeric>
+    inline void OrthoPoly1D::globalFilter(
+        const double *coeffs, const unsigned maxdeg,
+        Numeric *result, const unsigned long lenResult) const
+    {
+        const unsigned long nw = nw_;
+        if (lenResult != nw*nw) throw std::invalid_argument(
+            "In npstat::OrthoPoly1D::globalFilter: "
+            "incompatible size of the output buffer");
+
+        for (unsigned ix=0; ix<nw_; ++ix)
+            this->linearFilter(coeffs, maxdeg, ix, result+ix*nw, nw_);
+    }
+}

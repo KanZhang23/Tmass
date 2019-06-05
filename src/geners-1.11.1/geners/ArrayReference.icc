@@ -1,0 +1,12 @@
+#include "geners/GenericIO.hh"
+
+namespace gs {
+    template <typename T>
+    inline void ArrayReference<T>::restore(const unsigned long index, T* arr,
+                                           const std::size_t len) const
+    {
+        const unsigned long long itemId = this->id(index);
+        assert(itemId);
+        read_array(this->positionInputStream(itemId), arr, len);
+    }
+}

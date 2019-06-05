@@ -1,0 +1,90 @@
+#!/bin/sh
+# The next line restarts using tclsh \
+exec tclsh "$0" ${1+"$@"}
+
+# Check that we are using a recent Tcl version
+package require Tcl 8.3
+
+# Check that we have rdl
+package require rdl
+
+# Check that the input files exist
+set filelist {}
+set filenames {}
+set tclfiles_hswish {}
+set nfiles 0
+foreach {file} $argv {
+    if {![file readable $file]} {
+	puts "Can't read file \"$file\""
+	exit 1
+    }
+    if {[string equal [file extension $file] ".tcl"]} {
+        lappend tclfiles_hswish $file
+    } else {
+        lappend filelist $file
+        lappend filenames [file tail $file]
+        incr nfiles
+    }
+}
+catch {unset file}
+if {[llength [lsort -unique $filenames]] < $nfiles} {
+    # Too bad, have files with the same names...
+    set filenames {}
+    for {set i 0} {$i < $nfiles} {incr i} {
+        lappend filenames File$i
+    }
+    unset i
+}
+
+# Load the Histo-Scope package
+package require hs
+
+# Initialize Histo-Scope
+if {$nfiles == 1} {
+    hs::initialize "[file tail [lindex $filelist 0]] "
+} else {
+    hs::initialize "[file tail [info script]] "
+}
+
+if {$nfiles > 0} {
+    puts -nonewline "Loading data files into memory... "
+    flush stdout
+    if {$nfiles > 1} {
+	for {set i 0} {$i < $nfiles} {incr i} {
+	    hs::read_file [lindex $filelist $i] [lindex $filenames $i]
+	}
+	unset i
+    } else {
+	hs::read_file [lindex $filelist 0]
+    }
+    puts "Done"
+}
+unset nfiles filelist filenames
+
+# The following procedure is often useful when
+# you don't care to select a specific user id for an item
+proc next_uid {} {
+    global hswish_next_uid_holder_variable
+    incr hswish_next_uid_holder_variable
+}
+global hswish_next_uid_holder_variable
+set hswish_next_uid_holder_variable 0
+
+# Source all the tcl files
+foreach tclfile_hswish $tclfiles_hswish {
+    source $tclfile_hswish
+}
+catch {unset tclfile_hswish}
+unset tclfiles_hswish
+
+# Produce an interactive prompt
+proc ::rdl::prompt1 {} "return \"[file tail [info script]]% \""
+catch {rdl::read_history}
+rename ::exit ::_history_write_exit
+proc ::exit {{status 0}} {
+    catch {rdl::write_history}
+    ::_history_write_exit $status
+}
+
+hs::periodic_update 100
+rdl::interact 1

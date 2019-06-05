@@ -1,0 +1,513 @@
+#include <cassert>
+#include <cmath>
+#include <climits>
+#include <stdexcept>
+#include <numeric>
+
+#include "npstat/nm/BoxNDScanner.hh"
+#include "npstat/rng/permutation.hh"
+
+namespace npstat {
+    template<typename Data>
+    inline void arrayStats(const Data* arr, const unsigned long sz,
+                           double* pmean, double* pstdev,
+                           double* pskew, double* pkurt)
+    {
+        if (pmean || pstdev || pskew || pkurt)
+        {
+            if (!sz) throw std::invalid_argument("In npstat::arrayStats: "
+                "can not process arrays with zero elements");
+            assert(arr);
+
+            if (pstdev)
+                *pstdev = 0.0;
+            if (pskew)
+                *pskew = 0.0;
+            if (pkurt)
+                *pkurt = 3.0;
+
+            if (sz == 1UL)
+            {
+                if (pmean)
+                    *pmean = static_cast<double>(arr[0]);
+            }
+            else
+            {
+                long double sm = 0.0L;
+                for (unsigned long i=0; i<sz; ++i)
+                    sm += arr[i];
+                const long double mean = sm/sz;
+                if (pmean)
+                    *pmean = static_cast<double>(mean);
+
+                const bool b = (pskew && sz > 2UL) || (pkurt && sz > 3UL);
+                if (pstdev || b)
+                {
+                    long double sumsq = 0.0L, skewsum = 0.0L, kursum = 0.0L;
+                    for (unsigned long i=0; i<sz; ++i)
+                    {
+                        const long double dx = arr[i] - mean;
+                        const long double dxsq = dx*dx;
+                        sumsq += dxsq;
+                        if (b)
+                        {
+                            skewsum += dx*dxsq;
+                            kursum += dxsq*dxsq;
+                        }
+                    }
+                    const long double NM1 = sz - 1UL;
+                    const long double K2 = sumsq/NM1;
+                    if (K2 > 0.0L)
+                    {
+                        if (pstdev)
+                            *pstdev = static_cast<double>(sqrtl(K2));
+
+                        if (pskew && sz > 2UL)
+                        {
+                            const long double K3 = sz/NM1/(sz - 2UL)*skewsum;
+                            *pskew = static_cast<double>(K3/powl(K2,1.5L));
+                        }
+
+                        if (pkurt && sz > 3UL)
+                        {
+                            const long double g2 = kursum*sz/sumsq/sumsq-3.0L;
+                            *pkurt = static_cast<double>(3.0L +
+                                NM1/(sz-2UL)/(sz-3UL)*((sz+1UL)*g2 + 6.0L));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    template<class Array>
+    inline void arrayCoordMean(const Array& a, const BoxND<double>& limits,
+                               double* mean, const unsigned storageLength)
+    {
+        const unsigned lenMean = a.rank();
+        if (lenMean)
+        {
+            long double meanAcc[CHAR_BIT*sizeof(unsigned long)] = {0.0L,};
+            if (lenMean > CHAR_BIT*sizeof(unsigned long))
+                throw std::out_of_range("In npstat::arrayCoordMean: "
+                                        "array dimensionality is too large");
+            assert(mean);
+            if (storageLength < lenMean)
+                throw std::invalid_argument("In npstat::arrayCoordMean: "
+                                            "result buffer is too small");
+            long double weightSum = 0.0L;
+            for (BoxNDScanner<double> scanner(limits, a.shape());
+                 scanner.isValid(); ++scanner)
+            {
+                scanner.getCoords(mean, lenMean);
+                const long double v = a.linearValue(scanner.state());
+                weightSum += v;
+                for (unsigned i=0; i<lenMean; ++i)
+                    meanAcc[i] += v*mean[i];
+            }
+            if (weightSum <= 0.0L) 
+                throw std::invalid_argument("In npstat::arrayCoordMean: "
+                                            "sum of weights is not positive");
+            for (unsigned i=0; i<lenMean; ++i)
+                mean[i] = static_cast<double>(meanAcc[i]/weightSum);
+        }
+    }
+
+    template<class Array, unsigned Len>
+    inline void arrayCoordCovariance(const Array& a, const BoxND<double>& limits,
+                                     Matrix<double,Len>* covmat)
+    {
+        const unsigned aRank = a.rank();
+        if (aRank)
+        {
+            assert(covmat);
+            if (covmat->nRows() != aRank)
+                throw std::invalid_argument("In npstat::arrayCoordCovariance: "
+                    "incompatible number of rows in the result matrix");
+            if (covmat->nColumns() != aRank)
+                throw std::invalid_argument("In npstat::arrayCoordCovariance: "
+                    "incompatible number of columns in the result matrix");
+
+            double mean[CHAR_BIT*sizeof(unsigned long)];
+            arrayCoordMean(a, limits, mean, aRank);
+
+            long double weightSum = 0.0L, weightSumSq = 0.0L;
+            const unsigned matLen = aRank*(aRank+1U)/2;
+            std::vector<long double> ldbuf(matLen, 0.0L);
+            long double* acc = &ldbuf[0];
+
+            double coords[CHAR_BIT*sizeof(unsigned long)];
+            for (BoxNDScanner<double> scanner(limits, a.shape());
+                 scanner.isValid(); ++scanner)
+            {
+                scanner.getCoords(coords, aRank);
+                const long double v = a.linearValue(scanner.state());
+                weightSum += v;
+                weightSumSq += v*v;
+
+                unsigned ilin = 0;
+                for (unsigned i=0; i<aRank; ++i)
+                {
+                    const double di = coords[i] - mean[i];
+                    for (unsigned j=0; j<=i; ++j, ++ilin)
+                    {
+                        const double dj = coords[j] - mean[j];
+                        acc[ilin] += di*dj*v;
+                    }
+                }
+            }
+
+            const long double effM1 = weightSum*weightSum/weightSumSq - 1.0L;
+            if (effM1 <= 0.0L)
+            {
+                double* d = const_cast<double*>(covmat->data());
+                const unsigned len = covmat->length();
+                for (unsigned i=0; i<len; ++i)
+                    d[i] = 0.0;
+            }
+            else
+            {
+                unsigned ilin = 0;
+                for (unsigned i=0; i<aRank; ++i)
+                    for (unsigned j=0; j<=i; ++j, ++ilin)
+                    {
+                        const double cov = static_cast<double>(
+                            acc[ilin]/weightSum*(effM1 + 1.0L)/effM1);
+                        (*covmat)[i][j] = cov;
+                        (*covmat)[j][i] = cov;
+                    }
+            }
+        }
+    }
+
+    // The formulae used below assume that the effective number
+    // of events is given by the ratio of squared sum of weights
+    // to sum of weights squared. Once the effective number of events
+    // is known, it is used with the standard population estimates
+    // consistent with SAS (see, for example, the article "Comparing
+    // measures of sample skewness and kurtosis", by D.N. Joanes
+    // and C.A. Gill, The Statistician, Vol 47, pp 183-189 (1998).
+    template<class Array>
+    inline void arrayShape1D(const Array& a,
+                             const double xmin, const double xmax,
+                             double* pmean, double* pstdev,
+                             double* pskewness, double* pkurtosis)
+    {
+        typedef typename Array::value_type Numeric;
+
+        if (a.rank() != 1U) throw std::invalid_argument(
+            "In npstat::arrayShape1D: array dimensionality must be 1");
+        if (xmin >= xmax) throw std::invalid_argument(
+            "In npstat::arrayShape1D: invalid interval specification");
+
+        if (pmean || pstdev || pskewness || pkurtosis)
+        {
+            const Numeric* data = a.data();
+            const Numeric zero = static_cast<Numeric>(0);
+            const unsigned long nbins = a.length();
+            const double binWidth = (xmax - xmin)/nbins;
+
+            long double wsum = 0.0L, xsum = 0.0L;
+            for (unsigned long i=0; i<nbins; ++i)
+            {
+                const double x = xmin + (i + 0.5)*binWidth;
+                if (data[i] < zero) throw std::invalid_argument(
+                    "In npstat::arrayShape1D: weights can not be negative");
+                wsum += data[i];
+                xsum += x*data[i];
+            }
+            if (wsum <= 0.L) throw std::invalid_argument(
+                "In npstat::arrayShape1D: all weights are zero");
+            const double mean = static_cast<double>(xsum/wsum);
+            if (pmean)
+                *pmean = mean;
+
+            if (pstdev || pskewness || pkurtosis)
+            {
+                long double wsumsq = 0.0L, varsum = 0.0L;
+                const double shiftedMin = xmin - mean;
+                for (unsigned long i=0; i<nbins; ++i)
+                {
+                    const double dx = shiftedMin + (i + 0.5)*binWidth;
+                    varsum += dx*dx*data[i];
+                    wsumsq += data[i]*data[i];
+                }
+                const long double m2 = varsum/wsum;
+                const long double effN = wsum*wsum/wsumsq;
+                const long double effM1 = effN - 1.0L;
+                const long double K2 = effM1 <= 0.0L ? 0.0L : effN/effM1*m2;
+                if (pstdev)
+                    *pstdev = static_cast<double>(sqrtl(K2));
+
+                if (pskewness || pkurtosis)
+                {
+                    long double skewsum = 0.0L, kursum = 0.0L;
+                    for (unsigned long i=0; i<nbins; ++i)
+                    {
+                        const double dx = shiftedMin + (i + 0.5)*binWidth;
+                        const double dxsq = dx*dx;
+                        skewsum += dx*dxsq*data[i];
+                        kursum += dxsq*dxsq*data[i];
+                    }
+                    const long double effM2 = effM1 - 1.0L;
+
+                    if (pskewness)
+                    {
+                        if (effM2 > 0.0L)
+                        {
+                            const long double m3 = skewsum/wsum;
+                            const long double K3 = effN*effN/effM1/effM2*m3;
+                            *pskewness = static_cast<double>(K3/powl(K2,1.5L));
+                        }
+                        else
+                            *pskewness = 0.0;
+                    }
+
+                    if (pkurtosis)
+                    {
+                        const long double effM3 = effM2 - 1.0L;
+                        if (effM3 > 0.0L)
+                        {
+                            const long double m4 = kursum/wsum;
+                            const long double g2 = m4/m2/m2 - 3.0L;
+                            *pkurtosis = static_cast<double>(3.0L +
+                                effM1/effM2/effM3*((effN+1.0L)*g2 + 6.0L));
+                        }
+                        else
+                            *pkurtosis = 3.0;
+                    }
+                }
+            }
+        }
+    }
+
+    template<class Numeric>
+    inline void arrayQuantiles1D(const Numeric* data, const unsigned long len,
+                                 const double xmin, const double xmax,
+                                 const double* qvalues,
+                                 double* quantiles, const unsigned nqvalues)
+    {
+        if (nqvalues == 0U)
+            return;
+
+        if (!len) throw std::invalid_argument("In npstat::arrayQuantiles1D: "
+            "can not process arrays with zero elements");
+        assert(data);
+        if (xmin > xmax) 
+            throw std::invalid_argument("In npstat::arrayQuantiles1D: "
+                                        "invalid interval specification");
+        assert(qvalues);
+        assert(quantiles);
+
+        for (unsigned i=0; i<nqvalues; ++i)
+            if (qvalues[i] < 0.0 || qvalues[i] > 1.0)
+                throw std::domain_error("In npstat::arrayQuantiles1D: "
+                    "cdf argument outside of [0, 1] interval");
+        if (xmin == xmax)
+        {
+            for (unsigned i=0; i<nqvalues; ++i)
+                quantiles[i] = xmin;
+            return;
+        }
+
+        const double step = (xmax - xmin)/len;
+        const Numeric zero = Numeric();
+
+        long double sum = 0.0L;
+        bool positiveElementFound = false;
+        unsigned long idlo = 0, idhi = 0;
+        for (unsigned long id = 0; id < len; ++id)
+        {
+            const Numeric value(data[id]);
+            if (value < zero) throw std::invalid_argument(
+                "In npstat::arrayQuantiles1D: weights can not be negative");
+            if (value > zero)
+            {
+                if (!positiveElementFound)
+                {
+                    positiveElementFound = true;
+                    idlo = id;
+                }
+                sum += value;
+                idhi = id;
+            }
+        }
+        if (!positiveElementFound) throw std::invalid_argument(
+            "In npstat::arrayQuantiles1D: all weights are zero");
+
+        const double xlo = xmin + idlo*step;
+        const double xhi = idhi == len - 1UL ? xmax : xmin + (idhi+1UL)*step;
+        const unsigned long lenm1 = len - 1UL;
+
+        unsigned long scanbin = idlo;
+        long double sumbelow = 0.0L;
+        long double sumabove = data[idlo];
+        for (unsigned i=0; i<nqvalues; ++i)
+        {
+            if (qvalues[i] == 0.0)
+                quantiles[i] = xlo;
+            else if (qvalues[i] == 1.0)
+                quantiles[i] = xhi;
+            else
+            {
+                const long double sumneeded = qvalues[i]*sum;
+                if (sumneeded < sumbelow)
+                {
+                    scanbin = idlo;
+                    sumbelow = 0.0L;
+                    sumabove = data[idlo];
+                }
+                while (sumneeded >= sumabove && scanbin < lenm1)
+                {
+                    sumbelow = sumabove;
+                    sumabove += data[++scanbin];
+                }
+                const double dbin = (sumneeded - sumbelow)/data[scanbin];
+                double qval = xmin + (scanbin + dbin)*step;
+                if (qval > xmax)
+                    qval = xmax;
+                quantiles[i] = qval;
+            }
+        }
+    }
+
+    template<class Numeric>
+    inline double arrayEntropy(const Numeric* p, const unsigned long len,
+                               const bool normalize)
+    {
+        const Numeric zero = Numeric();
+        bool havePositive = false;
+        long double entropy = 0.0L;
+        long double sum = 1.0L;
+        if (normalize)
+        {
+            sum = std::accumulate(p, p+len, 0.0L);
+            if (sum <= 0.0L)
+                throw std::invalid_argument("In npstat::arrayEntropy: sum of"
+                                            " array elements is not positive");
+        }
+        for (unsigned long i=0; i<len; ++i)
+        {
+            if (p[i] < zero)
+                throw std::invalid_argument("In npstat::arrayEntropy: negative"
+                                            " array element encountered");
+            else if (p[i] > zero)
+            {
+                havePositive = true;
+                const long double prob = p[i];
+                entropy -= prob*std::log(prob/sum);
+            }
+        }
+        if (!havePositive)
+            throw std::invalid_argument("In npstat::arrayEntropy: there are no"
+                                        " positive array elements");
+        entropy /= sum;
+        return entropy/len;
+    }
+
+    // C++ does not support partial template specialization for
+    // functions, only for classes
+    namespace Private
+    {
+        template<typename Real, typename Numeric>
+        struct PoissonLogLikelihood
+        {
+            inline static double calculate(const Real* means,
+                                           const Numeric* counts,
+                                           const unsigned long len)
+            {
+                long double sum = 0.0L;
+                for (unsigned long i=0; i<len; ++i)
+                {
+                    const double dc = round(static_cast<double>(counts[i]));
+                    if (dc < 0.0) throw std::invalid_argument(
+                        "In npstat::poissonLogLikelihood: "
+                        "this function can not handle negative counts");
+                    if (dc > static_cast<double>(ULONG_MAX))
+                        throw std::invalid_argument(
+                            "In npstat::poissonLogLikelihood: "
+                            "count is too large");
+                    const unsigned long cnt = static_cast<unsigned long>(dc);
+                    const double m = means[i];
+                    if (cnt)
+                    {
+                        if (m <= 0.0) throw std::invalid_argument(
+                            "In npstat::poissonLogLikelihood: "
+                            "non-positive mean encountered with counts present");
+                        sum += (cnt*log(m) - logfactorial(cnt) - m);
+                    }
+                    else
+                        sum -= m;
+                }
+                return sum;
+            }
+        };
+
+        template<typename Real>
+        struct PoissonLogLikelihood<Real, unsigned>
+        {
+            inline static double calculate(const Real* means,
+                                           const unsigned* counts,
+                                           const unsigned long len)
+            {
+                long double sum = 0.0L;
+                for (unsigned long i=0; i<len; ++i)
+                {
+                    const unsigned cnt = counts[i];
+                    const double m = means[i];
+                    if (cnt)
+                    {
+                        if (m <= 0.0) throw std::invalid_argument(
+                            "In npstat::poissonLogLikelihood: "
+                            "non-positive mean encountered with counts present");
+                        sum += (cnt*log(m) - logfactorial(cnt) - m);
+                    }
+                    else
+                        sum -= m;
+                }
+                return sum;
+            }
+        };
+
+        template<typename Real>
+        struct PoissonLogLikelihood<Real, unsigned long>
+        {
+            inline static double calculate(const Real* means,
+                                           const unsigned long* counts,
+                                           const unsigned long len)
+            {
+                long double sum = 0.0L;
+                for (unsigned long i=0; i<len; ++i)
+                {
+                    const unsigned long cnt = counts[i];
+                    const double m = means[i];
+                    if (cnt)
+                    {
+                        if (m <= 0.0) throw std::invalid_argument(
+                            "In npstat::poissonLogLikelihood: "
+                            "non-positive mean encountered with counts present");
+                        sum += (cnt*log(m) - logfactorial(cnt) - m);
+                    }
+                    else
+                        sum -= m;
+                }
+                return sum;
+            }
+        };
+    }
+
+    template<typename Real, typename Numeric>
+    inline double poissonLogLikelihood(const Real* means, const Numeric* counts,
+                                       const unsigned long len)
+    {
+        double logli = 0.0;
+        if (len)
+        {
+            assert(means);
+            assert(counts);
+            logli = Private::PoissonLogLikelihood<Real,Numeric>::calculate(
+                means, counts, len);
+        }
+        return logli;
+    }
+}

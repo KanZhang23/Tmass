@@ -1,0 +1,75 @@
+test hist_set_bin-1.1 {test of 1d_hist_set_bin} {} {
+    set id [hs::create_histogram [next_uid] "test histo" "tests" q x 0 1 2]
+    set id2 [hs::duplicate_axes $id [next_uid] "test histo" "tests"]
+    hs::1d_hist_block_fill $id {1 2} {3 4} {5 6}
+    set absbin 0
+    foreach value [hs::data_to_list [hs::1d_hist_bin_contents $id]] \
+        pos [hs::data_to_list [hs::1d_hist_errors $id p]] \
+        neg [hs::data_to_list [hs::1d_hist_errors $id n]] {
+            hs::1d_hist_set_bin $id2 $absbin $value
+            hs::1d_hist_set_bin_errors $id2 $absbin $pos $neg
+            incr absbin
+    }
+    verify_similarity -num_entries 0 $id $id2 0
+} {}
+
+test hist_set_bin-1.2 {test of 2d_hist_set_bin} {} {
+    set id [hs::create_histogram [next_uid] "test histo" "tests" q \
+                x 0 1 2 y 1 2 3]
+    set id2 [hs::duplicate_axes $id [next_uid] "test histo" "tests"]
+    hs::2d_hist_block_fill $id {1 2 3 4 5 6} \
+        {7 8 9 10 11 12} {13 14 15 16 17 18}
+    set absbin 0
+    foreach value [hs::data_to_list [hs::2d_hist_bin_contents $id]] \
+        pos [hs::data_to_list [hs::2d_hist_errors $id p]] \
+        neg [hs::data_to_list [hs::2d_hist_errors $id n]] {
+            set ix [expr {$absbin / 3}]
+            set iy [expr {$absbin % 3}]
+            hs::2d_hist_set_bin $id2 $ix $iy $value
+            hs::2d_hist_set_bin_errors $id2 $ix $iy $pos $neg
+            incr absbin
+    }
+    verify_similarity -num_entries 0 $id $id2 0
+} {}
+
+test hist_set_bin-1.3 {test of 3d_hist_set_bin} {} {
+    set id [hs::create_histogram [next_uid] "test histo" "tests" q \
+                x 0 1 2 y 1 2 3 z 2 3 4]
+    set id2 [hs::duplicate_axes $id [next_uid] "test histo" "tests"]
+    set data {}
+    set poserr {}
+    set negerr {}
+    for {set i 0} {$i < 24} {incr i} {
+        lappend data [expr {1+$i}]
+        lappend poserr [expr {25+$i}]
+        lappend negerr [expr {49+$i}]
+    }
+    hs::3d_hist_block_fill $id $data $poserr $negerr
+    unset data poserr negerr
+    set absbin 0
+    foreach value [hs::data_to_list [hs::3d_hist_bin_contents $id]] \
+        pos [hs::data_to_list [hs::3d_hist_errors $id p]] \
+        neg [hs::data_to_list [hs::3d_hist_errors $id n]] {
+            set ix [expr {$absbin / 12}]
+            set iy [expr {($absbin - $ix*12) / 4}]
+            set iz [expr {($absbin - $ix*12) % 4}]
+            hs::3d_hist_set_bin $id2 $ix $iy $iz $value
+            hs::3d_hist_set_bin_errors $id2 $ix $iy $iz $pos $neg
+            incr absbin
+    }
+    verify_similarity -num_entries 0 $id $id2 0
+} {}
+
+catch {unset ix}
+catch {unset iy}
+catch {unset iz}
+catch {unset value}
+catch {unset pos}
+catch {unset neg}
+catch {unset absbin}
+catch {unset id}
+catch {unset id2}
+hs::delete_category "..."
+
+::tcltest::cleanupTests
+return

@@ -1,0 +1,773 @@
+Changes from version 2.13 to version 2.14
+-----------------------------------------
+
+Compiling CERNLIB has become a major pain as the library is no longer
+actively supported. Instead of relying on CERNLIB libraries, the relevant
+Fortran files have been included directly into the "hs" directory.
+No more dependence on CERNLIB and no more hbook support!
+
+The tcl "load" command no longer exports the symbol table as of tcl
+version 8.5. Because of this, a special loader has been written
+(sharedlib_handler.h and sharedlib_handler.c) which can export the
+symbol table. Unfortunately, the symbol table of the loader itself is,
+of course, not exported, so that it can not be reused by the
+hs::sharedlib mechanism.
+
+
+Changes from version 2.12 to version 2.13
+-----------------------------------------
+
+A few porting fixes related to things like font selection, etc.
+
+
+Changes from version 2.11 to version 2.12
+-----------------------------------------
+
+Ported to 64-bit architectures. Main source of problems is the distinction
+between 0 and NULL in functions which take variable number of arguments
+such as Tcl_AppendResult.
+
+
+Changes from version 2.10 to version 2.11
+-----------------------------------------
+
+Significantly improved calculations for the Johnson's S_b function
+
+Added new command hs::import_ntuple_data
+
+Included the Histo-Scope header into the auto-generated code for fit data
+filters. Now any Histo-Scope C function can be used inside these filters.
+
+The library of fitting functions is now loaded with the "-export_globals"
+option so that the functions can be used by other dynamic code.
+
+
+Changes from version 2.9 to version 2.10
+----------------------------------------
+
+Added new command hs::sum_ntuple_columns
+
+Added new command hs::tcl_command_template
+
+Added new command hs::function_chisq_test
+
+Changed the type of the "return_immediately" argument of the hs::histoscope
+and hs::histo_with_config functions from integer to boolean.
+
+Fixed a problem due to round-off errors in the calculation of
+Johnson's S_u function for small skewness values.
+
+Added new commands hs::pack_item and hs::unpack_item. Corresponding
+functions have also been added to the Histo-Scope C API. They perform
+XDR encoding and decoding of histograms and ntuples.
+
+Added new commands hs::pack_ntuple_row and hs::unpack_ntuple_row.
+
+Added new command hs::ntuple_dll_scan.
+
+
+Changes from version 2.8 to version 2.9
+---------------------------------------
+
+Added the ability ro rotate EPS files produced by LaTeX in order
+to work around the "dvips" bounding box bug.
+
+Added new commands hs::column_percentiles and hs::column_cdfvalues
+which operate on contents of ntuple columns.
+
+Added new commands hs::gauss_random, hs::multinomial_random, and
+hs::poisson_random.
+
+Added new command hs::ntuple_paste which can be used to combine ntuples
+with the same number of rows but with different columns.
+
+Added new commands hs::column_minimum and hs::column_maximum.
+
+Added new command hs::weighted_unbinned_ks_test.
+
+Added new command hs::replace_column_contents.
+
+Added new command hs::pick_random_rows.
+
+
+Changes from version 2.7 to version 2.8
+---------------------------------------
+
+Added new commands hs::1d_hist_set_bin, hs::1d_hist_set_bin_errors,
+hs::2d_hist_set_bin, hs::2d_hist_set_bin_errors, hs::3d_hist_set_bin,
+hs::3d_hist_set_bin_errors, hs::hist_set_slice, hs::hist_set_slice_errors.
+These commands allow for direct modifications of histogram bin and error
+values. Corresponding functions have also been added to the Histo-Scope
+C API.
+
+Added new command hs::ntuple_c_replace_variables. Unlike
+ntuple_c_add_variables, this command has the ability to work in projection
+mode, so it is useful for combining several ntuples into one.
+
+Added new command hs::column_edf which returns empirical distribution
+function values for the given ntuple column.
+
+Added new command hs::add_filled_columns which adds one or several pre-filled
+columns to an ntuple.
+
+Added new command hs::uniform_random_fill.
+
+Added new command hs::sort_ntuple to sort ntuple contents by the value
+of one or more columns.
+
+Added option "-reverse" to hs::ntuple_so_scan in order to be able to
+scan the ntuple in reverse order.
+
+Added option "-reverse" to hs::ntuple_c_search. This option pick up the last
+row in sets of non-unique rows instead of the first row.
+
+Added new command hs::hist_random in order to generate random numbers
+according to any histogram with non-negative bins.
+
+
+Changes from version 2.6 to version 2.7
+---------------------------------------
+
+Extended the hs::overlay command for ntuples to plot some arbitrary C
+and tcl expressions which use ntuple columns. Internally, this functionality
+is implemented using ntuple projections on ntuples.
+
+Added new command hs::eigen_sym. This command calculates eigenvalues and
+eigenvectors of a symmetrical matrix. This command is dependent upon
+liblapack3 and libblas (these libraries are now distributed within CERNLIB).
+
+Added options -xlabel and -ylabel to hs::expr_plot, hs::list_plot, and
+all other commands which use hs::Parse_plot_options internally.
+
+Created new command "hs::ntuple_subrange". Changed hs::ntuple_subset
+semantics to be compatible with hs::ntuple_subrange.
+
+Changed hs::sharedlib command so that it automatically executes _hs_init
+and _hs_fini functions when a shared library is loaded or unloaded. Added
+a switch to the "open" option which allows exporting of the global library
+symbols.
+
+Created new command "hs::globcc".
+
+Introduced several helper commands for matrix manipulation and solving
+linear systems: hs::M, hs::Unit_matrix, hs::Const_matrix, hs::Matrix_subrange,
+hs::Matrix_square_subset, hs::Invert_sym_pos_matrix, hs::Sym_pos_linsys,
+hs::Histo_matrix, hs::2d_fill_from_matrix. So far, these commands are mostly
+undocumented but in the future they may become a really useful tool.
+
+Added commands hs::covar_to_corr, hs::ntuple_c_linear_regress, and
+hs::ntuple_histo_fill.
+
+Changed Histo-Scope code so that it handles 3d histograms. Included a variety
+of functions in the "hs" extension which manipulate 3d histograms. Changed
+the behavior of drag-n-drop so that the overlayed objects are copied as well.
+Fixed the behavior of the main GUI on big endian platforms.
+
+The behavior of hs::fill_ntuple command has been changed so that it is
+now possible to provide more data than stored in a single ntuple row.
+
+Added the command hs::fill_histogram. This command fills a histogram
+from a list of doubles or from a binary string, and it can fill more than
+one entry simultaneously.
+
+Changed the behavior of all "set_Nd_errors" and "Nd_hist_block_fill" (N=1,2,3)
+commands so that they accept lists of doubles as arguments in addition to
+binary strings. Commands hs::Nd_fill_from_list have been eliminated.
+
+
+Changes from version 2.5 to version 2.6
+---------------------------------------
+
+Fixed a bug in Histo-Scope ntuple communication code. Removed error
+messages printed to stderr by hs_id and hs_id_from_title commands in case
+the item can not be found. The Histo-Scope API version number has been
+increased to 4.0p18.
+
+Added commands hs::kernel_density_1d and hs::kernel_density_2d.
+Added command hs::hist_scale_data.
+Added commands hs::duplicate_ntuple_header and hs::unique_rows.
+Added command hs::ntuple_c_count.
+
+Added entries for precision and max number of function calls, as well as
+the menu for minimizer types, to the fit tuner GUI.
+
+Added least informative probability density function for Huber's M-estimate
+to the list of supported functions.
+
+
+Changes from version 2.4 to version 2.5
+---------------------------------------
+
+Added commands hs::join_entries and hs::weighted_column_stats.
+
+Fixed a bug in the "scan" operation of the hs::function command.
+
+Added a check in C that id refers to an ntuple to the hs::num_variables
+command. Now this command throws a tcl error in case there is no item with
+this id or the item is not an ntuple. Added similar item type checks to
+hs::1d_hist_num_bins and hs::2d_hist_num_bins commands.
+
+Fixed Histo-Scope GUI bugs in the handling of menus of plots which contain
+deleted items. Created new Histo-Scope C API function hs_histoscope_hidden
+which is much more efficient than the old hs extension command
+hs::histoscope_hidden (now, the hs::histoscope_hidden command is a usual
+wrapper around the C API function). Changed the behavior of "hs_histoscope"
+and similar commands so that they print an error message to stderr if called
+before "hs_initialize". Changed the behavior of the prompt for entering new
+window titles: now this prompt is using the old title as the initial value.
+Changed the ellipse specification: now one has to specify the rectangle
+which encloses the ellipse rather than the ellipse width at the center.
+Added the ability to specify fonts for the titles of individual plots inside
+multiplots. Fixed several resource leaks (colors, pixmaps). The Histo-Scope
+API version number has been increased to 4.0p17.
+
+Remade the "histoscope_stub.h" file so that it is now can be used as
+a plug-in replacement for the "histoscope.h" file. It is no longer
+necessary to use different names for stubbed functions.
+
+Added the ability to specify plot fonts to "show", "tune", and "contour"
+operations on fit handles.
+
+
+Changes from version 2.3 to version 2.4
+---------------------------------------
+
+Implemented a better unpacking method for ntuple variables in tcl-generated
+C code. Now the program can recognize arrays and structs (whose data members
+are floats) and generate the appropriate C code.
+
+Introduced a new command hs::ntuple_scan_template. This command is useful
+to automatically generate the ntuple unpacking code for ntuples with many
+variables whose names are C-compatible.
+
+Introduced a new command hs::ntuple_creation_template. This command is useful
+to automatically generate the skeleton code for ntuple creation and filling
+for ntuples with many variables whose names are C-compatible.
+
+Added the option -immediate to hs::draw and hs::comment commands. This
+option saves window redrawing time in case the window is going to have many
+drawing items or comments. The new hs::redraw command can be used to force
+a complete window refresh.
+
+Improved the transfer speed of large ntuples from the client to the GUI.
+The API now has the hs::socket_status command which may be checked to
+figure out if more ntuple data still have to be transferred, and the
+hs::periodic_update command is now checking this status.
+
+Added to Histo-Scope the ability to draw ellipses whose major axes are not
+parallel to the coordinate axes. The hs::draw command has been updated
+accordingly. Added the ability to include and preview EPS files.
+The Histo-Scope API version number has been increased to 4.0p16.
+
+Added commands hs::epsf, hs::latex, and hs::default_latex_packages for
+operations with EPS files and LaTeX strings. See the manual for details.
+These commands depend on the presence of latex, dvips, and ghostscript
+executables.
+
+Changed the hs::ntuple_so_scan command. Now it takes an optional arbitrary
+string as the last argument which will be passed to the scan initialization
+and conclusion commands.
+
+Implemented ntuple projection into ntuples using arbitrary expressions from
+ntuple variables. This ability has been added to hs::ntuple_project and
+hs::ntuple_c_project commands. The hs::reset command has been removed from
+projection code, so projections are no longer automatically reset.
+
+Fixed a bug in the implementation of the bifurcated Gaussian function. Added
+the bifurcated Cauchy function.
+
+Added "-include" option to functions hs::ntuple_c_project, hs::ntuple_c_covar,
+hs::adaptive_c_project, hs::ntuple_c_stats, and hs::ntuple_c_filter. This
+option allows for inclusion of arbitrary user code in the ntuple scan code
+generated by these commands.
+
+Added "distmean", "diststdev", "distmedian", and "distrange" projection types
+to hs::project_2d_histogram command.
+
+Created commands hs::ntuple_add_variables and hs::ntuple_c_add_variables
+which can be used in order to easily create an ntuple with several additional
+variables defined through already existing variables.
+
+Added options -ipadx and -ipady to commands hs::show_histogram, hs::overlay,
+etc. These options may be used to increase plot margins inside their windows.
+
+Added the ability to change histogram title font in PostScript files. This
+is now a part of the "hs::config_histoscope" command.
+
+Removed various hs::undo_* and hs::clear_* commands and introduced commands
+hs::undo and hs::clear which work on all types of overlayed objects.
+
+
+Changes from version 2.2 to version 2.3
+---------------------------------------
+
+Added 2d data curve as a fitting function. The data has to be provided
+in the form of a 2d histogram. The values are interpolated between bin
+centers using linear (when one of the coordinates coincides with the
+bin center) or quadratic interpolation.
+
+Added callbacks to the client <-> Histo-Scope communication mechanism.
+Now the clients can send commands to Histo-Scope and wait for replies.
+In particular, the hs::generate_ps command can now wait until the
+PostScript file generation is complete.
+
+Removed unnecessary histogram redrawing due to setting of histogram axis
+labels in Histo-Scope. Now, labels are set only when they differ from
+the existing labels.
+
+Implemented the mechanism for drawing graphical primitives and simple
+text strings on top of Histo-Scope plots. The new extension commands
+which do that are hs::draw, hs::comment, hs::undo_draw, hs::undo_comment,
+hs::clear_drawings, and hs::clear_comments. The correspondence between
+PostScript fonts and Tk fonts is established by the command
+hs::Postscript_font, and the correspondence between X fonts and Tk fonts
+is established by the command hs::Generate_xlfd. 
+
+The window titles which start with double slash are now suppressed in
+the PostScript output -- this is useful if we don't want any title on
+the PS plot.
+
+Added the ability to choose font for plot axes and labels. Commands
+hs::show_histogram, hs::overlay, etc. now accept the "-font" option.
+
+The Histo-Scope API version number has been increased to 4.0p15.
+
+
+Changes from version 2.1 to version 2.2
+---------------------------------------
+
+Created color cell plots and color scatter plots in Histo-Scope.
+The commands hs::show_histogram, hs::overlay, and hs::multiplot have been
+modified appropriately so that these plots may be shown from the hs extension.
+Created several new commands which manage color scales for these plots.
+The names of these new commands are: hs::create_general_color_scale,
+hs::create_linear_color_scale, hs::delete_color_scale, hs::use_color_scale,
+and hs::replace_color_scale.
+
+Introduced a new command hs::config_histoscope which can be used to tune
+global Histo-Scope options.
+
+Added -nxbins and -nybins options for drawing ntuples as 2d histograms,
+cell plots, and tartan plots.
+
+Fixed several bugs in Histo-Scope related to drawing plot axes. Changed
+the handling of "expose" events by all plotting widgets so that they skip
+sequential "expose" events. The "thicken" option for 2d scatter plots has
+been changed to draw 5-pixel points instead of 2-pixel points.
+
+Due to rather extensive changes to Histo-Scope core code, the patch
+file to the original FNAL distribution is no longer supported. Instead,
+people who want to compile Histo-Scope themselves should just download
+the complete source code.
+
+
+Changes from version 2.0 to version 2.1
+---------------------------------------
+
+Introduced new command hs::ntuple_c_covar which calculates covariance
+matrix of selected ntuple rows.
+
+Added automatic result check in C to the hs::merge_entries command.
+
+Updated the distribution for use with 2002 release of CERNLIB. In the new
+version of CERNLIB, libpacklib.a has been split into libpacklib.a and
+libshift.{a,so}. This was not a user-friendly solution since libpacklib
+requires libshift in order to link anything anyway. In addition, precompiled
+libshift for Linux comes from CERN only as a dynamic library. So, instead
+of introducing a dependency on a new (unused, dynamic) library, dummy stubs
+for a few routines have been included in file cernlib_dummy.f, and the
+"hbook2hs" program has been modified to use FORTRAN I/O in its HBOOK calls
+rather than C I/O. This solves the compatibility problem in a way which does
+not require different Makefiles for the old and the new CERNLIB.
+
+Created a "stubbed" version of the Histo-Scope API. Stubbed functions should
+be used during dynamic compilation of any code which depends on Histo-Scope.
+These functions can be successfully resolved by the dynamic library loader
+on any UNIX platform.
+
+
+Changes from version 1.12 to version 2.0
+-----------------------------------------
+
+Introduced new convenience commands hs::hist_l2_norm, hs::hist_num_bins,
+hs::hist_bin_width, and hs::hist_scale_errors. These command work on both
+1d and 2d histograms, and produce tcl errors if the id argument does not
+refer to a histogram. Also, introduced automatic item type check into
+the hs::hist_integral command.
+
+Introduced a convenience command hs::item_properties which returns
+four-element list {uid category title type} for an item with given id.
+
+The hs::copy_data command has been modified to include the ability to scale
+data/errors by a constant during copying. The same histogram can be used
+both as source and the copy, in which case the histogram data/errors are
+just scaled.
+
+New commands hs::1d_rotate_bins and hs::2d_rotate_bins may be used to
+rotate histogram bin contents.
+
+Introduced bitwise OR and AND operations into hs::calc. They are helpful
+in special cases when histogram values are small integers. Also, for binary
+operations with constants hs::calc temporary histograms are now deleted
+after every operation.
+
+Removed the hs::calc_manual command. Use "hs::calc manual" instead.
+
+Introduced a new command hs::server_port. This command returns the port
+number used by the Histo-Scope server process. A new "-port" command line
+switch has been added to the "histo" command so that clients can connect
+to the server without going through a complicated port number discovery
+process implemented in the original Histo-Scope with rsh.
+
+Introduced a new command hs::allow_reset_refresh. This command enables
+or disables refresh of ntuple plots when an ntuple is reset. It may be
+useful to disable refresh on reset for small ntuples used to pass the data
+for dynamic xy plots. Relevant changes supporting this feature have also
+been made to the Histo-Scope code.
+
+Fixed a bug in Histo-Scope due to which histogram errors could not
+be shown when plots with errors are requested for the first time by
+hs::load_config_string or hs::load_config_file commands. Added the ability
+to specify axis labels in XY-type multiplots. Fixed a bug in the "tohbook"
+executable due to which the Histo-Scope category structure was not properly
+mapped into the HBOOK directory structure. The Histo-Scope patch has been
+updated to version 12.
+
+Wrote "hbook2hs" program which converts HBOOK files into Histo-Scope format.
+
+Added automatic error checking (in C) based on returned id value for all
+"create" functions, hs::copy_hist, hs::fill_ntuple, hs::sum_histograms,
+hs::multiply_histograms, hs::divide_histograms, and hs::1d_hist_derivative.
+
+Rewrote the hs::1d_linear_fit and hs::2d_linear_fit procedures. They
+no longer depend on CERNLIB. The composition of the returned lists has
+changed -- they now include parameter errors and correlation coefficients.
+The bin positions are now taken at the bin centers (it used to be the edges).
+
+Removed all "catch {package require Tk}" checks in the initialization
+of the hs extension. The problem is, tk can be loaded into tcl on the
+fly starting with tcl/tk version 8.3.4, so it is no longer possible to
+test for tk presence by doing "catch {package require Tk}".
+
+New functions related to Fourier analysis:
+hs::1d_fft
+hs::1d_fourier_phase
+hs::1d_fourier_power
+hs::1d_fourier_synthesize
+hs::1d_fourier_multiply
+hs::1d_fourier_divide
+hs::1d_fourier_conjugate
+
+Introduced many new functions related to data fitting with Minuit:
+hs::fit
+hs::sharedlib
+hs::sharedlib_compile
+hs::function
+hs::function_import
+hs::function_list
+hs::function_sum
+hs::function_divide
+hs::function_multiply
+hs::function_compose
+hs::function_plot
+hs::function_template
+hs::function_browser
+
+A large number of new functions has been placed into the ::fit:: namespace.
+These functions support the hs::fit command and fit handles. The commands
+in the ::fit:: namespace should not be accessed by users since all functions
+in there are subject to change without notice.
+
+The interface commands to low-level Minuit calls have been placed into
+the ::mn:: namespace. Although these commands are unlikely to change,
+direct access to these functions is discouraged because it is likely
+to break synchronization between Minuit and fit structures used by the hs
+extension.
+
+Added separate IRIX and Solaris makefiles.
+
+Dropped support for unpatched Histo-Scope libraries -- this seems to be
+of no use to anybody.
+
+
+Changes from version 1.11 to version 1.12
+-----------------------------------------
+
+Introduced a new command hs::ntuple_poly_fit which performs least
+squares polynomial fitting of ntuple points.
+
+Increased the maximum number of bins in the "Rebin Histogram" ntuple
+slider from 1000 to 10000.
+
+Implemented the hs_hist_error_status function in the Histo-Scope C API.
+This function allows for quick check if a histogram has error data.
+The Histo-Scope distribution patch has been updated to version 10.
+
+
+Changes from version 1.10 to version 1.11
+-----------------------------------------
+
+Added options -errors, -xscale, -yscale, and -zscale to various
+plotting commands.
+
+Much better hs::browse_collection GUI.
+
+Fixed a bug in Histo-Scope when repetitive "delete window" requests
+from the window manager were crashing the Histo-Scope GUI. Also, removed
+the temporary files completely from the code which was processing the
+hs::load_config_string requests. The Histo-Scope distribution patch
+has been updated to version 9.
+
+Renamed command hs::function_plot into hs::expr_plot.
+
+
+Changes from version 1.9 to version 1.10
+----------------------------------------
+
+Introduced new command hs::ntuple_subset which allows to extract the data
+from an ntuple for a subset of variables and place these data into another
+ntuple.
+
+Introduced a requirement that all variable names are unique for the
+hs::create_ntuple and hs::ntuple_subset commands.
+
+New command hs::hist_set_error_range allows to trim the error range
+of a histogram. Useful for fitting histograms which contain empty bins.
+
+New command hs::hist_error_status returns the info about the presence
+of error data for histograms. This command is rather slow because
+Histo-Scope doesn't have an efficient method for retrieving the error
+status for a histogram without retrieving all the error data.
+
+New command hs::column_range returns minimum and maximum values in one
+ntuple column.
+
+New hs::calc unary operators erf and gerf calculate the error function.
+
+Added options -xmin, -xmax, -ymin, -ymax, -zmin, -zmax  to various
+plotting commands. These options are mostly useful for setting uniform
+axis limits in multiplots.
+
+Fixed a bug in Histo-Scope hs_hist_set_gauss_errors function which
+was not updating the clients properly. Also, removed annoying "Ignoring
+request for nonexistent item from HistoScope" messages which were
+generated when currently displayed items were deleted. The Histo-Scope
+distribution patch has been updated to version 8.
+
+
+Changes from version 1.8 to version 1.9
+---------------------------------------
+
+Updated the config string reading code in Histo-Scope so that it can be used
+to create PostScript files from ntuple plots and to close ntuple windows.
+Fixed couple small bugs. The Histo-Scope distribution patch has been updated
+to version 7.
+
+Reworked hs::overlay so that it can be used for overlaying both histograms
+and ntuple plots.
+
+Introduced a better version of the hs::dir command which caches the
+results (this speeds up the usage of table of contents for files with
+large number of items). The new command is smart enough to reread the
+file table of contents when the file is changed. The old hs::dir command
+has been renamed into hs::Dir_uncached.
+
+New command hs::read_items_bytitle allows selective reading of Histo-Scope
+items from file into memory by title. Internally, this command uses hs::dir
+and hs::read_file_items.
+
+New commands hs::function_plot, hs::parametric_plot, and hs::list_plot 
+allow for easy function plotting. They use temporary ntuples to pass plot
+points to Histo-Scope clients.
+
+New command hs::ntuple_block_fill allows for faster ntuple filling from
+binary strings produced by other commands.
+
+Changed hs::help so that it does not pick up the commands whose names
+start with a capital letter.
+
+Renamed command hs::project_histogram into hs::project_2d_histogram.
+
+New command hs::html_manual generates nicely formatted HTML reference manual
+from the text manual.
+
+
+Changes from version 1.7 to version 1.8
+---------------------------------------
+
+Changed the config string reading code in Histo-Scope so that it can be used 
+to create PostScript files from histograms and to close histogram windows.
+The Histo-Scope distribution patch has been updated to version 5. The new
+configuration ability is exploited by the new commands hs::generate_ps and
+hs::close_window. The commands hs::show_histogram, hs::overlay, and
+hs::multiplot have been modified to accept the new option "-window" which
+defines the window name for use with the hs::generate_ps and hs::close_window
+commands.
+
+New command hs::close_all_windows closes all plot windows.
+
+Warning: the new windows-related commands do not work with the unpatched
+Histo-Scope distribution.
+
+
+Changes from version 1.6 to version 1.7
+---------------------------------------
+
+New command hs::column_stats can be used for obtaining statistical
+information about ntuple columns. Another new command, hs::ntuple_c_stats,
+can be used to collect statistics for arbitrary expressions which can
+be evaluated using ntuple variables.
+
+New commands hs::ntuple_c_project and hs::adaptive_c_project can perform
+fast projection of big ntuples. Internally, they use another new command
+called hs::ntuple_so_scan. hs::ntuple_so_scan can be used to simplify
+typical ntuple scans in C.
+
+Introduced optional bin width multiplier argument into the
+hs::adaptive_stats_histogram command.
+
+
+Changes from version 1.5 to version 1.6
+---------------------------------------
+
+New commands hs::ntuple_so_filter and hs::ntuple_c_filter allow for fast
+filtering of big ntuples using C code. For now, hs::ntuple_c_filter only
+works with systems which have gcc.
+
+New command hs::ntuple_bit_histo can be used for fast building of bit
+frequency histograms when one of the ntuple variables is used as
+a collection of bits.
+
+
+Changes from version 1.4 to version 1.5
+---------------------------------------
+
+Introduced the hs::dir command with functionality similar to the "hsdir"
+executable. It is now possible to do intelligent lookup and loading of
+individual items from a file using item titles.
+
+Fixed a bug in Histo-Scope which caused the program to disconnect from
+a client when the update request message was large. The Histo-Scope
+distribution patch has been updated to version 4.
+
+
+Changes from version 1.3 to version 1.4
+---------------------------------------
+
+Improved performance of the hs::data_to_list and hs::list_to_data commands.
+
+New command hs::browse_collection allows for convenient browsing of histogram
+sets using an intuitive top level tk control.
+
+
+Changes from version 1.2 to version 1.3
+---------------------------------------
+
+The hs::read_file command now may be called with the file name as the only
+argument, omitting prefix. In this case no prefix will be used for the
+categories of items found in that file.
+
+The hs::fill_ntuple command has been modified to accept ntuple values either 
+from a binary string or from a list (binary string used to be the only option).
+
+Introduced new commands to calculate percentiles of 1d probability 
+distribution functions represented by histograms:
+hs::1d_hist_percentiles  -- calculates arbitrary sets of percentiles for
+                            1d histograms
+hs::1d_hist_cdfvalues    -- performs the inverse calculation (calculates
+                            percentage levels given the coordinates).
+hs::2d_hist_percentiles  -- calculates percentiles for each row or column
+                            of 2d histograms. Note, this command does not
+                            calculate genuine 2d percentiles, just 1d
+                            percentiles for each vertical or horizontal bin.
+hs::2d_hist_cdfvalues    -- Calculates percentage levels given the coordinates
+                            for each row or column of 2d histograms.
+hs::special_percentiles  -- Calculates arbitrary sets of percentiles for 1d
+                            or 2d histogram bin values (not bin positions!).
+
+New command hs::lookup_title facilitates Histo-Scope item lookup by title.
+
+Option "add" in the hs::overlay command can now be used with a list of
+Histo-Scope ids instead of just one id.
+
+The Histo-Scope distribution patch has been updated to use up to 17 slider
+variables in the Ntuple interface (originally, the number of sliders could
+not be more than 10).
+
+
+Changes from version 1.1 to version 1.2
+---------------------------------------
+
+Introduced new command hs::histoscope_hidden. This command starts the
+Histo-Scope client without the GUI. This is useful if the programmer
+wants to implement his/her own histogram manager or GUI.
+
+New commands hs::overlay and hs::multiplot draw several histograms in
+one window.
+
+The syntax of the hs::show_histogram command has changed: it now allows
+for colors, line styles, and hashing.
+
+Two new commands to get coordinates of histogram bins:
+hs::1d_hist_bin_coords   -- get 1d histogram bin coordinates
+hs::2d_hist_bin_coords   -- get 2d histogram bin coordinates
+Of course, it is possible to construct the arrays of coordinates in
+pure Tcl but from C it is much faster.
+
+Two new commands return either bin numbers or coordinates for bins which
+satisfy certain selection requirements:
+hs::1d_select_bins
+hs::2d_select_bins
+
+Two new commands which facilitate conversions between Tcl list and binary
+strings used to represent data in hs:
+hs::data_to_list   -- converts binary strings into Tcl lists of doubles
+hs::list_to_data   -- converts Tcl lists of numbers into binary strings 
+
+Changed the format of "hs::1d_hist_errors" and "hs::2d_hist_errors"
+commands. These commands used to return ether a binary string when
+only positive errors are defined for a given histogram or a two-element
+list of binary strings {pos_errors neg_errors}. The problem is that Tcl
+can't perform conversions between lists and binary strings reliably.
+Sometimes Tcl thinks that a single binary string has more than one
+element if the string contains characters used by Tcl as list separators.
+Now, these commands always return just one binary string so that there is
+no need to perform any list operations on the result.
+
+Renamed the Tcl command "exit" into some odd name and introduced a special
+version of "exit". This special version makes sure that Histo-Scope clients
+started from a Tcl program are killed on exit.
+
+Included a "Snapshot" button on the control slider for 2d histogram slices.
+
+New command hs::help together with auxiliary commands hs::calc_manual
+and hs::lookup_command_info provide an online help facility.
+
+New command hs::2d_hist_apply_weights allows to reweigh rows or columns
+of a 2d histogram.
+
+Added hs::1d_hist_shape command which returns info about 1d histogram shape,
+including skewness and kurtosis.
+
+
+Changes from version 1.0 to version 1.1
+---------------------------------------
+
+Introduced several new commands:
+hs::1d_linear_fit   -- fits 1d histogram with a straight line
+hs::2d_linear_fit   -- fits 2d histogram with a plane
+hs::have_cernlib    -- tells if the extension has been compiled with CERNLIB
+hs::1d_fill_from_list  -- block-fills 1d histograms using Tcl lists as inputs
+hs::2d_fill_from_list  -- block-fills 2d histograms using Tcl lists as inputs
+
+The linear fit procedures are only available when the extension is compiled
+with CERNLIB. The hs::have_cernlib command allows the application to find
+out at run time whether these procedures are available or not.
+
+(* Note: linear fit procedures have later been rewritten so that 
+   they no longer rely on CERNLIB *)
+
+Several new hs::calc operators have been added: 
+unary operators exp, log, and slog
+binary operators min, max, and hypot
+

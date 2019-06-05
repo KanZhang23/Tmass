@@ -1,0 +1,128 @@
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/stat/DensityScanND.hh"
+#include "npstat/nm/LinearMapper1d.hh"
+
+namespace npstat {
+    template <unsigned MaxDim, unsigned MaxReplace, unsigned MaxDeg>
+    void WeightedLTSLoss<MaxDim,MaxReplace,MaxDeg>::initialize(
+        const ArrayND<double>& in)
+    {
+        const unsigned dim = in.rank();
+        if (!(dim && dim == weightFcn_->dim())) throw std::invalid_argument(
+            "In npstat::WeightedLTSLoss::initialize: "
+            "incompatible input array dimensionality");
+        if (dim > MaxDim) throw std::out_of_range(
+            "In npstat::WeightedLTSLoss::initialize: "
+            "input array dimensionality is too high");
+        if (degree_ > MaxDeg) throw std::out_of_range(
+            "In npstat::WeightedLTSLoss::initialize: "
+            "polynomial degree is too high");
+        const unsigned long len = in.length();
+        const ArrayShape& sh = in.shape();
+        polys_ = new ArrayND<Poly*>(sh);
+        ArrayND<double> weight(sh);
+
+        unsigned gridPoint[MaxDim];
+        std::vector<LinearMapper1d> maps;
+        maps.reserve(dim);
+        for (unsigned long i=0; i<len; ++i)
+        {
+            weight.convertLinearIndex(i, gridPoint, dim);
+            maps.clear();
+            for (unsigned idim=0; idim<dim; ++idim)
+                maps.push_back(LinearMapper1d(1.0, -1.0*gridPoint[idim]));
+            DensityScanND<LinearMapper1d> scan(*weightFcn_, maps);
+            weight.functorFill(scan);
+            weight.linearValue(i) = 0.0;
+            polys_->linearValue(i) = new Poly(degree_, weight);
+        }
+    }
+
+    template <unsigned MaxDim, unsigned MaxReplace, unsigned MaxDeg>
+    WeightedLTSLoss<MaxDim,MaxReplace,MaxDeg>::~WeightedLTSLoss()
+    {
+        if (polys_)
+        {
+            const unsigned long len = polys_->length();
+            for (unsigned long i=0; i<len; ++i)
+                delete polys_->linearValue(i);
+            delete polys_;
+        }
+        delete weightFcn_;
+    }
+
+    template <unsigned MaxDim, unsigned MaxReplace, unsigned MaxDeg>
+    LocalLoss WeightedLTSLoss<MaxDim,MaxReplace,MaxDeg>::operator()(
+        const ArrayND<double>& in, const unsigned* indexInWindow,
+        const unsigned* indexInDataset, BlockReplacement* block) const
+    {
+        assert(indexInWindow);
+        assert(indexInDataset);
+        assert(block);
+
+        const unsigned dim = in.rank();
+        const unsigned long len = in.length();
+
+        block->reset(indexInDataset, dim);
+
+        LocalLoss result;
+        PointReplacement<MaxDim> pr;
+        pr.coord = block->idx;
+
+        if (dim > 1U || len > 3UL)
+        {
+            if (!polys_)
+                (const_cast<WeightedLTSLoss*>(this))->initialize(in);
+            if (!(polys_->isShapeCompatible(in))) throw std::invalid_argument(
+                "In npstat::WeightedLTSLoss::operator(): "
+                "incompatible input array dimensionality");
+            const unsigned long ipt = polys_->linearIndex(indexInWindow, dim);
+            Poly* polyUsed = polys_->linearValue(ipt);
+            const unsigned ncoeffs = polyUsed->nTerms();
+            if (coeffs_.size() < ncoeffs)
+                coeffs_.resize(ncoeffs);
+            polyUsed->calculateCoeffs(in, 0, 0, &coeffs_[0], ncoeffs);
+
+            // Calculate the loss
+            unsigned local[MaxDim];
+            long double sumsq = 0.0;
+            for (unsigned long i=0; i<len; ++i)
+            {
+                in.convertLinearIndex(i, local, dim);
+                const double fitted = polyUsed->series(&coeffs_[0], ncoeffs,
+                                                       local, dim);
+                const double diff = in.linearValue(i) - fitted;
+                sumsq += diff*diff;
+                if (i == ipt)
+                {
+                    result.improvement = diff*diff;
+                    pr.improvedValue = fitted;
+                }
+            }
+            result.value = sumsq;
+        }
+        else
+        {
+            if (!(dim == 1U && len == 3UL)) throw std::invalid_argument(
+                "In npstat::WeightedLTSLoss::operator(): "
+                "insufficient number of elements in the input array");
+            const double* d = in.data();
+            const unsigned ichange = indexInWindow[0];
+            if (ichange == 0)
+                pr.improvedValue = 2*d[1] - d[2];
+            else if (ichange == 2)
+                pr.improvedValue = 2*d[1] - d[0];
+            else
+                pr.improvedValue = (d[0] + d[2])/2.0;
+            const double diff = pr.improvedValue - d[ichange];
+            result.value = result.improvement = diff*diff;
+        }
+
+        block->replacement[0] = pr;
+        block->nReplacements = 1U;
+
+        return result;
+    }
+}

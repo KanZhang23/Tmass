@@ -1,0 +1,54 @@
+
+<h1>
+New Features for Histo-Scope V3.1<a name="bk1"><br>
+</h1>
+<p>
+
+The most significant new features in Histo-Scope V3.1 are:<p>
+<p>
+*	Configuration files for saving complete Histo-Scope sessions<p>
+*	Windows for viewing groups of plots<p>
+*	Ability to transform Ntuple variables with arbitrary arithmetic expressions<p>
+*	New XY plot types<p>
+*	Titles and optional statistics included on printouts<p>
+<p>
+Configuration files are files of Histo-Scope commands for opening windows,
+scaling plots, adjusting plot appearance, and setting slider positions.
+<i>Save Configuration...</i> saves the current appearance of your Histo-Scope
+session (excluding opening the file or making the connection).  <i>Load
+Configuration...</i> re-loads these files.  Configuration files are an editable
+but undocumented ASCII text file format.  These features are available from the
+<i>File/Process</i> menu of the Histo-Scope Main Window.<p>
+<p>
+Multi-plot windows are windows containing several plots arranged in a grid
+pattern.  They can be created automatically to display all of the histograms
+defined in a single category, or they can be created manually by beginning with
+an empty window, and dragging plots from other windows, including plots derived
+from Ntuple data.  To create a Multi-plot window, select <i>Multiple Plot
+Window...</i> from the <i>Windows</i> menu of the Histo-Scope Main Window.  <p>
+<p>
+The Ntuple Window now has a new button "Create Variable" which allows you to
+create "virtual" Ntuple variables derived from the real variables, constants,
+and random values.  The new variables are specified as FORTRAN or C style
+expressions, with many built-in functions and constants.<p>
+<p>
+XY Plots in previous versions of Histo-Scope meant a single X variable vs. one
+or more Y variables, with the Y variables plotted against an X axis which was
+sorted on increasing values of X.  This style of plot is still available as the
+"Sorted XY Plot" in the Ntuple Window; however a more rational, unsorted, X vs.
+Y plot is now also available which can be used to plot XY point pairs, either
+using connected lines, or markers alone.  An XY Plot with no lines acts as an
+alternative representation to the Scatter Plot, with points represented by
+larger, more visible markers and optional error bars.  Up to nine (or three
+with errors) distinct sets of points can be plotted in the same plot.<p>
+<p>
+PostScript resolution has been improved in some of the plots, and more
+information is now included on printed and PostScript plots.  Window titles are
+now included, and plot statistics will appear to the side of the plot if
+<i>Show Statistics</i> is selected from the Plot Settings menu before selecting
+<i>Print...</i> or <i>Generate PostScript.... </i><p>
+<p>
+This user's guide is now available as a World Wide Web page.  This can be
+accessed from a hypertext link at URL: <p>
+<p>
+http://fnpspa.fnal.gov/histo_doc/histo1.html</a><p>

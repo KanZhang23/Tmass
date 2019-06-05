@@ -1,0 +1,45 @@
+<title>Part II</title>
+<h1>
+Part II      
+</h1>
+<p> 
+<h2>
+HSDIR Directory Tool  
+</h2>
+<p>
+hsdir is a directory tool which will display a directory of the contents 
+of a Histo-Scope formatted file, including uid, category, title, and data 
+type.  Simply type the command <b>hsdir</b> followed by a filename
+specification.   For example:<p>
+<p>
+% hsdir random.hs<p>
+<p>
+Directory of Histo-Scope format file: random.hs<p>
+<pre>
+	uid	category 	title 	         type<p>
+	---	--------	-----	         ----<p>
+	 21	   HS	      INDICATOR EXAMPLE	 Indic<p>
+	 22        HS	      2D HIST EXAMPLE	 2dHist<p>
+	 23	   HS	      EXAMPLE 1D HIST	 1dHist<p>
+	 24	   HS	      EXAMPLE NTUPLE	 Ntuple<p>
+<pre>
+Total of 4 items listed in file<p>
+<p>
+%<p>
+<p>
+The filename may have a wildcard and if there is more than one file meeting the
+criteria of the wildcard, the directories for all these files will be listed.
+<p>
+
+<h2>
+tohbook Tool
+</h2><p>
+tohbook is a tool which can be used to convert a Histo-Scope-format file to a 
+HBOOK-format file.  Simply type the command <b>tohbook</b> followed by a filename
+specification.  For example:<p>
+<p>
+%tohbook random.hs<p>
+<p>
+ 
+ In the above example, tohbook will produce a HBOOK-format file called
+ random.hbook of all the histograms and ntuples in random.hs.

@@ -1,0 +1,76 @@
+<title> New Features </title>
+<h1>
+New Features for Histo-Scope V4.0<a name="bk1"><br>
+</h1>
+<p>
+<p>
+The most significant new features in Histo-Scope V4.0 are:<p>
+<pre>
+o   New "View Overlaid" button in main panel - allows you to choose plots 
+    and display them in ONE plot window, overlaid on top of each other.  
+    Some plot settings now refer only to the first or "base" plot.<p>
+    <p>
+o   New "View Multiple" button in main panel - allows you to choose plots 
+    to be displayed in single multi-plot window.<p>
+    <p>
+o   Multiple selection of plots in main panel list box.  Now you can select 
+    more than one plot in the list box of the main panel.  To do this, use 
+    the Ctrl and Shift keys in addition to the first mouse button.  You can 
+    also hold the mouse button down and select contiguous items in the list 
+    by dragging while holding the button down.<p>
+    <p>
+o   You can now re-title your plot window by selecting the "Change Window 
+    Title" plot setting from the plot settings menu (the menu that pops 
+    up when you press the right mouse button when pointing to a plot).<p>
+    <p>
+o   You can now specify in the histo command that you want to connect to a
+    client.  Use the -clientid option followed by the string you put in 
+    the HS_INITIALIZE call, and if necessary use the -rhost and -ruser 
+    options to specify the remote host and remote username (just as you 
+    would in the Connect to Client dialog).  These options can be used 
+    with the -config option which specifies the configuration file to use.<p>
+    <p>
+o   Drag & Drop has been extended.  In V3.1.1 you used Drag & Drop to drag 
+    plots into empty multi-plot window frames.  Now, in addition, you can 
+    drag (2D) plots on top of other plots to overlay them.  To undo this 
+    action (if this wasn't what you wanted to do), there's a new plot 
+    setting:  Remove Overlaid Plot.<p>
+    <p>
+o   Histograms can now have various fill patterns.  To specify these, 
+    select "Set Histogram Style" from the plot settings menu.<p>
+      <p>
+o   Histograms can now be plotted as a marker with/without error bars.  
+    To do this, choose the "Set Histogram Style" option from the plot 
+    settings menu and click on the linestyle option menu.  At the bottom 
+    of the list of linestyles you will find marker types you can select.<p>
+      <p>
+o   Many 2D plots now allow colors to be specified for linestyles and 
+    markers: XY Plots, Time-Series, Histograms, Adaptive Histograms, 
+    Sorted XY Plots.<p>
+      <p>
+o   You can now ask the Histo-Scope main panel to display the data type of 
+    the items in the list box.  There is a new toggle button for this at 
+    the bottom of the panel.<p>
+      <p>
+o   There are new callable routines in the client library:<p>
+   <p>
+     hs_histo_with_config - starts histoscope, tells it to read a config file<p>
+     hs_num_connected_scopes - returns the number of connected scopes<p>
+     hs_load_config_string - causes all connected scopes to load config commands<p>
+     hs_load_config_file - causes all connected scopes to load a config file<p>
+     hs_create_group - create a group<p>
+     hs_delete_items - delete a list of items (better browser performance)<p>
+     hs_kill_histoscope - allows you to kill a histoscope you started.<p>
+         <p>
+o   A C++ Binding for the Histo-Scope API was contributed by Roque D. Oliveira<p> 
+    at the University of Pennsylvania.  These files can be found in Histo-<p>
+    Scope's contrib directory ($HISTO_DIR/contrib).<p>
+         <p>
+This user's guide is available as a World Wide Web page.  This can be 
+accessed at URL: <p>
+<p>
+http://www-pat.fnal.gov/histo_doc/histo_ug.html</a><p>
+         <p>
+A hardcopy version of the user's guide is also available from the Fermilab <p> 
+Computing Division Library (WH8NE).  A Postscript version of the manual <p> 
+is available in Histo-Scope's doc directory ($HISTO_DIR/doc).<p>

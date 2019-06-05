@@ -1,0 +1,1260 @@
+<title>FORTRAN Binding Library Routines</title>
+<h2>
+FORTRAN Binding Library Routines
+</h2>
+<p>
+
+<h2>
+<a name="1">Routines for all Users
+</a></h2>
+<p>
+<dl>
+<dt><tt><b>HS_INITIALIZE(</b>identity_string<b>)</b></tt><p>
+<dd><tt><b>	CHARACTER *</b>n<b> </b>identity_string<b> </b><i>(input, n &lt;=
+40)</i><b></b></tt><p>
+<tt><b></b>Initialize the Histo-Scope connection software and set up a
+potential connection to a Histo-Scope process.  The identity string identifies
+the process in the Histo-Scope connection panel and may be up to 40 characters
+long.  This routine should be called before any other Histo-Scope routine is
+called.</tt><p>
+
+<p>
+<dt><tt><b>HS_UPDATE</b></tt><p>
+<dd> <tt><b></b>This routine must be called periodically to keep the Histo-Scope
+display up to date and to accept connections from Histo-Scopes.  You may call
+this as often as you like with no wasted CPU usage.  It will only transmit the
+data for the items that are currently displayed, and only as frequently as
+requested by the user of the Histo-Scope process, even if you call HS_UPDATE
+very often.</tt><p>
+
+<dt><tt><b>HS_COMPLETE</b></tt><p>
+<dd><tt><b></b>Close all connections with Histo-Scope processes and notify them
+that the program is finished.  This routine gives connected Histo-Scope
+processes a chance to request a last update.  This may take a few seconds to
+accomplish.</tt><p>
+<tt>If you are using HBOOK, this routine should be called <u>before</u> calling
+HREND</tt><tt>, since HS_COMPLETE may still access the HBOOK data.</tt><p>
+<tt>Under rare circumstances, an HS_COMPLETE call can take up to 1 minute to
+complete if one or more Histo-Scope(s) are viewing a large amount of data and
+have somehow fallen behind in receiving the data.  This call allows a maximum
+of one minute for sending all data requested by Histo-Scopes before the
+HS_COMPLETE was called.</tt><p>
+<p>
+
+<dt><tt><b>HS_COMPLETE_AND_WAIT</b></tt><p>
+<dd><tt><b></b>Notify any connected Histo-Scope processes that the program is
+finished and is waiting for them to exit or disconnect.  While any Histo-Scope
+is connected, this call will not return to the calling program.  Instead all
+Histo-Scope requests, including new connections will be serviced.   After all
+connected Histo-Scopes have disconnected, all data memory is freed and control
+is returned to the calling program.  As noted above, this call also should be
+called before calling the HBOOK routine HREND. </tt><p>
+<p>
+<a name="hst">
+<dt><tt><b>HS_HISTOSCOPE(</b>return_immediately<b>)</b></a></tt><p>
+<dd><tt><b>	INTEGER </b>return_immediately <i>(input)</i><b></b></tt><p>
+<tt><b></b>For users who want to build Histo-Scope into their program rather
+than using it separately as an inspection tool.  HS_HISTOSCOPE invokes
+Histo-Scope as a sub-process.  The scope process is pre-connected to display
+the data generated in the user process.  The routine can either start the
+Histo-Scope and return immediately (return_immediatly .NE. 0), or it can start
+it and return after the user closes the Histo-Scope window (return_immediately
+.EQ. 0).</tt><p>
+<p>
+
+<dt><tt><b>HS_HISTO_WITH_CONFIG(</b>return_immediately<b>,</b>
+config_file<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>return_immediately <i>(input)</i></tt><p>
+<tt><i>	</i><b>CHARACTER</b> <b>*</b>n config_file <i>(input, n &lt;= system
+maximum for filenames)</i><b></b></tt><p>
+<tt><b></b>For users who want to build Histo-Scope into their program
+<b>and</b> have it automatically display plots.  HS_HISTO_WITH_CONFIG invokes
+Histo-Scope as a sub-process and displays the plots specified in the
+configuration file config_file.  The scope process is pre-connected to display
+the data generated in the user process.  The routine can either start the
+Histo-Scope and return immediately (return_immediatly .NE. 0), or it can start
+it and return after the user closes the Histo-Scope window (return_immediately
+.EQ. 0).</tt><p>
+
+<dt><tt><b>HS_KILL_HISTOSCOPE()</b></tt><p>
+<dd><tt><b></b>This routine allows you to "kill" any Histo-Scope processes started
+via the HS_HISTOSCOPE or HS_HISTO_WITH_CONFIG calls.  The "kill" is
+accomplished through a message request to the Histo-Scope process for it to
+exit.</tt><p>
+
+<dt><tt>num_scopes<b> = HS_NUM_CONNECTED_SCOPES()</b></tt><p>
+<dd><tt><b>INTEGER</b> num_scopes <i>(returned)</i><b></b></tt><p>
+<tt><b></b>Returns the number of connected Histo-Scopes.  This routine is
+useful for checking that a Histo-Scope created with HS_HISTOSCOPE has
+successfully begun executing and is connected to its client program.  Since
+this takes some time, it is suggested that HS_NUM_CONNECTED_ SCOPES be called
+to check that a scope is connected before calling HS_LOAD_CONFIG_FILE or
+HS_LOAD_CONFIG_STRING.</tt><p>
+
+<a name="load">
+<dt><tt><b>HS_LOAD_CONFIG_FILE(</b>config_file<b>)</b></a></tt><p>
+<dd><tt><b>CHARACTER *</b>n config_file <i>(input)</i><b></b></tt><p>
+<tt><b></b>Calling HS_LOAD_CONFIG_FILE causes all connected Histo-Scopes to
+read the configuration file specified by config_file and execute all of the
+commands to display plots in the file.</tt><p>
+
+<dt><tt><b>HS_LOAD_CONFIG_STRING(</b>config_string<b>)</b></tt><p>
+<dd><tt><b>CHARACTER *</b>n config_string <i>(input)</i><b></b></tt><p>
+<tt><b></b>Calling HS_LOAD_CONFIG_STRING causes all connected Histo-Scopes to
+execute all of the commands to display plots in the string specified by
+config_string.</tt><p>
+
+<h2>
+<dt><a name="2">Routines for HBOOK users
+</a></h2>
+<p>
+<dt><tt><b>HS_HBOOK_SETUP(</b>top_directory<b>)</b></tt><p>
+<dd> <tt><b>	CHARACTER *</b>n<b> </b>top_directory <i>(input, n &lt;= HBOOK's
+maximum)</i><b></b></tt><p>
+<tt><b></b>Call this routine after you book the histograms or Ntuples you will
+use in the program and after you call HS_INITIALIZE.  The routine will set up
+all current HBOOK histograms and Ntuples in the specified top directory for use
+with Histo-Scope.  The top_directory string supplied should begin with "//".
+(<b>Note:</b>  unpredictable results may occur if this routine is called
+without first calling the appropriate HBOOK routines for the top
+directory.)</tt><p>
+<p><dt><tt><b>HS_RESET_HBOOK_SETUP(</b>top_directory<b>)</b></tt><p>
+<dd> <tt><b>	CHARACTER *</b>n<b> </b>top_directory <i>(input, n &lt;= HBOOK's
+maximum)</i><b></b></tt><p>
+<tt><b></b>Call this routine if you have booked new histograms or Ntuples, or
+deleted, renamed, rebinned, or re-set existing ones since calling
+HS_HBOOK_SETUP.  The top_directory string supplied should begin with
+"//".</tt></dl><p>
+<tt>
+<a name="3"></tt>
+<h2>Histo-Scope data routines
+</h2></a>
+<p>
+The Histo-Scope data routines provide a simple interface for creating data
+items, performing computations on this data, and managing the characteristics
+of the data items.  They can be used instead of HBOOK routines or in addition
+to them. <p>
+<p>
+Whenever a Histo-Scope data item is created, it is assigned a Histo-Scope
+identification number, <tt><b>id</b></tt>, which is returned to the calling
+routine.  These id's are sequentially assigned beginning at the number 1 (one)
+and are NOT preserved across saving the item to a file and reading it back 
+from the file.  They are used, instead, for internal identification of an 
+item.  For the user's convenience a new User-specified identification number, 
+<tt><b>uid</b></tt>, is accepted which, with its category, always identifies the item.  
+uid's specified by the user must therefore be unique within the category 
+specified for the item or the item will not be created. All item creation
+routines include a uid parameter.  This uid may be specified as 0, in which 
+case it need not be unique within the category.  However specifying uid's of 
+0 will hamper utilization of such routines as HS_SUM_FILE, HS_SUM_CATEGORY,
+HS_READ_FILE_ITEMS, and HS_SAVE_FILE_ITEMS, which use uid lists to perform
+their function.
+
+<h2>
+<a name="4">Item Creation Routines
+</a></h2>
+<p>
+<dl>
+<dt><tt>id<b> = HS_CREATE_1D_HIST(</b>uid<b>, </b>title<b>, </b>category<b>,
+</b>x_label<b>, </b>y_label<b>, </b>num_bins<b>, </b>min<b>,
+</b>max<b>)</b></tt><p>
+<dd><tt><b>INTEGER</b> uid <i>(input)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n title <i>(input, n &lt;= 80)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt><i></i><b>CHARACTER *</b>n x_label <i>(input, n &lt;= 80)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n y_label <i>(input, n &lt;= 80)</i></tt><p>
+<tt><i></i><b>INTEGER</b> num_bins <i>(input)</i><b></b></tt><p>
+<tt><b>REAL</b> min <i>(input)</i><b></b></tt><p>
+<tt><b>REAL</b> max <i>(input)</i></tt><p>
+<tt><i></i><b>INTEGER</b> id <i>(returned)</i><b></b></tt><p>
+<tt><b></b>Create (or book) a one-dimensional histogram.  uid defines a
+user-specified identification number which can later be used along with the
+category to specify the item created.  title defines the title for the
+histogram window when it is displayed.  category is a string defining a
+hierarchical "location" for the histogram.  Subcategories can be specified
+using the "/" character as in Unix file specifications.  If a category
+or subcategory does not exist, it is created.  If the category argument is
+blank (either " '', or ' ') the histogram will appear in the top level
+category.  The histogram axes are given the labels x_label and y_label.
+num_bins are the number of bins for for the histogram.  Any values .LE. min or
+.GE. max are collected into under- or over-flow bins.  The Histo-Scope defined
+id for the histogram is returned to the user and is used in later calls to
+identify the histogram just created.  If id is .LE. 0, an error occured in
+creating the histogram (check the arguments supplied to the function).  The
+value of min should be less than max, and num_bins should be greater than 0.
+</tt><p>
+<p>
+<dt><tt>id<b> = HS_CREATE_2D_HIST(</b>uid<b>, </b>title<b>, </b>category<b>,
+</b>x_label<b>, </b>y_label<b>, </b>z_label<b>, </b>x_bins<b>, </b>y_bins<b>,
+</b>x_min<b>, </b>x_max<b>, </b>y_min<b>, </b>y_max<b>)</b></tt><p>
+<dd><tt><b>INTEGER</b> uid <i>(input)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n title <i>(input, n &lt;= 80)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt><i></i><b>CHARACTER *</b>n x_label <i>(input, n &lt;= 80)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n y_label <i>(input, n &lt;= 80)</i></tt><p>
+<tt><i></i><b>CHARACTER *</b>n z_label <i>(input, n &lt;= 80)</i></tt><p>
+<tt><i></i><b>INTEGER</b> x_bins <i>(input)</i><b></b></tt><p>
+<tt><b>INTEGER</b> y_bins <i>(input)</i><b></b></tt><p>
+<tt><b>REAL</b> x_min <i>(input)</i><b></b></tt><p>
+<tt><b>REAL</b> x_max <i>(input)</i></tt><p>
+<tt><i></i><b>REAL</b> y_min <i>(input)</i><b></b></tt><p>
+<tt><b>REAL</b> y_max <i>(input)</i></tt><p>
+<tt><i></i><b>INTEGER</b> id <i>(returned)</i><b></b></tt><p>
+<tt><b></b>Create (or book) a two-dimensional histogram.  uid defines a
+user-specified identification number which can later be used along with the
+category to specify the item created.  title defines the title for the
+histogram window when it is displayed.  category is a string defining a
+hierarchical "location" for the histogram.  Subcategories can be specified
+using the "/" character as in Unix file specifications.  If a category or
+subcategory does not exist, it is created.  If the category argument is blank
+(either " '', or ' ') the histogram will appear in the top level category.  The
+histogram axes are given the labels x_label, y_label, and z_label.  x_bins and
+y_bins are the number of bins for each axis of the histogram.  Any values .LE.
+min or .GE. max are collected into under- or over-flow bins.  The
+Histo-Scope defined id for the histogram is returned and is used in later calls
+to identify the histogram just created.  If id is .LE. 0, an error occured in
+creating the histogram (check the arguments supplied to the function).  The
+value of x_min and y_min should be less than its corresponding maximum, and
+x_bins and y_bins should both be greater than 0. </tt><p>
+
+<a name="creat">
+<dt><tt>id<b> = HS_CREATE_NTUPLE(</b>uid<b>, </b>title<b>, </b>category<b>,
+</b>num_variables<b>, </b>names<b>)</b></tt></a><p>
+<dd><tt><b>INTEGER</b> uid <i>(input)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n title <i>(input, n &lt;= 80 )</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt><i></i><b>INTEGER</b> num_variables <i>(input)</i><b></b></tt><p>
+<tt><b>	CHARACTER *</b>n names<b>(</b>num_variables<b>) </b><i>(input, n &lt;=
+80)</i><b></b></tt><p>
+<tt><b>INTEGER</b> id <i>(returned)</i><b></b></tt><p>
+<tt><b></b>Defines an Ntuple with num_variables variables and variable names
+taken from names<b>(</b>num_variables<b>)</b>.  uid defines a user-specified
+identification number which can later be used along with the category to
+specify the item created.  title defines the title for the histogram window
+when it is displayed.  category is a string defining a hierarchical "location"
+for the Ntuple.  Subcategories can be specified using the "/" character as in
+Unix file specifications.  If a category or subcategory does not exist, it is
+created.  If the category argument is blank (either " '', or ' ') the Ntuple
+will appear in the top level category.  Storage allocation of the Ntuple is
+automatic: as the Ntuple grows, more space will be allocated.  <b><u>However,
+Ntuples must fit into virtual memory</u>. </b> The Histo-Scope defined id for
+the histogram is returned and is used in later calls to identify the Ntuple
+just created.  If id is .LE. 0, an error occured in creating the Ntuple (check
+the arguments supplied to the function).</tt><p>
+<p>
+<dt><tt>id<b> = HS_CREATE_INDICATOR(</b>uid<b>, </b>title<b>, </b>category<b>,
+</b>min<b>, </b>max<b>)</b></tt><p>
+<dd><tt><b>INTEGER</b> uid <i>(input)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n title <i>(input, n &lt;= 80)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt><i></i><b>REAL</b> min <i>(input)</i><b></b></tt><p>
+<tt><b>	REAL </b>max <i>(input)</i><b></b></tt><p>
+<tt><b>INTEGER</b> id <i>(returned)</i><b></b></tt><p>
+<tt><b></b>Creates an indicator.  uid defines a user-specified identification
+number which can later be used along with the category to specify the item
+created.  category is a string defining a hierarchical "location" for the
+indicator.  Subcategories can be specified using the "/" character as in Unix
+file specifications.  If a </a></tt><tt>category or subcategory does not exist,
+it is created.  If the category argument is blank (either " '', or ' ') the
+indicator will appear in the top level category.  The Histo-Scope defined id
+for the indicator is returned and is used in later calls to identify the
+indicator just created.  If id is .LE. 0, an error occured in creating the
+indicator (check the arguments supplied to the function).</tt><p>
+<p>
+<a name="contr">
+<dt><tt>id<b> = HS_CREATE_CONTROL</a>(</b>uid<b>, </b>title<b>, </b>category<b>,
+</b>min<b>, </b>max<b>,</b> default_value<b>)</b></tt><p>
+<dd><tt><b>INTEGER</b> uid <i>(input)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n title <i>(input, n &lt;= 80)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt><i></i><b>REAL</b> min <i>(input)</i><b></b></tt><p>
+<tt><b>	REAL </b>max <i>(input)</i><b></b></tt><p>
+<tt><b>	REAL </b>default_value <i>(input)</i><b></b></tt><p>
+<tt><b>INTEGER</b> id <i>(returned)</i><b></b></tt><p>
+<tt><b></b>Creates a control.  uid defines a user-specified identification
+number which can later be used along with the category to specify the item
+created.  category is a string defining a hierarchical "location" for the
+control.  Subcategories can be specified using the "/" character as in Unix
+file specifications.  If a </tt><tt>category</tt><tt> or subcategory does not
+exist, it is created.  If the category argument is blank (either " '', or ' ')
+the control will appear in the top level category.  The Histo-Scope defined id
+for the control is returned and is used in later calls to identify the control
+just created.  If id is .LE. 0, an error occured in creating the control (check
+the arguments supplied to the function). </a></tt><p><p>
+<dt><tt>id<b> = HS_CREATE_TRIGGER(</b>uid<b>, </b>title<b>,
+</b>category<b>)</b></tt><p>
+<dd><tt><b>INTEGER</b> uid <i>(input)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n title <i>(input, n &lt;= 80)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt><i></i>Creates a trigger.  uid defines a user-specified identification
+number which can later be used along with the category to specify the item
+created.  category is a string defining a hierarchical "location" for the
+trigger.  Subcategories can be specified using the "/" character as in Unix
+file specifications.  If a </tt><tt>category</tt><tt> or subcategory does not
+exist, it is created.  If the category argument is blank (either " '', or ' ')
+the trigger will appear in the top level category.  The Histo-Scope defined id
+for the trigger is returned and is used in later calls to identify the trigger
+just created. (To check if the trigger has been set a Histo-Scope user, call 
+HS_CHECK_TRIGGER.)  If id is .LE. 0, an error occured in creating the trigger 
+(check the arguments supplied to the function). </tt><p>
+<a name="group">
+<dt><tt>id<b> = HS_CREATE_GROUP(</b>uid<b>, </b>title<b>,
+</b>category<b>,</b>groupType<b>,</b>numItems<b>,</b>itemId<b>,</b>
+errsDisp<b> )</b></tt></a><p>
+<dd><tt><b>INTEGER</b> uid <i>(input)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n title <i>(input, n &lt;= 80)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt><b>INTEGER</b> groupType <i>(input)</i><b></b></tt><p>
+<tt><b>INTEGER</b> numItems <i>(input)</i><b></b></tt><p>
+<tt><b>INTEGER</b> itemId (numItems)<i>(input, numItems &lt;=
+81)</i></tt><p>
+<tt><b>INTEGER</b>n errsDisp (numItems)<i>(input, numItems &lt;=
+81)</i></tt><p>
+<tt><b>INTEGER</b> id <i>(returned)</i></tt><p>
+<tt>Creates a group, which is an item that points to other data items, thus
+grouping them into one addressable entity.uid defines a user-specified 
+identification number which can later be used along with the category to 
+specify the item created.  category is a string defining a hierarchical 
+"location" for the trigger.  Subcategories can be specified using the "/" 
+character as in Unix file specifications.  If a category or subcategory does not
+exist, it is created.  If the category argument is blank (either " '', or ' ')
+the trigger will appear in the top level category.  The Histo-Scope defined id
+for the trigger is returned and is used in later calls to identify the trigger
+just created.  groupType is the group's suggested window type.  The number of
+items in this group, specified by numItems, should not be larger than 81.
+itemId is an array of HS item ids that compose the group.  errsDisp is an 
+array of values (NO_ERROR_BARS, DATA_ERROR_BARS, GAUSSIAN_ERROR_BARS) that
+corresponds to the itemId array and tells Histo-Scope how to display errors
+for the corresponding histogram (used only when the corresponding data item 
+is a histogram).  <p>
+A group can be made out of a number of items in order to display them as a
+Multiple Plot Window, an Overlaid Plot, or simply as a convenience for putting
+plots up individually with fewer mouse clicks.  Data items may be put into more
+than one group and there is no limit on the number of groups you can create.  
+Including an item in a group does not effect the display of the item
+individually in the main panel.  The item still appears in the main panel list
+box and can be viewed individually.  The category string can be used to affect
+how Histo-Scope items appear in the main panel.<p>
+When a group is selected in Histo-Scope's main window and the user presses the
+"View" Button, the groupType field tells Histo-Scope how to display the items
+in the group.  This can be overridden in the Histo-Scope main panel by using
+the "View Multiple" or "View Overlaid" buttons.  If groupType is HS_MULTI_PLOT,
+pressing the View button displays all the 1- and 2-D histograms in the group 
+as one Multi-plot window.  Similarly, if you would like to see all the 1D
+histograms in a group displayed over each other in one plot window, you can 
+specify a groupType of HS_OVERLAY_PLOT.  Triggers, controls, and indicators
+cannot appear inside a Multiple Plot Window or Overlaid Plot.<p>
+Specifying HS_INDIVIDUAL for groupType means that if a group is selected, and
+the "View" button is pressed on the Histo-Scope main panel, each data item in
+the group will be viewed individually.  In the case of Ntuples, the Ntuple
+panel will be displayed so that the user can choose the variables to plot and
+the type to use.
+</tt><p>
+
+<dt><h2>
+<a name="5">Filling Histograms/Ntuples and Setting Errors
+</a></h2>
+<p>
+<dt><tt><b>HS_FILL_1D_HIST(</b>id<b>, </b>x<b>,
+</b>weight<b>)</b></tt><p>
+<dd><tt><b>INTEGER</b> id <i>(input)</i></tt><p>
+<tt><b>	REAL </b>x <i>(input)</i></tt><p>
+<tt><b>REAL</b> weight <i>(input)</i></tt><p>
+<tt><b></b>Adds a value (weight) to the one-dimensional histogram identified by
+id.</tt><p>
+<p>
+<dt><tt><b>HS_FILL_2D_HIST(</b>id<b>, </b>x<b>, </b>y<b>, </b>weight<b>)</b></tt><p>
+<dd><tt><b>INTEGER</b> id <i>(input)</i><b></b></tt><p>
+<tt><b>	REAL </b>x <i>(input)</i><b></b></tt><p>
+<tt><b>	REAL </b>y <i>(input)</i><b></b></tt><p>
+<tt><b>	REAL </b>weight <i>(input)</i><b></b></tt><p>
+<tt><b></b>Adds a value (weight) to the two-dimensional histogram identified by
+id.</tt><p>
+<dt><tt><b>HS_1D_HIST_BLOCK_FILL(</b>id<b>, </b>data<b>, </b>pos<b>_</b>errors<b>,
+</b>neg<b>_</b>errors<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id (<i>input</i>)<b>  </b></tt><p>
+<tt><b>	REAL </b>data<b>(</b>num_bins<b>)</b> (<i>input</i>)<b>  	</b></tt><p>
+<tt><b>	REAL </b>pos_errors<b>(</b>num_bins<b>)</b> (<i>input</i>)<b>
+</b></tt><p>
+<tt><b>	REAL </b>neg_errors<b>(</b>num_bins<b>)</b> (<i>input</i>)<b>
+</b></tt><p>
+<tt><b></b>Replaces the accumulated bin and error data supplied for the
+one-dimensional histogram identified by id and clears the overflow bins.  data
+is a one-dimensional array containing the new data for the histogram and must
+be of the appropriate size (i.e. the correct number of bins) for the
+one-dimensional histogram being filled.  pos_errors and neg_errors<b> </b>are
+the errors of the one-dimensional histogram.  Either error argument can be
+specified as %VAL(0), in which case the corresponding errors are not changed.
+pos_errors and neg_errors should have the same number of elements as the
+histogram has bins.  If the histogram has positive errors, but not negative
+ones, Histo-Scope assumes errors are symmetric.  Thus memory can be saved by
+specifying only positive errors when errors are symmetric.  Both pos_errors and
+neg_errors should be specified as <b>positive</b> real numbers.
+</tt><p>
+<p>
+<a name="2dhbf">
+<dt><tt><b>HS_2D_HIST_BLOCK_FILL(</b>id<b>, </b>data<b>, </b>pos<b>_</b>errors<b>,
+</b>neg<b>_</b>errors<b>)</b></tt></a><p>
+<dd><tt><b>	INTEGER </b>id<b> </b>(<i>input</i>)<b> 	</b></tt><p>
+<tt><b>	REAL </b>data<b>(</b>x_bins<b>,</b> y_bins<b>)</b> (<i>input</i>)<b>
+</b></tt><p>
+<tt><b>	REAL </b>pos_errors<b>(</b>x_bins<b>,</b> y_bins<b>)</b>
+(<i>input</i>)<b>	</b></tt><p>
+<tt><b>	REAL </b>neg_errors<b>(</b>x_bins<b>,</b> y_bins<b>)</b>
+(<i>input</i>)<b> 	</b></tt><p>
+<tt><b></b>Replaces the accumulated bin and error data supplied for the
+two-dimensional histogram identified by id and clears the overflow bins.  data
+is a two-dimensional array containing the new data for the histogram and must
+be of the appropriate size (i.e. the correct number of bins) for the
+two-dimensional histogram being filled.  pos_errors and neg_errors<b> </b>are
+the errors of the two-dimensional histogram.  Either error argument can be
+specified as %VAL(0), in which case the corresponding errors are not changed.
+pos_errors and neg_errors should have the same number of elements as the
+histogram has bins.  If the histogram has positive errors, but not negative
+ones, Histo-Scope assumes errors are symmetric.  Thus memory can be saved by
+specifying only positive errors when errors are symmetric.  Both pos_errors and
+neg_errors should be specified as <b>positive</b> real numbers.
+</tt><p>
+<p>
+
+<dt><tt><b>HS_SET_1D_ERRORS(</b>id<b>, </b>pos_errors<b>,</b> neg_errors
+<b>)</b></tt><p>
+<dd><tt><b>INTEGER</b> id <i>(input)</i><b></b></tt><p>
+<tt><b>	REAL </b>pos_errors<b>(</b>num_bins<b>)</b>
+<i>(input)</i><b></b></tt><p>
+<tt><b>REAL</b> neg_errors<b>(</b>num_bins<b>)</b> <i>(input)</i><b></b></tt><p>
+<tt><b></b>Copies one or both arrays of real numbers representing the errors of
+a one-dimensional histogram.  Either error argument can be specified as
+%VAL(0), in which case the corresponding errors are not set.  Arrays should
+have the same number of elements as the histogram has bins.  If a histogram has
+positive errors, but not negative ones, Histo-Scope assumes errors are
+symmetric.  Thus memory can be saved by specifying only positive errors when
+errors are symmetric.   Both pos_errors and neg_errors should be specified as
+<b>positive</b> real numbers.  </tt><p>
+<p>
+<a name="2derr">
+<dt><tt><b>HS_SET_2D_ERRORS(</b>id<b>, </b>pos_errors<b>,</b>
+neg_errors<b>)</b></tt></a><p>
+<dd><tt><b>INTEGER</b> id <i>(input)</i><b></b></tt><p>
+<tt><b>	REAL </b>pos_errors<b>(</b>x_bins<b>, </b>y_bins<b>)</b>
+<i>(input)</i><b></b></tt><p>
+<tt><b>	REAL </b>neg_errors<b>(</b>x_bins<b>, </b>y_bins<b>)</b>
+<i>(input)</i><b></b></tt><p>
+<tt><b></b>Copies arrays of real numbers representing the errors of a
+two-dimensional histogram.  Either error argument can be specified as %VAL(0),
+in which case the corresponding errors are not set.  Arrays should have the
+same number of elements in each dimension as the histogram has bins.  If
+positive errors are supplied, but negative ones aren't, Histo-Scope assumes
+errors are symmetric.  Thus memory can be saved by specifying only positive
+errors when errors are symmetric.   Both pos_errors and neg_errors should be
+specified as <b>positive</b> real numbers. </a></tt><p>
+<p>
+<dt><tt>istatus<b> = HS_FILL_NTUPLE(</b>id<b>, </b>values<b>)</b></tt><p>
+<dd><tt><b>INTEGER</b> id <i>(input)</i><b></b></tt><p>
+<tt><b>	REAL </b>values<b>(</b>num_variables<b>)</b>
+<i>(input)</i><b></b></tt><p>
+<tt><b>	INTEGER </b>istatus <i>(returned)</i><b></b></tt><p>
+<tt><b></b>Adds an array of real values, in the order they are named in
+HS_CREATE_NTUPLE, to an Ntuple identified by id.  Returns istatus.  Check this
+status to ensure the array was added and to be certain your Ntuple still fits
+within the virtual memory of your machine.  istatus .LE. 0 indicates memory was
+exhausted.  istatus .EQ. 0 indicates an incorrect id or other user error.
+istatus .GT. 0 indicates success.  The Ntuple id number is returned upon
+success.</tt><p>
+<dt>
+<h2>
+<br>
+<a name="6">Setting Indicators, Reading Controls, and Checking Triggers 
+</a></h2>
+<p>
+<dt><tt><b>HS_SET_INDICATOR(</b>id<b>, </b>value<b>)</b></tt><p>
+<dd><tt><b>INTEGER</b> id <i>(input)</i><b></b></tt><p>
+<tt><b>	REAL </b>value <i>(input)</i><b></b></tt><p>
+<tt><b></b>Sets the value of an indicator to value. The value should be within
+the range specified for the indicator identified by id.  <u>However the
+indicator is set to the value even if the value is out of range. </u></tt><p>
+<p>
+<dt><tt><b>HS_READ_CONTROL(</b>id,<b> </b>return_value<b>)</b></tt><p>
+<dd><tt><b>INTEGER</b> id <i>(input)</i><b></b></tt><p>
+<tt><b>	REAL </b>return_value <i>(returned)</i><b></b></tt><p>
+<tt><b></b>Returns the value of a control in the variable return_value.</tt><p>
+<p>
+<dt><tt>istatus<b> = HS_CHECK_TRIGGER(</b>id<b>)</b></tt><p>
+<dd><tt><b>INTEGER</b> id <i>(input)</i><b></b></tt><p>
+<tt><b>	INTEGER </b>istatus <i>(returned)</i><b></b></tt><p>
+<tt><b></b>Returns 1 if the trigger has been set by Histo-Scope; otherwise 0 is
+returned.  Please note that this routine will return 1 once for each button
+press by the Histo-Scope user.  Thus, if the user has pressed the trigger 5
+times, the program must call HS_CHECK_TRIGGER at least 5 times.</tt><p>
+<tt><b></b></tt>
+<dt><h2>
+<a name="7">Functions for looking up items:
+</a></h2>
+<p>
+<dt><tt>id<b> = HS_ID(</b>uid<b>, </b>category<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>uid <i>(input)</i><b> </b></tt><p>
+<tt><b>	CHARACTER *</b>n<b> </b>category <i>(input, n &lt;= 255)</i> </tt><p>
+<tt>	<b>INTEGER</b> id (<i>returned</i>)</tt><p>
+<tt>Returns the Histo-Scope defined id for a specified uid and category pair,
+or -1 if a match was not found. uid is the user-specified identification number
+which was specified when the item was created. category is a string defining a
+hierarchical "location" for the item and was also specified when the item was
+created. </tt><p>
+<p>
+<dt><tt>id<b> = HS_ID_FROM_TITLE(</b>title<b>, </b>category<b>)</b></tt><p>
+<dd><tt><b>	CHARACTER *</b>n<b> </b>title <i>(input, n &lt;= 80)</i>	</tt><p>
+<tt><b>	CHARACTER *</b>n<b> </b>category <i>(input, n &lt;= 255) </i></tt><p>
+<tt><b>	INTEGER </b>id<b> </b>(<i>returned</i>)<b>	</b></tt><p>
+<tt><b></b>Returns the Histo-Scope id for a specified item title and category
+pair, or -1 if a match was not found.  title is the title specified for the
+item when it was created.  category is a string specified at item creation
+defining a hierarchical "location" for the item. </tt><p>
+<p><dt><tt>num_match <b>= HS_LIST_ITEMS(</b>title<b>, </b>category<b>, </b>ids<b>,
+</b>num<b>, </b>match_flag<b>)</b></tt><p>
+<dd><tt><b>	CHARACTER *</b>n<b> </b>title (<i>input, n &lt;= 80</i>)<b>
+</b></tt><p>
+<tt><b>	CHARACTER *</b>n<b> </b>category (<i>input, n &lt;= 255</i>)	</tt><p>
+<tt><b>	INTEGER </b>ids<b>(</b>num<b>)</b> (<i>returned</i>)  </tt><p>
+<tt><b>	INTEGER </b>num (<i>input</i>) <b></b></tt><p>
+<tt><b>	INTEGER </b>match_flag (<i>input</i>)	</tt><p>
+<tt><b>	INTEGER </b>num_match<b> </b>(<i>returned</i>)<b>      </b></tt><p>
+<tt><b></b>Fills a list of Histo-Scope id numbers.  The user must allocate at
+least num integer elements for the array ids.  These ids are returned in the
+order in which the histograms were created, or read in from a file.  Returns
+the number of matching the title/category strings, num_match, which may be
+larger than num, the maximum number of items that can be returned.  title
+specifies the title of the data items to list. category is a string specified
+at item creation defining a hierarchical "location" for the item.  Optionally,
+the category can include a trailing "..." which will return the id numbers for
+items in subcategories of the specified category.  For example, "HS/..."
+matches "HS" and "HS/Nts" but <u>not</u> "HSNTuples", "HSNTuples" nor "hs".  If
+the category parameter is specified as "..." all categories will match
+including uncategorized items.  match_flag specifies exact or inexact matches
+for the title string specified.  If match_flag .EQ. 0, then all id's returned
+will exactly match the title specified.  If match_flag .NE. 0, then leading
+spaces are ignored and id's containing the specified title are returned.
+Specifying " " for title and an inexact match for match_flag will match all
+titles.  If the category supplied is not valid, -1 will be returned in
+num_match.</tt><p>
+
+<dt><h2>
+<a name="8">Functions for getting properties of all items
+</a></h2>
+<p>
+<dt><tt>uid<b> = HS_UID(</b>id<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id<b> </b>(<i>input</i>)<b>	</b></tt><p>
+<tt><b>	INTEGER </b>uid (<i>returned</i>)<b>	</b></tt><p>
+<tt><b></b>Returns the user-specified identification number (uid) value for a
+given Histo-Scope id, or 0 if id was invalid or not found.</tt><p>
+<p>
+<dt><tt>length<b> = HS_CATEGORY(</b>id<b>, </b>category<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id (<i>input</i>)<b>		</b></tt><p>
+<tt><b>	CHARACTER *</b>n<b> </b>category (<i>input, n&lt;=255</i>)</tt><p>
+<tt>	<b>INTEGER</b> length (<i>returned</i>)<b>		</b></tt><p>
+<tt><b></b>Returns the category and its length for a given Histo-Scope id, or
+-1 if id was invalid.</tt><p>
+<p>
+<dt><tt>length<b> = HS_TITLE(</b>id<b>, </b>title<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id (<i>input</i>)<b>	</b></tt><p>
+<tt><b>CHARACTER *</b>n title <i>(input, n &lt;= 80)</i><b></b></tt><p>
+<tt><b>	INTEGER</b> length (<i>returned</i>)<b>		</b></tt><p>
+<tt><b></b>Returns the title and its length for an item specified by id, or -1
+if id was invalid.</tt><p>
+<p><dt><tt><b> </b>data_type<b> = HS_TYPE(</b>id<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id<b> </b><i>(input)</i><b>	</b></tt><p>
+<tt><b>	INTEGER </b>data_type (<i>returned</i>)<b>	</b></tt><p>
+<tt><b></b>Returns the type of data, data_type, referred to by id. Valid types
+are: </tt><p>
+<pre>
+        HS_1D_HISTOGRAM	
+        HS_2D_HISTOGRAM	
+        HS_NTUPLE 
+        HS_INDICATOR	
+        HS_CONTROL
+        HS_TRIGGER 
+        HS_NONE
+</pre>
+<p><a name="8a">
+<tt>HS_NONE refers to a non-existent item.</tt></a><p>
+<tt>These values are defined in histoscope.inc.</tt></dl>
+<h2>
+<br>
+<a name="9">Functions for reading/writing items from/to files
+</a></h2>
+<p>
+<dl>
+<dt><tt>istatus<b> = HS_READ_FILE(</b>filename<b>, </b>prefix<b>)</b></tt><p>
+<dd><tt><b>CHARACTER *</b>n filename <i>(input, n &lt;= system maximum for
+filenames)</i><b></b></tt><p>
+<tt><b>	CHARACTER *</b>n<b> </b>prefix <i>(input, n&lt;=255</i>)</tt><p>
+<tt>	<b>INTEGER</b> num_items (<i>returned</i>)<b></b></tt><p>
+<tt><b></b>Reads all of the items from the Histo-Scope formatted file specified
+by filename.  All category strings read will be prefixed by a new top level
+category specified in prefix.  This may be specified as %VAL(0) (or " "),
+meaning that no prefix should be added.  Returns the number of items read, or
+-1 if error.</tt><p>
+<p>
+<dt><tt>num_items<b> = HS_READ_FILE_ITEMS(</b>filename<b>, </b>prefix<b>,
+</b>category<b>, </b>uids<b>, </b>n_uids<b>)</b></tt><p>
+<dd><tt><b>CHARACTER *</b>n filename <i>(input, n &lt;= system maximum for
+filenames)</i><b></b></tt><p>
+<tt><b>	CHARACTER *</b>n<b> </b>prefix <i>(input, n&lt;=255</i>)</tt><p>
+<tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt><i></i><b>	INTEGER </b>uids<b>(</b>n_uids<b>)</b> <i>(input)</i><b>
+</b></tt><p>
+<tt><b>	INTEGER </b>n_uids <i>(input)</i><b>	</b>	</tt><p>
+<tt>	<b>INTEGER </b>num_items<b> </b><i>(returned)</i></tt><p>
+<tt>Selectively reads items from a specific category and all its subcategories
+that match a list of uids from the Histo-Scope formatted file specified by
+filename.  All category strings read from the file will be prefixed by a new
+top level category specified in prefix.  This may be specified as %VAL(0) (or "
+"), meaning that no prefix should be added.  If an item with the same
+(prefixed) category and uid already exists, the item in the file will not be
+read and an error message will inform the user.   If  n_uids is  .GT. 0, the
+array uids specifies the uid's of items to read from the file. If uids is
+%VAL(0) or n_uids .EQ. 0, all items in the specified category and its
+subcategories will be read.  n_uids specifies the number of items in array
+uids.  Returns the number of items read, or -1 if an error occurred.</tt><p>
+<p><tt>For example, if "HS" is specified for category and "Run1" for prefix, items
+read from the file with category "HS" will become "Run1/HS" and items read from
+the file with category "HS/Ntuples" will become "Run1/HS/Ntuples".  The new
+(prefixed) category must be less than 255 characters in length, or the item
+will not be read from the file.  To read non-selectively regardless of the
+category, specify " " as category.</tt><p>
+<p>
+<a name="savef">
+<dt><tt>num_items<b> = HS_SAVE_FILE(</b>filename<b>)</b></tt><p>
+<dd><tt><b>	CHARACTER *</b>n filename <i>(input, n &lt;= system maximum for
+filenames)</i></tt></a><p>
+<tt><b>	INTEGER </b>num_items<b> </b><i>(returned)</i></tt><p>
+<tt><i></i>Saves all current histograms, Ntuples, indicators, and controls
+created by Histo-Scope library routines or read from Histo_scope files to a
+Histo-Scope-format file.  Triggers are not written to the file.  The number of
+items written is returned in num_items, or -1 if an error occurred.  The named
+file is open for writing ("w"), discarding previous contents, if any.
+</tt><p>
+<p>
+<dt><tt>num_items<b> = HS_SAVE_FILE_ITEMS(</b>filename<b>, </b>category<b>,
+</b>uids<b>, </b>n_uids<b>)</b></tt><p>
+<dd><tt><b>CHARACTER *</b>n filename <i>(input, n &lt;= system maximum for
+filenames)</i></tt><p>
+<tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt><i></i><b>	INTEGER </b>uids<b>(</b>n_uids<b>)</b> <i>(input)</i><b>
+</b></tt><p>
+<tt><b>	INTEGER </b>n_uids <i>(input)</i></tt><p>
+<tt><b>	INTEGER </b>num_items<b> </b><i>(returned)</i><b></b></tt><p>
+<tt><b></b>Selectively saves the histograms, Ntuples, indicators, and controls
+in a specified category that match a list of uids to a Histo-Scope format file
+filename.  Items will be written only when they match the specified category
+<i>exactly</i>.  Specify " " as the category to save only uncategorized items.
+uids is an array of user id values of length n_uids specifying which items to
+write.  If n_uids is .LE. 0 or uids is %VAL(0), all items in the category
+specified are saved.  The number of items written is returned, or -1 if an
+error occurs.  The file named is open for writing ("w"), discarding previous
+contents, if any.  </tt><p>
+
+<dt><h2>
+<a name="10">Functions for managing data items
+</a></h2>
+<p>
+<dt><tt><b>HS_RESET(</b>id<b>) </b></tt><p>
+<dd><tt><b>INTEGER</b> id <i>(input)</i><b></b></tt><p>
+<tt><b></b>Resets the data item.  For histograms, all of the bins and overflows
+are set to 0.  For Ntuples all of the data is removed.  Indicators are set to
+*not set*.  Controls are set to their default value. For triggers, any pending
+trigger presses are cleared.  For groups, all the data items in the group are
+reset. </tt><p>
+
+<dt><tt><b>HS_DELETE(</b>id<b>)</b></tt><p>
+<dd><tt><b>INTEGER</b> id <i>(input)</i><b></b></tt><p>
+<tt><b></b>Deletes a histogram, Ntuple, indicator, control, or trigger
+identified by id. </tt><p>
+
+<dt><tt><b>HS_DELETE_ITEMS(</b>id<b>, </b> num_ids<b>)</b></tt><p>
+<dd><tt><b>INTEGER</b> id<b>(</b>num_ids<b>)</b><i>(input)</i></tt><p>
+<dd><tt><b>INTEGER</b> num_ids <i>(input)</i></tt><p>
+<tt><b></b>Deletes a list of items identified by id. </tt><p>
+
+<dt><tt><b>HS_DELETE_CATEGORY(</b>category<b>)</b></tt><p>
+<dd><tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt><i></i>Removes and deallocates all items in the named category.  All data
+content is lost.  The category string must <i>exactly</i> match the category of
+the item to be deleted <i>unless a trailing</i> "..." is specified as part of
+the category.  When the "..." is specified, data items in <b>all
+subcategories</b> of the category will be deleted.  Specifying " " or %VAL(0)
+for category will delete all uncategorized items.  For example, specifying a
+category "HS/..." will delete all items with category "HS" and "HS/Nts" but not
+"HSNTuples" nor "hs".  <b>If just "..." is specified, all items are
+deleted.</b></tt><p>
+<p>
+<a name="chng">
+<dt><tt><b>HS_CHANGE_UID(</b>id<b>, </b>new_uid<b>)</b></tt></a><p>
+<dd><tt><b>	INTEGER </b>id<b> </b><i>(input) </i><b>  </b></tt><p>
+<tt><b>	INTEGER </b>new_uid<b> </b><i>(input)</i><b>  	</b></tt><p>
+<tt>Changes the user-defined identification number (uid) to new_uid for
+an item specified by its Histo-Scope identification number, id.  If a
+Histo-Scope is connected when this routine is called, the Histo-Scope main
+window will be updated with the new uid.</tt><p>
+<p>
+<dt><tt><b>HS_CHANGE_CATEGORY(</b>id<b>, </b>newcategory<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id<b> </b><i>(input) </i></tt><p>
+<tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt><i></i>Changes the category of an item specified by its Histo-Scope
+identification number, id.  If a Histo-Scope is connected when this routine is
+called, the Histo-Scope main window will be updated with the new
+category.</tt><p>
+<p>
+<dt><tt><b>HS_CHANGE_TITLE(</b>id<b>, </b>newtitle<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i></tt><p>
+<tt><b>	CHARACTER *</b>n<b> </b>newtitle <i>(input) </i></tt><p>
+<tt><b></b>Changes the title of an item specified by its Histo-Scope
+identification number, id.  If a Histo-Scope is connected when this routine is
+called, the Histo-Scope main window will be updated with the new title.</tt><p>
+<p>
+<dt><tt>num_items<b> = HS_NUM_ITEMS()</b></tt><p>
+<dd><tt><b>	INTEGER </b>num_items <i>(returned) </i></tt><p>
+<tt><b></b>Returns the number of Histo-Scope data items defined so far.</tt><p>
+
+<h2>
+<a name="11">Functions for Accessing Histogram Data
+</a></h2>
+<p>
+<dt><tt>num_bins<b> = HS_1D_HIST_NUM_BINS(</b>id<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i>	</tt><p>
+<tt>	<b>INTEGER</b> num_bins <i>(returned)</i><b></b></tt><p>
+<tt><b></b>Returns the number of bins for a one-dimensional histogram
+identified by id, or -1 if  id does not refer to a one-dimensional
+histogram.</tt><p>
+<p>
+<dt><tt><b>HS_2D_HIST_NUM_BINS(</b>id<b>, </b>num_x_bins<b>,
+</b>num_y_bins<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input)</i></tt><p>
+<tt><b>	INTEGER</b> num_x_bins	(<i>returned</i>)</tt><p>
+<tt><b>	INTEGER</b> num_y_bins	(<i>returned</i>)</tt><p>
+<tt>Returns the number of bins in the two-dimensional histogram specified by
+id.  num_x_bins is the number of bins in X. num_y_bins is the number of bins in
+Y. -1 is returned for num_x_bins and num_y_bins if id does not refer to
+a two-dimensional histogram.</tt><p>
+<p>
+<a name="rng">
+<dt><tt><b>HS_1D_HIST_RANGE(</b>id<b>, </b>min<b>, </b>max<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i> </tt></a><p>
+<tt><b>	REAL</b> min (<i>returned</i>)</tt><p>
+<tt><b>	REAL</b> max<b> </b>(<i>returned</i>) <b>	</b></tt><p>
+<tt><b></b>Returns the minimum (low edge of first bin) value in min and the
+maximum (high edge of last bin) value in max representing the horizontal limits
+of a one-dimensional histogram specified by id.  If id does not refer to a
+one-dimensional histogram, zero is returned for min and max.</tt><p>
+<p>
+<dt><tt><b>HS_2D_HIST_RANGE</b>(id<b>, </b>x_min<b>, </b>x_max<b>, </b>y_min<b>,
+</b>y_max<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i></tt><p>
+<tt>	<b>REAL</b> x_min<b> </b>(<i>returned</i>)</tt><p>
+<tt>	<b>REAL</b> x_max (<i>returned</i>)</tt><p>
+<tt>	<b>REAL</b> y_min (<i>returned</i>)</tt><p>
+<tt>	<b>REAL</b> y_max (<i>returned</i>)</tt><p>
+<tt>Returns the minimum and maximum values representing the horizontal limits
+of a two-dimensional histogram specified by id.  If id does not refer to a
+two-dimensional histogram, zero is returned for the minimum and maximum
+values.</tt><p>
+<p>
+<a name="num">
+<dt><tt>num_entries<b> = HS_NUM_ENTRIES(</b>id<b>)</b></tt></a><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i></tt><p>
+<tt>	<b>INTEGER</b> num_entries (returned)<b></b></tt><p>
+<tt><b></b>Returns the number of fill operations that have been performed on
+the histogram referred to by id, or -1 if the id does not refer to a histogram
+or Ntuple item.</tt><p>
+<p>
+<a name="cont">
+<dt><tt><b>HS_1D_HIST_BIN_CONTENTS(</b>id<b>, </b>data<b>)</b></tt></a><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i>	</tt><p>
+<tt><b>	REAL </b>data<b>(</b>num_buns<b>)</b> <i>(returned)</i>	<b></b></tt><p>
+<tt><b></b>Returns the bin data from a one-dimensional histogram. Data must be
+dimensioned appropriately for the number of bins in the histogram.	</tt><p>
+<p>
+<dt><tt><b>HS_2D_HIST_BIN_CONTENTS(</b>id<b>, </b>data<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i> </tt><p>
+<tt><b>	REAL </b>data<b>(</b>num_buns<b>)</b> <i>(returned)</i>	<b></b></tt><p>
+<tt><b></b>Returns the bin data from a two-dimensional histogram. Data must be
+dimensioned appropriately for the number of bins in the histogram.
+</tt><p>
+<p>
+<a name="hserr">
+<dt><tt>status<b> = HS_1D_HIST_ERRORS(</b>id<b>, </b>pos_errors<b>,
+</b>neg_errors<b>)</b></tt></a><p>
+<dd><tt><b> 	INTEGER </b>id <i>(input) </i></tt><p>
+<tt>	<b>REAL</b> pos_errors<b>(</b>num_bins<b>)</b>  <i>(returned)</i> </tt><p>
+<tt>	<b>REAL</b> neg_errors<b>(</b>num_bins<b>)</b> <i>(returned)</i>  </tt><p>
+<tt>Return the error bar data from a one-dimensional histogram. pos_errors is a
+one-dimensional array to receive data for upper error bars.  Must be
+dimensioned appropriately for the number of bins in the histogram. neg_errors
+is a one-dimensional array to receive data for lower error bars.  neg_errors
+can be %VAL(0) which means only positive errors are returned. If non %VAL(0),
+neg_errors must be dimensioned appropriately for the number of bins in the
+histogram.  The status returned can be: </tt><p>
+<tt>HS_NO_ERRORS  - Item has no error data	</tt><p>
+<tt>HS_POS_ERRORS - Positive errors (only) are returned</tt><p>
+<tt>HS_BOTH_ERRORS - Positive and negative errors are returned</tt><p>
+<tt>HS_ITEMNOTFOUND_ERRORS - id does not refer to a one-dimensional
+histogram</tt><p>
+<tt>These values are defined in histoscope.inc.</tt><p>
+<p>
+<dt><tt>status<b> = HS_2D_HIST_ERRORS(</b>id<b>, </b>pos_errors<b>,
+</b>neg_errors<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i>		<b></b></tt><p>
+<tt><b>	REAL </b>pos_errors<b>(</b>x_bins<b>,</b> y_bins<b>)</b>
+(<i>input</i>)<b>	</b></tt><p>
+<tt><b>	REAL </b>neg_errors<b>(</b>x_bins<b>,</b> y_bins<b>)</b>
+(<i>input</i>)<b> 	</b></tt><p>
+<tt><b></b>Returns the error bar data from a two-dimensional histogram.
+pos_errors is a two-dimensional array to receive data for upper error bars.
+Must be dimensioned appropriately for the number of bins in the histogram.
+neg_errors is a two-dimensional array to receive data for lower error bars.
+neg_errors can be  %VAL(0), which means only positive errors are returned. If
+not %VAL(0), neg_errors must be dimensioned appropriately for the number of
+bins in the histogram.  The status returned can be: </tt><p>
+<tt>HS_NO_ERRORS  - Item has no error data	</tt><p>
+<tt>HS_POS_ERRORS - Positive errors (only) are returned</tt><p>
+<tt>HS_BOTH_ERRORS - Positive and negative errors are returned</tt><p>
+<tt>HS_ITEMNOTFOUND_ERRORS - id does not refer to a one-dimensional
+histogram</tt><p>
+<tt>These values are defined in histoscope.inc.</tt><p>
+<p>
+<a name="ovrfl">
+<dt><tt><b>HS_1D_HIST_OVERFLOWS(</b>id<b>, </b>underflow<b>,
+</b>overflow<b>)</b></tt></a><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i></tt><p>
+<tt>	<b>REAL</b> underflow <i>(returned)</i> </tt><p>
+<tt>	<b>REAL</b> overflow <i>(returned) </i><b></b></tt><p>
+<tt><b></b>Returns the overflow data from a one-dimensional histogram.</tt><p>
+<p>
+<dt><tt><b>HS_2D_HIST_OVERFLOWS(</b>id<b>, </b>overflows<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i></tt><p>
+<tt><b>	REAL </b>overflows<b>(</b>x_bins, y_bins<b>)</b> <i>(returned)</i><b>
+</b></tt><p>
+<tt><b></b>Returns the overflow data from a two-dimensional histogram as a 3 x
+3 array:</tt><p>
+<tt>
+<IMG SRC="hspict2.GIF"></tt><p>
+<tt>Figure 47</tt><p>
+<p>
+<a name="val">
+<dt><tt>value<b> = HS_1D_HIST_X_VALUE(</b>id<b>, </b>x<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id<i> (input) </i></tt></a><p>
+<tt>	<b>REAL</b> x <i>(input)</i></tt><p>
+<tt><i>	</i><b>REAL</b> valu <i>(returned)<b> </b></i><b></b></tt><p>
+<tt><b></b>Returns the value stored in the histogram bin referenced by x. The
+result is undefined if id is not a one-dimensional histogram, or if x is not
+within the range of the histogram.</tt><p>
+<p>
+<dt><tt>value<b> = HS_2D_HIST_XY_VALUE(</b>id<b>, </b>x<b>, </b>y<b>);</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input)</i></tt><p>
+<tt>	<b>REAL</b> x <i>(input) </i></tt><p>
+<tt><b>	REAL </b>y <i>(input) </i><b>  </b></tt><p>
+<tt><b>	REAL</b> value <i>(returned)</i><b>  	</b></tt><p>
+<tt><b></b>Returns the value stored in the histogram bin referenced by (x,y).
+The result is undefined if id is not a two-dimensional histogram, or if x or y
+are not within the range of the histogram.</tt><p>
+<p>
+<dt><tt>value<b> = HS_1D_HIST_BIN_VALUE(</b>id<b>, </b>bin_num<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i> </tt><p>
+<tt>	<b>INTEGER</b> bin_num <i>(input)</i></tt><p>
+<tt><i>	</i><b>REAL</b> value <i>(returned)  </i><b></b></tt><p>
+<tt><b></b>Returns the value in the histogram bin referred to by bin (or
+channel) number bin_num.  The result is undefined if id is not a one-
+dimensional histogram or bin_num is less than 1 or greater than the number of
+bins.</tt><p>
+<p>
+<dt><tt><b> </b>value<b> = HS_2D_HIST_BIN_VALUE(</b>id<b>, </b>x_bin_num<b>,
+</b>y_bin_num<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i> </tt><p>
+<tt>   <b>INTEGER</b> x_bin_num <i>(input) </i>	</tt><p>
+<tt>   <b>INTEGER</b> y_bin_num <i>(input) </i>	</tt><p>
+<tt>	<b>REAL</b> value <i>(returned)</i></tt><p>
+<tt>Returns the value in the histogram bin referred to by bin (or channel)
+number (x_bin_num , y_bin_num).  The result is undefined if id is not a
+two-dimensional histogram or bin_num is less than 1 or greater than the number
+of bins for the axis.</tt><p>
+
+<dt><h2>
+<a name="12">Calculations on histogram data
+</a></h2>
+<p>
+<dt><tt><b>HS_1D_HIST_MINIMUM(</b>id<b>, </b>x<b>, </b>bin_num<b>,
+</b>value<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i></tt><p>
+<tt><b>	REAL </b>x<b> </b><i>(returned)</i><b>	</b></tt><p>
+<tt><b>	INTEGER </b>bin_num<b> </b><i>(returned) </i><b></b></tt><p>
+<tt><b>	REAL </b>value <i>(returned)</i><b>	</b></tt><p>
+<tt><b></b>Returns the x-coordinate (x), the bin number (bin_num), and the bin
+content (value) where the histogram data reaches a minimum.  The routine
+returns a bin_num of 0 if the histogram does not refer to a one-dimensional
+histogram or the histogram is empty (i.e. has not yet been filled).</tt><p>
+<p>
+<dt><tt><b>HS_2D_HIST_MINIMUM(</b>id<b>, </b>x<b>, </b>y<b>, </b>x_bin_num<b>,
+</b>y_bin_num<b>, </b>value<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id	<i>(input) </i></tt><p>
+<tt><b>	REAL </b>x	<i>(returned)</i></tt><p>
+<tt>	<b>REAL</b> y	<i>(returned) </i></tt><p>
+<tt>	<b>INTEGER</b> x_bin_num	<i>(returned) </i></tt><p>
+<tt>	<b>INTEGER</b> y_bin_num	<i>(returned) </i></tt><p>
+<tt>	<b>REAL</b> value<b> </b><i>(returned) </i></tt><p>
+<tt>Returns the x- and y-coordinate (x and y) the bin numbers (x_bin_num and
+y_bin_num), and the bin content (value) where the two-dimensional histogram
+data reaches a minimum.  The routine returns a bin number of 0 if the histogram
+does not refer to a two-dimensional histogram, or the histogram is empty (i.e.
+has not yet been filled).</tt><p>
+<p>
+<a name="max">
+<dt><tt><b>HS_1D_HIST_MAXIMUM(</b>id<b>, </b>x<b>, </b>bin_num<b>,
+</b>value<b>)</b></tt></a><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i></tt><p>
+<tt><b>	REAL </b>x<b> </b><i>(returned)</i><b>	</b></tt><p>
+<tt><b>	INTEGER </b>bin_num<b> </b><i>(returned) </i><b></b></tt><p>
+<tt><b>	REAL </b>value <i>(returned)</i><b>	</b></tt><p>
+<tt><b></b>Returns the x-coordinate (x), the bin number (bin_num), and the bin
+content (value) where the histogram data reaches a maximum.  The routine
+returns a bin_num of 0 if the histogram does not refer to a one-dimensional
+histogram or the histogram is empty (i.e. has not yet been filled).</tt><p>
+<p>
+<dt><tt><b>HS_2D_HIST_MAXIMUM(</b>id<b>, </b>x<b>, </b>y<b>, </b>x_bin_num<b>,
+</b>y_bin_num<b>, </b>value<b>);</b></tt><p>
+<dd><tt><b>	INTEGER </b>id	<i>(input)</i></tt><p>
+<tt><b>	REAL </b>x	<i>(returned)</i></tt><p>
+<tt>	<b>REAL</b> y	<i>(returned) </i></tt><p>
+<tt>	<b>INTEGER</b> x_bin_num	<i>(returned) </i></tt><p>
+<tt>	<b>INTEGER</b> y_bin_num	<i>(returned) </i></tt><p>
+<tt>	<b>REAL</b> value<b> </b><i>(returned) </i></tt><p>
+<tt>Returns the x- and y-coordinate (x and y) the bin numbers (x_bin_num and
+y_bin_num), and the bin content (value) where the two-dimensional histogram
+data reaches a maximum.  The routine returns a bin number of 0 if the histogram
+does not refer to a two-dimensional histogram, or the histogram is empty (i.e.
+has not yet been filled).</tt><p>
+<p>
+<a name="stat">
+<dt><tt><b>HS_1D_HIST_STATS(</b>id<b>, </b>mean<b>,
+</b>std_dev<b>)</b></tt></a><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i>	</tt><p>
+<tt>	<b>REAL </b>mean <i>(returned) </i>   </tt><p>
+<tt><b>	REAL </b>std_dev <i>(returned)</i></tt><p>
+<tt>Calculates and returns the mean and standard deviation of a one-dimensional
+histogram.</tt><p>
+<p>
+<dt><tt><b>HS_2D_HIST_STATS(</b>id<b>, </b>x_mean<b>, </b>y_mean<b>,
+</b>x_std_dev<b>, </b>y_std_d<b></b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i>	</tt><p>
+<tt>	<b>REAL</b> x_mean <i>(returned)</i> 	</tt><p>
+<tt><b>	REAL</b> y_mean <i>(returned)</i>	</tt><p>
+<tt><b>	REAL</b> x_std_dev <i>(returned)</i>	</tt><p>
+<tt>	<b>REAL</b> y_std_dev <i>(returned)</i></tt><p>
+<tt>Calculates and returns the mean and standard deviation in x and y of a
+two-dimensional histogram.</tt><p>
+<p>
+<dt><tt>integrl<b> = HS_HIST_INTEGRAL(</b>id<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i></tt><p>
+<tt><i></i><b>	REAL </b>integrl <i>(returned) </i></tt><p>
+<tt>Calculates the integral (the sum of the bin contents * binwidth) of the bin
+data in a histogram. Overflow data is not counted.  The result returned is -1.0
+if id does not exist or does not refer to a one-dimensional histogram.</tt><p>
+<p>
+<dt><tt><b>HS_HIST_SET_GAUSS_ERRORS(</b>id<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i>	</tt><p>
+<tt>Calculate and store Gaussian errors in a histogram. If positive errors have
+been previously stored, they will be disregarded. The new errors will be stored
+in the "positive" error array. The errors are computed assuming the central
+limit theorem: they are equal to the square root of the bin contents. If one or
+more bin value is negative, no errors are created or changed, and an error
+message is printed. If the item referred by id is not a one-dimensional or a
+two-dimensional histogram, no action is taken besides printing an error
+message.</tt><p>
+<p>
+<a name="sum">
+<dt><tt>new_id<b> = HS_SUM_HISTOGRAMS(</b>uid<b>, </b>title<b>, </b>category<b>,
+</b>id1<b>, </b>id2<b>, </b>const1<b>, </b>const2<b>)</b></tt> </a> <p>
+<dd><tt><b>	INTEGER </b>uid <i>(input) </i> </tt><p>
+<tt><b>CHARACTER *</b>n title <i>(input, n &lt;= 80)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt><i></i><b>	INTEGER</b> id1, id2 <i>(input)   </i></tt><p>
+<tt><b>	REAL</b> const1, const2 <i>(input) </i></tt><p>
+<tt><b>	INTEGER </b>new<b>_</b>id <i>(returned)</i><b></b></tt><p>
+<tt><b></b>Creates a new histogram (one-dimensional or two-dimensional) whose
+data is the sum, bin by bin, of two histograms specified by HistoScope
+identification numbers id1 and id2. The bin content of the new histogram will
+be equal to const1 * bin value of histogram id1 + const2 * bin value of
+histogram id2.  const1 or const2 can be 0 but not both.  Also one of the id's
+can be 0, in which case the corresponding histogram will not be referenced and
+the new histogram will simply be the other histogram multiplied by its
+constant.  The resulting Histogram has number of fills set to number of bins.
+Errors are propagated assuming that these errors are Gaussian ("Low" errors 
+are ignored).  uid defines a user-specified identification number which
+can later be used along with the category to specify the item created.  title
+defines the title for the histogram window when it is displayed.  category is a
+string defining a hierarchical "location" for the histogram.  Subcategories can
+be specified using the "/" character as in UNIX file specifications.  If a 
+category or subcategory does not exist, it is created.  If the category 
+argument is blank (either " '', or ' ') the histogram will appear in the top 
+level category. The routine returns an error (an id of -1) if both histograms 
+are nonexistent, the histogram types are different, or the number of bins, or
+low/upper edges are inconsistent. Returns the id of a new histogram containing
+the sum of the two histograms, or -1 if the operation could not be
+performed.</tt><p>
+<p>
+<dt><tt><b></b>new_id<b> = HS_MULTIPLY_HISTOGRAMS(</b>uid<b>, </b>title<b>,
+</b>category<b>, </b>id1<b>, </b>id2<b>, </b>const<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>uid  <i>(input) </i></tt><p>
+<tt><b>CHARACTER *</b>n title <i>(input, n &lt;= 80)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt><i></i><b>	INTEGER</b> id1, id2 <i>(input) </i>	</tt><p>
+<tt><b>	REAL</b> const <i>(input)</i></tt><p>
+<tt><i></i><b>	INTEGER </b>new<b>_</b>id <i>(returned) </i></tt><p>
+<tt>Creates a new histogram (one-dimensional or two-dimensional) whose data is
+the multiplication, bin by bin, of two histograms specified by id1 and id2.
+The bin content of the new histogram will be equal to const * (bin value of
+histogram id1) * (bin value of histogram id2).  If one of the id's is specified as
+0, the other histogram will just be multiplied by the constant.  uid defines a
+user-specified identification number which can later be used along with the
+category to specify the item created.    title defines the title for the new
+histogram.  category is a string defining a hierarchical "location" for the
+histogram.  Subcategories can be specified using the "/" character as in UNIX
+file specifications.  If a category or subcategory does not exist, it is 
+created.  If the category argument is blank (either " '', or ' ') the histogram
+will appear in the top level category. Returns the id of the new histogram 
+containing the result of the operation, or -1 if the operation could not be 
+performed.  Both histograms specified should be of the same type and have the 
+same number of bins and bin edges.</tt><p>
+<p>
+<a name="div">
+<dt><tt>new_id<b> = HS_DIVIDE_HISTOGRAMS(</b>uid<b>, </b>title<b>, </b>category<b>,
+</b>id1<b>, </b>id2<b>, </b>const<b>)</b></tt></a><p>
+<dd><tt><b>	INTEGER</b>	uid <i>(input) </i>	</tt><p>
+<tt><b>CHARACTER *</b>n title <i>(input, n &lt;= 80)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt> 	<b>INTEGER</b> id1, id2 <i>(input) </i></tt><p>
+<tt>	<b>REAL</b> const <i>(input) </i>	</tt><p>
+<tt><b>	INTEGER </b>new<b>_</b>id <i>(returned)</i><b></b></tt><p>
+<tt><b></b>Create a new histogram (one-dimensional or two-dimensional) whose
+data is the division, bin by bin, of two histograms specified by id1 and id2.
+uid defines a user-specified identification number which can later be used
+along with the category to specify the item created.  title defines the title
+for the new histogram window when it is displayed.  category is a string
+defining a hierarchical "location" for the histogram.  Subcategories can be
+specified using the "/" character as in UNIX file specifications.  If a 
+category or subcategory does not exist, it is created.  If the category 
+argument is blank (either " '', or ' ') the histogram will appear in the top 
+level category. The bin content of the new histogram will be equal to const * bin
+value of histogram id1 / bin value of histogram id2. If  the bin value of
+histogram id2 is 0, the value 1 is used in the computation. Returns new_id
+which is the id of a new histogram containing the result of the operation, or
+-1 if an error occurred.</tt><p>
+<p>
+<dt><tt>new_id<b> = HS_1D_HIST_DERIVATIVE(</b>uid<b>, </b>title<b>,
+</b>category<b>, </b>id<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>uid <i>(input) </i>	</tt><p>
+<tt><b>CHARACTER *</b>n title <i>(input, n &lt;= 80)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt><i></i><b>	INTEGER</b> id  <i>(input) </i>    <b></b></tt><p>
+<tt><b>	INTEGER </b>new<b>_</b>id <i>(returned)</i><b></b></tt><p>
+<tt><b></b>Create a new histogram (one-dimensional) whose data is the
+derivative of the histogram specified by id. This derivative is computed bin by
+bin:</tt><p>
+<p>
+<tt>   	Dh/db = (H(j) - H(j-1))/bin_size.</tt><p>
+<tt>   	</tt><p>
+<tt>If the input histogram, specified by its HistoScope id, has error bars, the
+errors are computed assuming that there is no statistical correlation between
+bins and the error values are Gaussian.  uid defines a user-specified
+identification number which can later be used along with the category to
+specify the item created.    title defines the title for the histogram.
+category is a string defining a hierarchical "location" for the histogram.
+Returns new_id which is the id of a new histogram containing this
+derivative.</tt><p>
+
+</dl><h2>
+<a name="13">
+Summing Groups of Histograms and Ntuples
+</a></h2>
+<p>
+<tt>The two routines, HS_SUM_CATEGORY and HS_SUM_FILE, are designed to allow
+the user to sum together the data items from two different runs of the same
+program.  For example, if on one day, a program creates the following
+items:</tt><p>
+<pre>
+
+category       uid           item type
+</pre>
+<p>
+<tt>
+<pre>
+mydata	        101         1-d histogram
+mydata	        102         2-d histogram
+mydata/ntuples	202         Ntuple
+</pre>
+<p>
+<tt>and writes these items to a file, the next day, he can use HS_SUM_FILE to
+sum today's one-dimensional histogram with its corresponding 1-d histogram on
+the file, sum today's two-dimensional histogram with its corresponding 2-d
+histogram on the file, and merge together the two Ntuples.  The HS_SUM_FILE
+call for the above example would look as follows:</tt><p>
+<tt>	CALL HS_SUM_FILE(FILENAME, `mydata', `sum')</tt><p>
+<tt>and would create the following new items:</tt><p>
+<pre>
+category       uid           item type
+</pre>
+<p>
+<tt>
+<pre>
+sum             101          1-d histogram
+sum             102          2-d histogram
+sum/ntuples     202          Ntuple
+</pre>
+<p>
+<tt>These routines search the items in the category specified and match their
+uid's with the data items found in the file (for HS_SUM_FILE) or second
+category (for HS_SUM_CATEGORY) specified.  An error message will be printed if
+the data types do not match when the data items' uid's do match.  An error
+message is also printed if two histograms or Ntuples with matching uid's do not
+have the same properties, for instance a different number of bins or variables.
+The resulting summed data items are created in memory and are given the new
+category specified (result_category).  Items other than histograms and n-tuples
+are ignored.<u></u></tt><p>
+<p>
+<a name="sumc">
+<dl>
+<dt><tt><b>HS_SUM_CATEGORY(</b>category1<b>, </b>category2<b>,
+</b>result_category<b>) </b></tt></a><p>
+<dd><tt><b>	CHARACTER *</b>n<b> </b>category1, <b>*</b>n<b> </b>category2
+<i>(input) </i>  </tt><p>
+<dd><tt><b>	CHARACTER *</b>n<b> </b>result_category <i>(input) </i>  </tt><p>
+<tt>Create a collection of new histograms (one-dimensional or two-dimensional),
+and/or Ntuples, based on two existing categories of data items.  All such items
+within these categories are considered, and it is assumed that the categories
+have parallel category trees below a top prefix (e.g. from a HS_READ_FILE
+call), the uids/subcategories and binning properties are identical.  Items with
+uid .EQ. 0 are skipped.  For instance, category1 can be specified as 'run23',
+category2 as 'run25', result_category as 'run23_25'.  Then, if a histogram
+exists both in 'run23/tracking' and in 'run25/tracking' with identical uid's
+and static properties, a new histogram with the same uid will be created which
+is the sum, bin by bin, in category 'run23_25/tracking'.  Since this routine is
+intended to accumulate statistics, no arbitrary constant is provided. category1
+and category2 are the top level categories of  the categories to be summed.
+These cannot be NULL nor empty (Uncategorized), nor contain "...".
+result_category is the top category for the newly created category.</tt><p>
+<p>
+<dt><tt><b>HS_SUM_FILE(</b>filename<b>, </b>category<b>,
+</b>result_category<b>)</b></tt><p>
+<dd><tt><b>CHARACTER *</b>n filename <i>(input, n &lt;= system maximum for
+filenames)</i><b></b></tt><p>
+<dd><tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<dd><tt><i></i><b>CHARACTER *</b>n<b> </b>result_category <i>(returned)<b>
+</b></i></tt><p>
+<tt>Read all of the items from filename, sum histograms and/or merge Ntuples
+with those existing under the top category specified by category and store all
+newly created items in a category specified by result_category.  This can be
+the same as category.  Thus, to sum a bunch a files, one can read the first one
+by calling HS_READ_FILE(FILE1, 'allsum') and loop over the others, calling
+repetitively HS_SUM_FILE(FILE<i>n</i>, 'allsum', 'allsum').  The items read
+from the file will not be kept in memory.   A known deficiency of this routine
+is that it assumes that there is no top category already named "tmp_sum_file"
+or "tmp_sum_result".  For example, to sum three files:
+<pre>
+            call HS_INITIALIZE('Example')
+            call HS_READ_FILE('file1.hs', 'allsum')
+            call HS_SUM_FILE('file2.hs', 'allsum',allsum')
+            call HS_SUM_FILE('file3.hs', 'allsum',allsum')
+</pre>
+</tt><p>
+
+<dt><h2>
+<a name="14">
+Functions for accessing Ntuple data
+</a></h2>
+<p>
+<dt><tt>num_var<b> = HS_NUM_VARIABLES(</b>id<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i></tt><p>
+<tt><b>	INTEGER </b>num_var<i>(returned) </i><b></b></tt><p>
+<tt><b></b>Returns the number of variables (num_var) in the Ntuple referred to
+by id. Returns -1 if the id is not valid or not an Ntuple.</tt><p>
+<p>
+<dt><tt>num_entries<b> = HS_NUM_ENTRIES(</b>id<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i></tt><p>
+<tt>	<b>INTEGER</b> num_entries (returned)<b></b></tt><p>
+<tt><b></b>Returns the number of entries stored in the Ntuple referred to by
+id, or -1 if the id is not a valid item.</tt><p>
+<p><dt><tt>length <b>= HS_VARIABLE_NAME(</b>id<b>, </b>column<b>,
+</b>name<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i>	</tt><p>
+<tt><b>	INTEGER</b> column  <i>(input) </i>  </tt><p>
+<tt><b>	CHARACTER</b> <b>*</b>n name <i>(returned)</i>	</tt><p>
+<tt><b>	INTEGER </b>length <i>(returned)</i></tt><p>
+<tt>Returns the name and length of a given variable for the Ntuple specified by
+id. column is the variable's index  (i.e., the column number) and name is<i>
+</i>the mnemonic name of this variable in the Ntuple.</tt><p>
+<p>
+<a name="var">
+<dt><tt>index<b> = HS_VARIABLE_INDEX(</b>id<b>, </b>name<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i>	</tt></a><p>
+<tt><b>	CHARACTER *</b>n<b> </b>name <i>(input) </i> </tt><p>
+<tt><b>	INTEGER </b>index (returned)</tt><p>
+<tt>Returns the index (i.e. the column number in the Ntuple) corresponding to a
+given variable specified by its mnemonic name, for a given Ntuple specified by
+id. An exact match is required between name and one of the variable's names
+defined in the Ntuple. If no match is found, returns -1. This routine does not
+check for multiple matches, it successfully completes at the first occurrence
+of name.</tt><p>
+<p>
+<dt><tt>value<b> = HS_NTUPLE_VALUE(</b>id<b>, </b>row<b>, </b>column<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i>	</tt><p>
+<tt><b>	INTEGER</b> row <i>(input) </i>		</tt><p>
+<tt><b>	INTEGER</b> column <i>(input) </i>	</tt><p>
+<tt><b>	REAL </b>value (returned)</tt><p>
+<tt>Returns the value (value) in an Ntuple, at a specified row and column
+index. value is undefined (-1.0 is returned, however) if id does not exist or
+refers to an item other than an Ntuple.</tt><p>
+<p>
+<dt><tt><b> HS_NTUPLE_CONTENTS(</b>id<b>, </b>data<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id <i>(input) </i> </tt><p>
+<tt><b>	REAL </b>data<b>(</b>num_entries<b>, </b>num_variables<b>)</b>
+(<i>returned</i>)<b> 	</b></tt><p>
+<tt><b></b>Returns all of the data in an Ntuple, specified by id, in the form
+of a two-dimensional array named data which contains floating point values.
+The array must be dimensioned to the number of rows (entries) by the number of
+columns (elements or variables) in the Ntuple.</tt><p>
+<p>
+<a name="rcon">
+<dt><tt><b>HS_ROW_CONTENTS(</b>id<b>, </b>row<b>, </b>data<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>id<i>(input)  </i></tt><p>
+<tt><b>	INTEGER</b> row <i>(input) </i> </tt></a><p>
+<tt><b>	REAL </b>data<b>(</b>num_variables<b>)</b> <i>(returned)</i>	  </tt><p>
+<tt>Returns the contents of a row (or entry) of Ntuple data specified by id and
+places it in the array data. Data must be dimensioned to the number of
+variables (elements) in the Ntuple. A row is the collection of values in a
+particular Ntuple entry, one value for each variable (A variable could also be
+called a column or an element).</tt><p>
+<p>
+<dt><tt><b> HS_COLUMN_CONTENTS(</b>id<b>, </b>column<b>, </b>data<b>)</b></tt><p>
+<dd><tt><b> 	INTEGER </b>id <i>(input)  </i></tt><p>
+<tt>	<b>INTEGER</b> column <i>(input) </i> </tt><p>
+<tt>	<b>REAL</b> data<b>(</b>num_entries<b>)</b> <i>(returned)</i> </tt><p>
+<tt>Returns the contents of a column of Ntuple data specified by id and places
+it in the array data.  A column, which can also be called an element or a
+variable, is the set of values taken by a single Ntuple variable for each entry
+in the Ntuple.</tt><p>
+<p>
+<dt><tt>new_id<b> = HS_MERGE_ENTRIES(</b>uid<b>, </b>title<b>, </b>category<b>,
+</b>id1<b>, </b>id2<b>)</b></tt><p>
+<dd><tt><b>	INTEGER </b>uid <i>(input) </i> </tt><p>
+<tt><b>CHARACTER *</b>n title <i>(input, n &lt;= 80)</i><b></b></tt><p>
+<tt><b>CHARACTER *</b>n category <i>(input, n &lt;= 255)</i></tt><p>
+<tt><i></i>	<b>INTEGER</b> id1, id2 <i>(input) </i> </tt><p>
+<tt>	<b>INTEGER</b> new_id <i>(returned)</i></tt><p>
+<tt>Creates a new Ntuple consisting of two existing Ntuples, specified by id1
+and id2. These two Ntuples must have an identical number of variables.  uid is
+the User Identification number for the newly created Ntuple.  title defines the
+title for the new Ntuple.  category is a string defining a hierarchical
+"location" for the histogram.  Returns id, the Histo-Scope id of the newly
+created Ntuple, or -1 if the Ntuples referred by id1 or id2 don't exist, are
+not Ntuples or have a different number of variables.  The variable names are
+taken from id1, and are assumed to be identical to those of id2. </tt><p></dl>
+<p>
+<tt> </tt></a></a>

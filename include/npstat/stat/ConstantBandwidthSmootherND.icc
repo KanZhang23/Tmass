@@ -1,0 +1,154 @@
+#include <cassert>
+#include <stdexcept>
+
+#include "npstat/stat/scanDensityAsWeight.hh"
+#include "npstat/nm/OrthoPolyND.hh"
+
+namespace npstat {
+    template <unsigned MaxDeg>
+    inline double ConstantBandwidthSmootherND<MaxDeg>::taper(
+        const unsigned degree) const
+    {
+        if (degree < taper_.size())
+            return taper_[degree];
+        else
+            return 0.0;
+    }
+
+    template <unsigned MaxDeg>
+    template <class Real>
+    ConstantBandwidthSmootherND<MaxDeg>::ConstantBandwidthSmootherND(
+        const HistoND<Real>& protoHisto, const AbsDistributionND& kernel,
+        const double* itaper, const unsigned maxDeg, const bool mirrorData)
+        : engine_(0),
+          shape_(protoHisto.binContents().shape()),
+          indexBuf_(2U*shape_.size()),
+          taper_(maxDeg+1U, 1.0),
+          buf_(0),
+          mirror_(mirrorData)
+    {
+        const unsigned rank = shape_.size();
+        if (!rank) throw std::invalid_argument(
+            "In npstat::ConstantBandwidthSmootherND constructor: "
+            "unable to smooth zero-dimensional histograms");
+        if (rank != kernel.dim()) throw std::invalid_argument(
+            "In npstat::ConstantBandwidthSmootherND constructor: "
+            "incompatible dimensionalities of the histogram and the kernel");
+        if (maxDeg > MaxDeg) throw std::invalid_argument(
+            "In npstat::ConstantBandwidthSmootherND constructor: "
+            "maximum polynomial degree exceeded");
+
+        std::vector<double> binWidth_(rank);
+        for (unsigned i=0; i<rank; ++i)
+            binWidth_[i] = protoHisto.axis(i).binWidth();
+
+        if (itaper)
+            copyBuffer(&taper_[0], itaper, maxDeg+1);
+
+        unsigned* idx = &indexBuf_[0];
+        unsigned* doubledShape = idx + rank;
+        for (unsigned i=0; i<rank; ++i)
+            doubledShape[i] = shape_[i]*2U;
+
+        // Scan the weight function
+        std::vector<double> bandwidth(rank, 1.0);
+        CPP11_auto_ptr<ArrayND<double> > w = scanDensityAsWeight(
+            kernel, &shape_[0], &bandwidth[0], &binWidth_[0], rank, false);
+
+        // Generate the orthogonal polynomials
+        OrthoPolyND<MaxDeg> p(maxDeg, *w, &binWidth_[0], rank);
+
+        // Generate the filter for the center point
+        const unsigned nTerms = p.nTerms();
+        std::vector<double> coeffs(nTerms);
+        for (unsigned i=0; i<nTerms; ++i)
+            coeffs[i] = taper_[p.degree(i)];
+        for (unsigned i=0; i<rank; ++i)
+            idx[i] = w->span(i)/2U;
+        ArrayND<double>* filter = p.linearFilter(&coeffs[0], nTerms,
+                                                 idx, rank);
+
+        // Prepare the buffer array
+        buf_ = new ArrayND<double>(doubledShape, rank);
+        buf_->clear();
+
+        // Transfer the filter to the buffer array
+        for (unsigned i=0; i<rank; ++i)
+            idx[i] = doubledShape[i] - idx[i];
+        filter->rotate(idx, rank, buf_);
+        delete filter; filter = 0;
+
+        // Generate the Fourier transform of the filter
+        engine_ = new ConvolutionEngineND(doubledShape, rank);
+        engine_->setFilter(buf_->data(), doubledShape, rank);
+    }
+
+    template <unsigned MaxDeg>
+    template <class Numeric, class Real>
+    void ConstantBandwidthSmootherND<MaxDeg>::smoothHistogram(
+        const HistoND<Numeric>& histoIn, HistoND<Real>* histoOut)
+    {
+        assert(histoOut);
+        if (!histoOut->binContents().isCompatible(shape_))
+            throw std::invalid_argument(
+                "In npstat::ConstantBandwidthSmootherND::smoothHistogram: "
+                "incompatible binning of the output histogram");
+        const ArrayND<Numeric>& indat(histoIn.binContents());
+        if (!indat.isCompatible(shape_)) throw std::invalid_argument(
+            "In npstat::ConstantBandwidthSmootherND::smoothHistogram: "
+            "incompatible input histogram binning");
+
+        // Make sure density estimation makes sense for this dataset
+        if (!indat.isDensity())
+        {
+            if (!indat.isZero()) throw std::invalid_argument(
+                "In npstat::ConstantBandwidthSmootherND::smoothHistogram: "
+                "all bins of the input histogram must be non-negative");
+            histoOut->clearBinContents();
+            return;
+        }
+
+        const unsigned rank = shape_.size();
+        const unsigned long len = indat.length();
+        unsigned* idx = &indexBuf_[0];
+
+        // Copy histogram contents into the local buffer.
+        // Mirror the data appropriately.
+        if (mirror_)
+            indat.multiMirror(buf_);
+        else
+        {
+            const Numeric* dataIn = indat.data();
+            buf_->clear();
+            for (unsigned long ipt=0; ipt<len; ++ipt)
+            {
+                indat.convertLinearIndex(ipt, idx, rank);
+                buf_->value(idx, rank) = dataIn[ipt];
+            }
+        }
+
+        // Convolve
+        engine_->convolveWithFilter(
+            buf_->data(), const_cast<double*>(buf_->data()),
+            buf_->shapeData(), rank);
+
+        // Copy from the local buffer into the output histo
+        Real* dataOut = const_cast<Real*>(histoOut->binContents().data());
+        long double sum = 0.0L;
+        for (unsigned long ipt=0; ipt<len; ++ipt)
+        {
+            indat.convertLinearIndex(ipt, idx, rank);
+            double value = buf_->value(idx, rank);
+            if (value < 0.0)
+                value = 0.0;
+            dataOut[ipt] = value;
+            sum += value;
+        }
+        const double integ = sum*histoOut->binVolume();
+        assert(integ);
+
+        // Renormalize the whole estimate
+        if (integ)
+            const_cast<ArrayND<Real>&>(histoOut->binContents()) /= integ;
+    }
+}

@@ -1,0 +1,90 @@
+#include <cmath>
+#include <cassert>
+#include <stdexcept>
+#include <cfloat>
+
+#include "npstat/nm/LinearMapper1d.hh"
+#include "npstat/nm/definiteIntegrals.hh"
+
+namespace npstat {
+    template<typename Real>
+    double betaKernelsBandwidth(
+        const double npoints, const Real* fvalues, const unsigned long nValues,
+        const bool returnB2Star, double* expectedAmise)
+    {
+        assert(fvalues);
+        if (npoints <= 0.0) throw std::invalid_argument(
+            "In npstat::amiseOptimalOptimalBandwidth: "
+            "number of data points must be positive");
+        if (nValues < 3UL) throw std::invalid_argument(
+            "In npstat::amiseOptimalOptimalBandwidth: "
+            "insufficient number of function scan points");
+
+        const double binwidth = 1.0/nValues;
+        const double bwsquared = binwidth*binwidth;
+        const unsigned long nVMinus1 = nValues - 1UL;
+
+        long double firstterm = 0.0L;
+        {
+            const LinearMapper1d m(0.5*binwidth, fvalues[0],
+                                   1.5*binwidth, fvalues[1]);
+            firstterm += definiteIntegral_1(m.a(), m.b(), 0.0, 0.5*binwidth);
+        }
+        for (unsigned long i=0; i<nVMinus1; ++i)
+        {
+            const double xmin = (i + 0.5)*binwidth;
+            const double xmax = xmin + binwidth;
+            const LinearMapper1d m(xmin, fvalues[i], xmax, fvalues[i+1UL]);
+            firstterm += definiteIntegral_1(m.a(), m.b(), xmin, xmax);
+        }
+        {
+            const LinearMapper1d m(1.0 - 1.5*binwidth, fvalues[nValues-2UL],
+                                   1.0 - 0.5*binwidth, fvalues[nValues-1UL]);
+            firstterm += definiteIntegral_1(m.a(), m.b(), 1.0-0.5*binwidth, 1.0);
+        }
+        firstterm /= (2.0*sqrt(M_PI));
+
+        long double secondterm = 0.0L;
+        for (unsigned long i=0; i<nValues; ++i)
+        {
+            const double x = (i + 0.5)*binwidth;
+
+            double deri1 = 0.0;
+            if (i == 0UL)
+                deri1 = (fvalues[1] - fvalues[0])/binwidth;
+            else if (i == nVMinus1)
+                deri1 = (fvalues[i] - fvalues[i - 1UL])/binwidth;
+            else
+                deri1 = (fvalues[i + 1UL] - fvalues[i - 1UL])/2.0/binwidth;
+
+            unsigned long ic = i;
+            if (ic == 0UL)
+                ++ic;
+            else if (ic == nVMinus1)
+                --ic;
+            const double deri2 = ((fvalues[ic+1]-fvalues[ic]) + 
+                                  (fvalues[ic-1]-fvalues[ic]))/bwsquared;
+
+            double tmp = 0.5*x*(1.0 - x)*deri2;
+            if (!returnB2Star)
+                tmp += (1.0 - 2.0*x)*deri1;
+            secondterm += tmp*tmp;
+        }
+        secondterm *= binwidth;
+
+        double bstar = DBL_MAX;
+        if (secondterm)
+            bstar = pow(firstterm/secondterm/4.0/npoints, 0.4);
+
+        if (expectedAmise)
+        {
+            if (secondterm)
+                *expectedAmise = bstar*bstar*secondterm +
+                                 firstterm/npoints/sqrt(bstar);
+            else
+                *expectedAmise = 0.0;
+        }
+
+        return bstar;
+    }
+}

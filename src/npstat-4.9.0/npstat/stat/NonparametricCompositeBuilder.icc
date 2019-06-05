@@ -1,0 +1,177 @@
+#include <cassert>
+#include <stdexcept>
+#include <sstream>
+
+#include "npstat/nm/PointDimensionality.hh"
+
+#include "npstat/stat/Distributions1D.hh"
+#include "npstat/stat/DistributionsND.hh"
+
+namespace npstat {
+    template <class Point>
+    NonparametricCompositeBuilder<Point>::NonparametricCompositeBuilder(
+        AbsCopulaSmootherBase* smoothND,
+        const std::vector<AbsMarginalSmootherBase*>& s1D,
+        AbsResponseBoxBuilder<Point>* boxBuilder,
+        const bool takePointerOwnership,
+        const unsigned interpolationDegreeCopula,
+        const unsigned interpolationDegreeMarginals)
+        : smoothND_(smoothND),
+          smooth1D_(s1D),
+          boxBuilder_(boxBuilder),
+          marginBandwidth_(s1D.size(), 0.0),
+          copulaBandwidth_(0.0),
+          iDegCopula_(interpolationDegreeCopula),
+          iDegMarginals_(interpolationDegreeMarginals),
+          takePointerOwnership_(takePointerOwnership)
+    {
+        assert(smoothND_);
+        assert(boxBuilder_);
+        const unsigned n1 = s1D.size();
+        bool hasLabels = false;
+        for (unsigned i=0; i<n1; ++i)
+        {
+            assert(smooth1D_[i]);
+            if (!smooth1D_[i]->getAxisLabel().empty())
+                hasLabels = true;
+        }
+        if (!hasLabels)
+            for (unsigned i=0; i<n1; ++i)
+            {
+                std::ostringstream os;
+                os << "X_" << i;
+                const std::string& s = os.str();
+                smooth1D_[i]->setAxisLabel(s.c_str());
+            }
+    }
+
+    template <class Point>
+    NonparametricCompositeBuilder<Point>::~NonparametricCompositeBuilder()
+    {
+        if (takePointerOwnership_)
+        {
+            delete smoothND_;
+            delete boxBuilder_;
+            const unsigned n1 = smooth1D_.size();
+            for (unsigned i=0; i<n1; ++i)
+                delete smooth1D_[i];
+        }
+    }
+
+    template <class Point>
+    AbsDistribution1D* NonparametricCompositeBuilder<Point>::buildMarginal(
+        const unsigned long uniqueId, const unsigned idim,
+        const Interval<double>& respRange,
+        const std::vector<typename Point::value_type>& data) const
+    {
+        double bw = 0.0;
+        const HistoND<double>& h = smooth1D_.at(idim)->smooth(
+            uniqueId, idim, data, respRange.min(), respRange.max(), &bw);
+        marginBandwidth_.at(idim) = bw;
+        assert(h.dim() == 1U);
+        const HistoAxis& axis = h.axis(0);
+        return new BinnedDensity1D(axis.min(), axis.length(),
+                                   h.binContents().data(),
+                                   axis.nBins(), iDegMarginals_);
+    }
+
+    template <class Point>
+    AbsDistributionND* NonparametricCompositeBuilder<Point>::buildCopula(
+        const unsigned long uniqueId,
+        std::vector<OrderedPointND<Point> >& data) const
+    {
+        const unsigned dim_size = PointDimensionality<Point>::dim_size;
+
+        const HistoND<double>& h = smoothND_->smooth(
+            uniqueId, data, &copulaBandwidth_);
+        if (h.dim() != dim_size) throw std::invalid_argument(
+            "In npstat::NonparametricCompositeBuilder::buildCopula: "
+            "incompatible copula dimensionality");
+
+        double location[dim_size], scale[dim_size];
+        for (unsigned idim=0; idim<dim_size; ++idim)
+        {
+            const HistoAxis& axis = h.axis(idim);
+            location[idim] = axis.min();
+            scale[idim] = axis.length();
+        }
+        return new BinnedDensityND(location, scale, dim_size,
+                                   h.binContents(), iDegCopula_);
+    }
+
+    template <class Point>
+    AbsDistribution1D* NonparametricCompositeBuilder<Point>::buildMarginalW(
+        const unsigned long uniqueId, const unsigned dimUsed,
+        const unsigned idim, const Interval<double>& respRange,
+        const WeightedValueVec& data) const
+    {
+        double bw = 0.0;
+        const HistoND<double>& h = smooth1D_.at(idim)->weightedSmooth(
+            uniqueId, dimUsed, data, respRange.min(), respRange.max(), &bw);
+        marginBandwidth_.at(idim) = bw;
+        assert(h.dim() == 1U);
+        const HistoAxis& axis = h.axis(0);
+        return new BinnedDensity1D(axis.min(), axis.length(),
+                                   h.binContents().data(),
+                                   axis.nBins(), iDegMarginals_);
+    }
+
+    template <class Point>
+    AbsDistributionND* NonparametricCompositeBuilder<Point>::buildCopulaW(
+        const unsigned long uniqueId, const WeightedPtrVec& data,
+        const unsigned* dimsToUse, const unsigned nDimsToUse) const
+    {
+        const HistoND<double>& h = smoothND_->weightedSmooth(
+            uniqueId, data, dimsToUse, nDimsToUse, &copulaBandwidth_);
+        if (h.dim() != nDimsToUse) throw std::invalid_argument(
+            "In npstat::NonparametricCompositeBuilder::buildCopulaW: "
+            "incompatible copula dimensionality");
+
+        std::vector<double> dimBuf(2*nDimsToUse);
+        double* location = &dimBuf[0];
+        double* scale = location + nDimsToUse;
+        for (unsigned idim=0; idim<nDimsToUse; ++idim)
+        {
+            const HistoAxis& axis = h.axis(idim);
+            location[idim] = axis.min();
+            scale[idim] = axis.length();
+        }
+        return new BinnedDensityND(location, scale, nDimsToUse,
+                                   h.binContents(), iDegCopula_);
+    }
+
+    template <class Point>
+    inline BoxND<double> NonparametricCompositeBuilder<Point>::makeResponseBox(
+        const unsigned long uniqueId,
+        const double* predictorCoords, const unsigned nPredictors,
+        const BoxND<double>& predictorBox,
+        std::vector<OrderedPointND<Point> >& data) const
+    {
+        return boxBuilder_->makeResponseBox(uniqueId,
+                                            predictorCoords, nPredictors,
+                                            predictorBox, data);
+    }
+
+    template <class Point>
+    inline BoxND<double> NonparametricCompositeBuilder<Point>::makeResponseBoxW(
+        const unsigned long uniqueId,
+        const double* predictorCoords, const unsigned nPredictors,
+        const BoxND<double>& predictorBox, const WeightedPtrVec& data,
+        const unsigned* dimsToUse, const unsigned nDimsToUse) const
+    {
+        return boxBuilder_->makeResponseBoxW(uniqueId,
+                                             predictorCoords, nPredictors,
+                                             predictorBox, data,
+                                             dimsToUse, nDimsToUse);
+    }
+
+    template <class Point>
+    inline void NonparametricCompositeBuilder<Point>::setArchive(
+        gs::AbsArchive* ar, const char* category)
+    {
+        const unsigned nmarg = smooth1D_.size();
+        for (unsigned i=0; i<nmarg; ++i)
+            smooth1D_[i]->setArchive(ar, category);
+        smoothND_->setArchive(ar, category);
+    }
+}

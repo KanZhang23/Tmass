@@ -1,0 +1,181 @@
+#include <vector>
+#include <stdexcept>
+
+namespace npstat {
+    namespace Private {
+        template <typename Numeric, unsigned Len, class Triplet>
+        inline void fillTripletVector(const Matrix<Numeric,Len>& m,
+                                      std::vector<Triplet>* v)
+        {
+            assert(v);
+            v->clear();
+            v->reserve(m.nonZeros());
+            const Numeric null = Numeric();
+            const unsigned ncols = m.nColumns();
+            const unsigned len = m.length();
+            const Numeric* data = m.data();
+            for (unsigned i=0; i<len; ++i)
+                if (!(data[i] == null))
+                {
+                    const unsigned row = i / ncols;
+                    const unsigned col = i % ncols;
+                    v->push_back(Triplet(row, col, data[i]));
+                }
+        }
+    }
+
+    template <typename T, unsigned StackLen, unsigned StackDim>
+    inline bool SequentialPolyFilterND::isCompatible(
+        const ArrayND<T,StackLen,StackDim>& in) const
+    {
+        if (in.rank() != nFilters_)
+            return false;
+        for (unsigned i=0; i<nFilters_; ++i)
+            if (filters_[i]->dataLen() != in.span(i))
+                return false;
+        return true;
+    }
+
+    template <typename T2, unsigned StackLen2, unsigned StackDim2>
+    void SequentialPolyFilterND::filterLoop(
+        const bool useConvolve, const unsigned level,
+        unsigned long idx, const unsigned dimNumber,
+        T2* inbuf, T2* const outbuf,
+        ArrayND<T2,StackLen2,StackDim2>* out) const
+    {
+        if (level == nFilters_)
+        {
+            const unsigned long stride = out->strides()[dimNumber];
+            const unsigned imax = out->span(dimNumber);
+            T2* data = const_cast<T2 *>(out->data() + idx);
+            if (stride > 1UL)
+                for (unsigned i=0; i<imax; ++i)
+                    inbuf[i] = data[i*stride];
+            else
+                inbuf = data;
+            if (useConvolve)
+                filters_[dimNumber]->convolve(inbuf, imax, outbuf);
+            else
+                filters_[dimNumber]->filter(inbuf, imax, outbuf);
+            if (stride > 1UL)
+                for (unsigned i=0; i<imax; ++i)
+                    data[i*stride] = outbuf[i];
+            else
+                for (unsigned i=0; i<imax; ++i)
+                    data[i] = outbuf[i];
+        }
+        else if (level == dimNumber)
+            filterLoop(useConvolve, level+1, idx, dimNumber,
+                       inbuf, outbuf, out);
+        else
+        {
+            const unsigned long stride = out->strides()[level];
+            const unsigned imax = out->span(level);
+            for (unsigned i=0; i<imax; ++i)
+                filterLoop(useConvolve, level+1, idx + i*stride, dimNumber,
+                           inbuf, outbuf, out);
+        }
+    }
+
+    template <typename T1, unsigned StackLen, unsigned StackDim,
+              typename T2, unsigned StackLen2, unsigned StackDim2>
+    void SequentialPolyFilterND::filter(
+        const ArrayND<T1,StackLen,StackDim>& in,
+        ArrayND<T2,StackLen2,StackDim2>* out) const
+    {
+        if (!isCompatible(in)) throw std::invalid_argument(
+            "In npstat::SequentialPolyFilterND::filter: "
+            "input array has incompatible shape");
+        if (!out->isShapeCompatible(in)) throw std::invalid_argument(
+            "In npstat::SequentialPolyFilterND::filter: "
+            "output array has incompatible shape");
+
+        const unsigned maxspan = in.maximumSpan();
+        T2* workbuf = new T2[maxspan*2];
+
+        out->setData(in.data(), in.length());
+        for (unsigned idim=0; idim<nFilters_; ++idim)
+            filterLoop(false, 0U, 0UL, idim, workbuf, workbuf+maxspan, out);
+
+        delete [] workbuf;
+    }
+
+    template <typename T1, unsigned StackLen, unsigned StackDim,
+              typename T2, unsigned StackLen2, unsigned StackDim2>
+    void SequentialPolyFilterND::convolve(
+        const ArrayND<T1,StackLen,StackDim>& in,
+        ArrayND<T2,StackLen2,StackDim2>* out) const
+    {
+        if (!isCompatible(in)) throw std::invalid_argument(
+            "In npstat::SequentialPolyFilterND::convolve: "
+            "input array has incompatible shape");
+        if (!out->isShapeCompatible(in)) throw std::invalid_argument(
+            "In npstat::SequentialPolyFilterND::convolve: "
+            "output array has incompatible shape");
+
+        const unsigned maxspan = in.maximumSpan();
+        T2* workbuf = new T2[maxspan*2];
+
+        out->setData(in.data(), in.length());
+        for (unsigned idim=0; idim<nFilters_; ++idim)
+            filterLoop(true, 0U, 0UL, idim, workbuf, workbuf+maxspan, out);
+
+        delete [] workbuf;
+    }
+
+    template <class Triplet>
+    CPP11_auto_ptr<std::vector<Triplet> >
+    SequentialPolyFilterND::sparseFilterTriplets() const
+    {
+        CPP11_auto_ptr<std::vector<Triplet> > pt(new std::vector<Triplet>());
+        unsigned rows, cols;
+
+        {
+            const Matrix<double>& m0 = filters_[0]->getFilterMatrix();
+            rows = m0.nRows();
+            cols = m0.nColumns();
+            Private::fillTripletVector(m0, pt.get());
+        }
+
+        for (unsigned d=1; d<nFilters_; ++d)
+        {
+            std::vector<Triplet> tvec;
+            unsigned nrows, ncols;
+
+            {
+                const Matrix<double>& mat = filters_[d]->getFilterMatrix();
+                nrows = mat.nRows();
+                ncols = mat.nColumns();
+                Private::fillTripletVector(mat, &tvec);
+            }
+
+            std::vector<Triplet> outer;
+            const unsigned long n1 = pt->size();
+            const unsigned long n2 = tvec.size();
+            outer.reserve(n1*n2);
+            for (unsigned long i1 = 0; i1 < n1; ++i1)
+            {
+                const Triplet& trip((*pt)[i1]);
+                const unsigned tr = trip.row();
+                const unsigned tc = trip.col();
+                const double v = trip.value();
+
+                for (unsigned long i2 = 0; i2 < n2; ++i2)
+                {
+                    const Triplet& t(tvec[i2]);
+                    const unsigned row = tr*nrows + t.row();
+                    const unsigned col = tc*ncols + t.col();
+                    const double val = v*t.value();
+                    if (val)
+                        outer.push_back(Triplet(row, col, val));
+                }
+            }
+
+            outer.swap(*pt);
+            rows *= nrows;
+            cols *= ncols;
+        }
+
+        return pt;
+    }
+}

@@ -1,0 +1,31 @@
+#include "npstat/stat/InMemoryNtuple.hh"
+#include "npstat/stat/NtHistoFill.hh"
+
+namespace npstat {
+    template <typename Histo>
+    bool fillHistoFromText(std::istream& asciiStream,
+                           Histo* histo, const unsigned* columnsToUse,
+                           const bool hasCommasBetweenValues)
+    {
+        assert(histo);
+        assert(columnsToUse);
+
+        const unsigned dim = histo->dim();
+        assert(dim);
+
+        unsigned maxcol = columnsToUse[0];
+        for (unsigned col=1U; col<dim; ++col)
+            if (columnsToUse[col] > maxcol)
+                maxcol = columnsToUse[col];
+
+        const unsigned nColumns = maxcol + 1U;
+        InMemoryNtuple<double> nt(simpleColumnNames(nColumns));
+        if (!fillNtupleFromText(asciiStream, &nt, hasCommasBetweenValues))
+            return false;
+
+        std::vector<unsigned long> coordColumns(columnsToUse, columnsToUse+dim);
+        NtHistoFill<Histo> hfill(histo, coordColumns);
+        nt.cycleOverRows(hfill);
+        return true;
+    }
+}

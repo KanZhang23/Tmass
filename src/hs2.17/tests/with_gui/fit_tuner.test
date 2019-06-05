@@ -1,0 +1,18 @@
+test fit_tuner-1.1 {fit tuner GUI} {[hs::have_cernlib]} {
+    set id [random_histo gauss 50 -5 5 0.0 1.0 1000]
+    hs::hist_set_gauss_errors $id
+    hs::hist_set_error_range $id 1.0 {}
+    set fit [hs::fit $id gauss]
+    set w [$fit tune]
+    tkwait visibility $w
+    tkwait window $w
+    $fit del
+    hs::delete $id
+} {}
+
+catch {unset id}
+catch {unset fit}
+catch {unset w}
+
+::tcltest::cleanupTests
+return

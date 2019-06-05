@@ -1,0 +1,120 @@
+namespace npstat {
+    template<class Axis, class Collection, class CoordExtractor>
+    double fill1DHistoWithCDFWeights(const Collection& coll,
+                                     const AbsScalableDistribution1D& weightCalc,
+                                     CoordExtractor extractor,
+                                     HistoND<double,Axis>* h)
+    {
+        const unsigned long len = coll.size();
+        if (!len)
+            return 0.0;
+        assert(h);
+        if (h->dim() != 1U) throw std::invalid_argument(
+            "In npstat::fill1DHistoWithCDFWeights: wrong histogram dimensionality");
+        double startingQuantile = weightCalc.location();
+        if (startingQuantile < 0.0)
+            startingQuantile = 0.0;
+        else if (startingQuantile > 1.0)
+            startingQuantile = 1.0;
+        const unsigned long istart = (len - 1UL)*startingQuantile;
+        const double step = 1.0/(len - 1UL);
+        long double wsum = 0.0L, wsumsq = 0.0L;
+        for (unsigned long i=istart; ; --i)
+        {
+            const double x = i*step;
+            const double w = weightCalc.density(x);
+            if (w > 0.0)
+            {
+                wsum += w;
+                wsumsq += w*w;
+                h->fill(extractor(coll[i]), w);
+                if (!i) break;
+            }
+            else
+                break;
+        }
+        for (unsigned long i=istart+1UL; i<len; ++i)
+        {
+            const double x = i*step;
+            const double w = weightCalc.density(x);
+            if (w > 0.0)
+            {
+                wsum += w;
+                wsumsq += w*w;
+                h->fill(extractor(coll[i]), w);
+            }
+            else
+                break;
+        }
+        if (wsumsq > 0.0)
+            return wsum*wsum/wsumsq;
+        else
+            return 0.0;
+    }
+
+
+    template<class Axis, class Collection, class CoordWeightCalc>
+    std::pair<double,double>
+    multiFill1DHistoWithCDFWeights(const Collection& coll,
+                                   const AbsScalableDistribution1D& weightCalc,
+                                   CoordWeightCalc coordWeightCalc,
+                                   HistoND<double,Axis>* h)
+    {
+        const unsigned long len = coll.size();
+        if (!len)
+            return std::make_pair(0.0, 0.0);
+        assert(h);
+        if (h->dim() != 1U) throw std::invalid_argument(
+            "In npstat::multiFill1DHistoWithCDFWeights: wrong histogram dimensionality");
+        double startingQuantile = weightCalc.location();
+        if (startingQuantile < 0.0)
+            startingQuantile = 0.0;
+        else if (startingQuantile > 1.0)
+            startingQuantile = 1.0;
+        const unsigned long istart = (len - 1UL)*startingQuantile;
+        const double step = 1.0/(len - 1UL);
+        long double wsum = 0.0L, wsumsq = 0.0L;
+        const Axis& ax = h->axis(0);
+        const int nbins = ax.nBins();
+        for (unsigned long i=istart; ; --i)
+        {
+            const double x = i*step;
+            const double w = weightCalc.density(x);
+            if (w > 0.0)
+            {
+                wsum += w;
+                wsumsq += w*w;
+                const typename Collection::value_type& v(coll[i]);
+                for (int iy=0; iy<nbins; ++iy)
+                {
+                    const double y = ax.binCenter(iy);
+                    const double w2 = coordWeightCalc(v, y);
+                    h->fill(y, w*w2);
+                }
+                if (!i) break;
+            }
+            else
+                break;
+        }
+        for (unsigned long i=istart+1UL; i<len; ++i)
+        {
+            const double x = i*step;
+            const double w = weightCalc.density(x);
+            if (w > 0.0)
+            {
+                wsum += w;
+                wsumsq += w*w;
+                const typename Collection::value_type& v(coll[i]);
+                for (int iy=0; iy<nbins; ++iy)
+                {
+                    const double y = ax.binCenter(iy);
+                    const double w2 = coordWeightCalc(v, y);
+                    h->fill(y, w*w2);
+                }
+            }
+            else
+                break;
+        }
+        return std::pair<double,double>(wsum, wsumsq);
+    }
+}

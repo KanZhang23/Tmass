@@ -1,0 +1,10 @@
+prefix=/cdf/home/kanzhang/Topmass_SL6
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: mcuncert
+Description: Monte Carlo and quasi-Monte Carlo error estimation for numerical integration 
+Version: 1.0.1
+Libs: -L${libdir} -lmcuncert
+Cflags: -I${includedir}

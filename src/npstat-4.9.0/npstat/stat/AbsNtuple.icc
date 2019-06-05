@@ -1,0 +1,686 @@
+#include <cctype>
+#include <cassert>
+#include <sstream>
+
+#include "geners/IOIsSameType.hh"
+
+namespace npstat {
+    template <typename T>
+    inline AbsNtuple<T>::column_iterator::column_iterator()
+        : nt_(0), column_(0), row_(0)
+    {
+    }
+
+    template <typename T>
+    inline T AbsNtuple<T>::column_iterator::operator*() const
+    {
+        return (*nt_)(row_, column_);
+    }
+
+    template <typename T>
+    inline typename AbsNtuple<T>::column_iterator& 
+    AbsNtuple<T>::column_iterator::operator++()
+    {
+        ++row_;
+        return *this;
+    }
+
+    template <typename T>
+    inline typename AbsNtuple<T>::column_iterator
+    AbsNtuple<T>::column_iterator::operator++(int)
+    {
+        column_iterator tmp(*this);
+        ++row_;
+        return tmp;
+    }
+
+    template <typename T>
+    inline bool AbsNtuple<T>::column_iterator::operator==(
+        const column_iterator& r) const
+    {
+        return row_ == r.row_;
+    }
+
+    template <typename T>
+    inline bool AbsNtuple<T>::column_iterator::operator!=(
+        const column_iterator& r) const
+    {
+        return row_ != r.row_;
+    }
+
+    template <typename T>
+    inline bool AbsNtuple<T>::column_iterator::operator<(
+        const column_iterator& r) const
+    {
+        return row_ < r.row_;
+    }
+
+    template <typename T>
+    inline AbsNtuple<T>::row_iterator::row_iterator()
+        : nt_(0), column_(0), row_(0)
+    {
+    }
+
+    template <typename T>
+    inline T AbsNtuple<T>::row_iterator::operator*() const
+    {
+        return (*nt_)(row_, column_);
+    }
+
+    template <typename T>
+    inline typename AbsNtuple<T>::row_iterator& 
+    AbsNtuple<T>::row_iterator::operator++()
+    {
+        ++column_;
+        return *this;
+    }
+
+    template <typename T>
+    inline typename AbsNtuple<T>::row_iterator
+    AbsNtuple<T>::row_iterator::operator++(int)
+    {
+        row_iterator tmp(*this);
+        ++column_;
+        return tmp;
+    }
+
+    template <typename T>
+    inline bool AbsNtuple<T>::row_iterator::operator==(
+        const row_iterator& r) const
+    {
+        return column_ == r.column_;
+    }
+
+    template <typename T>
+    inline bool AbsNtuple<T>::row_iterator::operator!=(
+        const row_iterator& r) const
+    {
+        return column_ != r.column_;
+    }
+
+    template <typename T>
+    inline bool AbsNtuple<T>::row_iterator::operator<(
+        const row_iterator& r) const
+    {
+        return column_ < r.column_;
+    }
+
+    template <typename T>
+    inline typename AbsNtuple<T>::column_iterator
+    AbsNtuple<T>::column_begin(const Column& icolumn) const
+    {
+        column_iterator it;
+        it.nt_ = this;
+        it.column_ = icolumn(*this);
+        return it;
+    }
+
+    template <typename T>
+    inline typename AbsNtuple<T>::column_iterator
+    AbsNtuple<T>::column_end() const
+    {
+        column_iterator it;
+        it.row_ = nRows();
+        return it;
+    }
+
+    template <typename T>
+    inline typename AbsNtuple<T>::row_iterator
+    AbsNtuple<T>::row_begin(const unsigned long rowNumber) const
+    {
+        if (rowNumber >= nRows())
+            throw std::out_of_range("In npstat::AbsNtuple::row_begin: "
+                                    "row number is out of range");
+        row_iterator it;
+        it.nt_ = this;
+        it.row_ = rowNumber;
+        return it;
+    }
+
+    template <typename T>
+    inline typename AbsNtuple<T>::row_iterator
+    AbsNtuple<T>::row_end() const
+    {
+        row_iterator it;
+        it.column_ = colNames_.size();
+        return it;
+    }
+
+    template <typename T>
+    inline T AbsNtuple<T>::element(
+        const unsigned long r, const Column& c) const
+    {
+        return operator()(r, c(*this));
+    }
+
+    template <typename T>
+    inline T AbsNtuple<T>::elementAt(
+        const unsigned long r, const Column& c) const
+    {
+        return at(r, c(*this));
+    }
+
+    template <typename T>
+    bool AbsNtuple<T>::isEqual(const AbsNtuple& r) const
+    {
+        if (colNames_ != r.colNames_)
+            return false;
+        if (title_ != r.title_)
+            return false;
+        const unsigned long ncols = colNames_.size();
+        const unsigned long nrows = this->nRows();
+        if (nrows != r.nRows())
+            return false;
+        for (unsigned long irow=0; irow<nrows; ++irow)
+            for (unsigned long icol=0; icol<ncols; ++icol)
+                if ((*this)(irow, icol) != r(irow, icol))
+                    return false;
+        return true;
+    }
+
+    template <typename T>
+    template <typename T2>
+    inline void AbsNtuple<T>::append(const AbsNtuple<T2>& another)
+    {
+        if (another.nColumns() != this->nColumns())
+            throw std::invalid_argument(
+                "In npstat::AbsNtuple::append: incompatible number of columns");
+        AppendNTuple<gs::IOIsSameType<T,T2>::value,T2>::append(this, another);
+    }
+
+    template <typename T>
+    template <class Accumulator>
+    void AbsNtuple<T>::cycleOverRows(Accumulator& acc) const
+    {
+        const unsigned long nr = this->nRows();
+        if (nr)
+        {
+            const unsigned long nc = colNames_.size();
+            std::vector<T> rowBuffer(nc);
+            T* buf = &rowBuffer[0];
+            for (unsigned long i=0UL; i < nr; ++i)
+            {
+                this->rowContents(i, buf, nc);
+                acc.accumulate(buf, nc);
+            }
+        }
+    }
+
+    template <typename T>
+    template <class Filter, class Accumulator>
+    unsigned long AbsNtuple<T>::conditionalCycleOverRows(
+        const Filter& filter, Accumulator& acc) const
+    {
+        unsigned long nPass = 0UL;
+        const unsigned long nr = this->nRows();
+        if (nr)
+        {
+            const unsigned long nc = colNames_.size();
+            std::vector<T> rowBuffer(nc);
+            T* buf = &rowBuffer[0];
+            const T* constbuf = buf;
+            for (unsigned long i=0UL; i < nr; ++i)
+            {
+                this->rowContents(i, buf, nc);
+                if (filter(constbuf, nc))
+                {
+                    acc.accumulate(buf, nc);
+                    ++nPass;
+                }
+            }
+        }
+        return nPass;
+    }
+
+    template <typename T>
+    template <class Filter>
+    unsigned long AbsNtuple<T>::conditionalRowCount(
+        const Filter& filter) const
+    {
+        unsigned long nPass = 0UL;
+        const unsigned long nr = this->nRows();
+        if (nr)
+        {
+            const unsigned long nc = colNames_.size();
+            std::vector<T> rowBuffer(nc);
+            T* buf = &rowBuffer[0];
+            const T* constbuf = buf;
+            for (unsigned long i=0UL; i < nr; ++i)
+            {
+                this->rowContents(i, buf, nc);
+                if (filter(constbuf, nc))
+                    ++nPass;
+            }
+        }
+        return nPass;
+    }
+
+    template <typename T>
+    template <class Accumulator, class WeightCalc>
+    void AbsNtuple<T>::weightedCycleOverRows(
+        Accumulator& acc, const WeightCalc& wcalc, const bool skip0) const
+    {
+        const unsigned long nr = this->nRows();
+        if (nr)
+        {
+            const unsigned long nc = colNames_.size();
+            std::vector<T> rowBuffer(nc);
+            T* buf = &rowBuffer[0];
+            const T* constbuf = buf;
+            for (unsigned long i=0UL; i < nr; ++i)
+            {
+                this->rowContents(i, buf, nc);
+                const double w = wcalc(constbuf, nc);
+                if (w < 0.0)
+                    throw std::invalid_argument(
+                        "In npstat::AbsNtuple::weightedCycleOverRows: "
+                        "negative weight");
+                if (w > 0.0 || !skip0)
+                    acc.accumulate(buf, nc, w);
+            }
+        }
+    }
+
+    template <typename T>
+    template <class Filter, class Accumulator, class WeightCalc>
+    double AbsNtuple<T>::weightedConditionalCycleOverRows(
+        const Filter& filter, Accumulator& acc,
+        const WeightCalc& wcalc, const bool skip0) const
+    {
+        long double nPass = 0.0L;
+        const unsigned long nr = this->nRows();
+        if (nr)
+        {
+            const unsigned long nc = colNames_.size();
+            std::vector<T> rowBuffer(nc);
+            T* buf = &rowBuffer[0];
+            const T* constbuf = buf;
+            for (unsigned long i=0UL; i < nr; ++i)
+            {
+                this->rowContents(i, buf, nc);
+                if (filter(constbuf, nc))
+                {
+                    const double w = wcalc(constbuf, nc);
+                    if (w < 0.0)
+                        throw std::invalid_argument(
+                            "In npstat::AbsNtuple::weightedConditionalCycleOverRows:"
+                            " negative weight");
+                    if (w > 0.0 || !skip0)
+                        acc.accumulate(buf, nc, w);
+                    nPass += w;
+                }
+            }
+        }
+        return nPass;
+    }
+
+    template <typename T>
+    template <class Filter, class WeightCalc>
+    double AbsNtuple<T>::weightedConditionalRowCount(
+        const Filter& filter, const WeightCalc& wcalc) const
+    {
+        long double nPass = 0.0L;
+        const unsigned long nr = this->nRows();
+        if (nr)
+        {
+            const unsigned long nc = colNames_.size();
+            std::vector<T> rowBuffer(nc);
+            T* buf = &rowBuffer[0];
+            const T* constbuf = buf;
+            for (unsigned long i=0UL; i < nr; ++i)
+            {
+                this->rowContents(i, buf, nc);
+                if (filter(constbuf, nc))
+                {
+                    const double w = wcalc(constbuf, nc);
+                    if (w < 0.0)
+                        throw std::invalid_argument(
+                            "In npstat::AbsNtuple::weightedConditionalRowCount:"
+                            " negative weight");
+                    nPass += w;
+                }
+            }
+        }
+        return nPass;
+    }
+
+    template <typename T>
+    unsigned long AbsNtuple<T>::columnNumber(const char* columnName) const
+    {
+        assert(columnName);
+        const std::string* names = &colNames_[0];
+        const unsigned long ncols = colNames_.size();
+        unsigned long col = 0;
+        for (; col < ncols; ++col)
+            if (names[col] == columnName)
+                break;
+        return col;
+    }
+
+    template <typename T>
+    unsigned long AbsNtuple<T>::validColumn(
+        const char* columnName) const
+    {
+        assert(columnName);
+        const std::string* names = &colNames_[0];
+        const unsigned long ncols = colNames_.size();
+        for (unsigned long col = 0; col < ncols; ++col)
+            if (names[col] == columnName)
+                return col;
+        {
+            std::string err = "In npstat::AbsNtuple::validColumn: "
+                "no column named \"";
+            err += columnName;
+            err += "\"";
+            throw std::invalid_argument(err);
+        }
+        return 0;
+    }
+
+    template <typename T>
+    bool AbsNtuple<T>::setColumnName(const unsigned long i,
+                                     const char* newname)
+    {
+        const unsigned long n = colNames_.size();
+        if (i >= n)
+            return false;
+        if (columnNumber(newname) < n)
+            return false;
+        colNames_[i] = newname;
+        return true;
+    }
+
+    template <typename T>
+    std::vector<unsigned long> AbsNtuple<T>::columnIndices(const Column& c0) const
+    {
+        std::vector<unsigned long> idx(1);
+        idx[0] = c0(*this);
+        return idx;
+    }
+
+    template <typename T>
+    std::vector<unsigned long> AbsNtuple<T>::columnIndices(const Column& c0,
+                                                           const Column& c1) const
+    {
+        std::vector<unsigned long> idx(2);
+        idx[0] = c0(*this);
+        idx[1] = c1(*this);
+        return idx;
+    }
+
+    template <typename T>
+    std::vector<unsigned long> AbsNtuple<T>::columnIndices(const Column& c0,
+                                                           const Column& c1,
+                                                           const Column& c2) const
+    {
+        std::vector<unsigned long> idx(3);
+        idx[0] = c0(*this);
+        idx[1] = c1(*this);
+        idx[2] = c2(*this);
+        return idx;
+    }
+
+    template <typename T>
+    std::vector<unsigned long> AbsNtuple<T>::columnIndices(const Column& c0,
+                                                           const Column& c1,
+                                                           const Column& c2,
+                                                           const Column& c3) const
+    {
+        std::vector<unsigned long> idx(4);
+        idx[0] = c0(*this);
+        idx[1] = c1(*this);
+        idx[2] = c2(*this);
+        idx[3] = c3(*this);
+        return idx;
+    }
+
+    template <typename T>
+    std::vector<unsigned long> AbsNtuple<T>::columnIndices(const Column& c0,
+                                                           const Column& c1,
+                                                           const Column& c2,
+                                                           const Column& c3,
+                                                           const Column& c4) const
+    {
+        std::vector<unsigned long> idx(5);
+        idx[0] = c0(*this);
+        idx[1] = c1(*this);
+        idx[2] = c2(*this);
+        idx[3] = c3(*this);
+        idx[4] = c4(*this);
+        return idx;
+    }
+
+    template <typename T>
+    std::vector<unsigned long> AbsNtuple<T>::columnIndices(const Column& c0,
+                                                           const Column& c1,
+                                                           const Column& c2,
+                                                           const Column& c3,
+                                                           const Column& c4,
+                                                           const Column& c5) const
+    {
+        std::vector<unsigned long> idx(6);
+        idx[0] = c0(*this);
+        idx[1] = c1(*this);
+        idx[2] = c2(*this);
+        idx[3] = c3(*this);
+        idx[4] = c4(*this);
+        idx[5] = c5(*this);
+        return idx;
+    }
+
+    template <typename T>
+    std::vector<unsigned long> AbsNtuple<T>::columnIndices(const Column& c0,
+                                                           const Column& c1,
+                                                           const Column& c2,
+                                                           const Column& c3,
+                                                           const Column& c4,
+                                                           const Column& c5,
+                                                           const Column& c6) const
+    {
+        std::vector<unsigned long> idx(7);
+        idx[0] = c0(*this);
+        idx[1] = c1(*this);
+        idx[2] = c2(*this);
+        idx[3] = c3(*this);
+        idx[4] = c4(*this);
+        idx[5] = c5(*this);
+        idx[6] = c6(*this);
+        return idx;
+    }
+
+    template <typename T>
+    std::vector<unsigned long> AbsNtuple<T>::columnIndices(const Column& c0,
+                                                           const Column& c1,
+                                                           const Column& c2,
+                                                           const Column& c3,
+                                                           const Column& c4,
+                                                           const Column& c5,
+                                                           const Column& c6,
+                                                           const Column& c7) const
+    {
+        std::vector<unsigned long> idx(8);
+        idx[0] = c0(*this);
+        idx[1] = c1(*this);
+        idx[2] = c2(*this);
+        idx[3] = c3(*this);
+        idx[4] = c4(*this);
+        idx[5] = c5(*this);
+        idx[6] = c6(*this);
+        idx[7] = c7(*this);
+        return idx;
+    }
+
+    template <typename T>
+    std::vector<unsigned long> AbsNtuple<T>::columnIndices(const Column& c0,
+                                                           const Column& c1,
+                                                           const Column& c2,
+                                                           const Column& c3,
+                                                           const Column& c4,
+                                                           const Column& c5,
+                                                           const Column& c6,
+                                                           const Column& c7,
+                                                           const Column& c8) const
+    {
+        std::vector<unsigned long> idx(9);
+        idx[0] = c0(*this);
+        idx[1] = c1(*this);
+        idx[2] = c2(*this);
+        idx[3] = c3(*this);
+        idx[4] = c4(*this);
+        idx[5] = c5(*this);
+        idx[6] = c6(*this);
+        idx[7] = c7(*this);
+        idx[8] = c8(*this);
+        return idx;
+    }
+
+    template <typename T>
+    std::vector<unsigned long> AbsNtuple<T>::columnIndices(const Column& c0,
+                                                           const Column& c1,
+                                                           const Column& c2,
+                                                           const Column& c3,
+                                                           const Column& c4,
+                                                           const Column& c5,
+                                                           const Column& c6,
+                                                           const Column& c7,
+                                                           const Column& c8,
+                                                           const Column& c9) const
+    {
+        std::vector<unsigned long> idx(10);
+        idx[0] = c0(*this);
+        idx[1] = c1(*this);
+        idx[2] = c2(*this);
+        idx[3] = c3(*this);
+        idx[4] = c4(*this);
+        idx[5] = c5(*this);
+        idx[6] = c6(*this);
+        idx[7] = c7(*this);
+        idx[8] = c8(*this);
+        idx[9] = c9(*this);
+        return idx;
+    }
+
+    template <typename T>
+    std::vector<unsigned long> AbsNtuple<T>::columnIndices(
+        const std::vector<std::string>& names) const
+    {
+        const unsigned long n = names.size();
+        std::vector<unsigned long> cvec(n);
+        for (unsigned long i=0; i<n; ++i)
+            cvec[i] = validColumn(names[i].c_str());
+        return cvec;
+    }
+
+    template <typename T>
+    bool dumpNtupleAsText(const AbsNtuple<T>& nt,
+                          std::ostream& asciiStream,
+                          const bool insertCommasBetweenValues,
+                          const unsigned long firstRowToDump,
+                          const unsigned long nRowsToDump)
+    {
+        if (nRowsToDump)
+        {
+            const unsigned long nR = nt.nRows();
+            if (firstRowToDump < nR)
+            {
+                const unsigned long nCols = nt.nColumns();
+                std::vector<T> bufVec(nCols);
+                T* buf = &bufVec[0];
+                unsigned long ndumped = 0;
+                for (unsigned long irow=firstRowToDump;
+                     irow<nR && ndumped<nRowsToDump; ++irow, ++ndumped)
+                {
+                    nt.rowContents(irow, buf, nCols);
+                    asciiStream << buf[0];
+                    for (unsigned long icol=1UL; icol<nCols; ++icol)
+                    {
+                        if (insertCommasBetweenValues)
+                            asciiStream << ',';
+                        asciiStream << ' ' << buf[icol];
+                    }
+                    asciiStream << '\n';
+                }
+                if (asciiStream.fail())
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    template <typename T>
+    bool fillNtupleFromText(std::istream& asciiStream,
+                            AbsNtuple<T>* ntuple,
+                            const bool hasCommasBetweenValues,
+                            const unsigned long maxRowsToFill)
+    {
+        bool status = true;
+        if (maxRowsToFill)
+        {
+            assert(ntuple);
+            const unsigned long nCols = ntuple->nColumns();
+            std::vector<T> bufVec(nCols);
+            T* buf = &bufVec[0];
+            std::string linebuf;
+            std::istringstream is;
+            unsigned long nfilled = 0;
+
+            while (asciiStream && status && nfilled<maxRowsToFill)
+            {
+                std::getline(asciiStream, linebuf);
+                const unsigned long len = linebuf.size();
+                if (len == 0UL)
+                    continue;
+
+                // Ignore lines which are pure white space
+                // or which start with an arbitrary number
+                // of white space characters followed by #.
+                bool isComment = false;
+                bool allSpace = true;
+                char* line = &linebuf[0];
+                for (unsigned long i=0; i<len; ++i)
+                {
+                    // For now, we will be simply converting commas
+                    // into white space. Note that this is not
+                    // necessarily correct for non-numeric types.
+                    if (hasCommasBetweenValues)
+                        if (line[i] == ',')
+                            line[i] = ' ';
+                    if (isspace(line[i]))
+                        continue;
+                    if (allSpace && line[i] == '#')
+                    {
+                        isComment = true;
+                        break;
+                    }
+                    allSpace = false;
+                }
+                if (isComment || allSpace)
+                    continue;
+
+                // Read the data into the buffer
+                is.str(linebuf);
+                is.clear();
+                for (unsigned long icol=0; icol<nCols; ++icol)
+                {
+                    is >> buf[icol];
+                    if (is.fail())
+                    {
+                        status = false;
+                        break;
+                    }
+                }
+
+                // Fill the ntuple
+                if (status)
+                {
+                    ntuple->fill(buf, nCols);
+                    ++nfilled;
+                }
+            }
+            if ((asciiStream.fail() && !asciiStream.eof()) || 
+                asciiStream.bad())
+                status = false;
+        }
+        return status;
+    }
+}

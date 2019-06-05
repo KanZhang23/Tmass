@@ -1,0 +1,63 @@
+In addition to tcl itself, the code in this directory uses two
+additional tcl extensions: "hs" and "Signal".
+
+In order for the system performance to be reasonable, a number of
+variables in the "mw_utils.tcl" file needs tuning. These are:
+
+unique_int_host -- host on which the unique integer server runs
+unique_int_port -- port number of the unique integer server
+
+Reminder: each actor in the system (director, master, worker) has
+a unique id generated with the help of the unique integer server.
+It is asumed that this server is a long-running program, essentially
+immortal. In this case the actor ids will be distinct for different
+directors and different projects. This provides some protection
+againts potential mixups. For example, if a director is started twice
+with the same port, it is possible that masters from some previous
+jobs will try to contact it and report results. If ids are unique,
+the director will see that the report is made by a master to whom
+a workload was not assigned previously, and an appropriate action
+will be taken.
+
+Other usefully configurable variables are as follows:
+
+max_workloads_per_master -- maximum number of workloads on which
+  masters can work at any given time. If this number is too large,
+  it is possible that, while the project execution is in progress,
+  workloads will not be efficiently distributed between masters
+  (some masters will have many workloads and some none). If this
+  number is too low, it is possible that the master itself will
+  not be able to assign his workers efficiently. In particular,
+  if the master has only one workload, at the end of its processing
+  most workers will be idle waiting until the slowest workers
+  finish processing the last work chunks. It seems like the
+  "max_workloads_per_master" number should be somewhat  larger than
+  the ratio of workers assigned to this master to the typical number
+  of work chunks per workload. However, "max_workloads_per_master"
+  should normally be at least 2 even if the number of workers is small
+  in order to avoid inefficiencies at the end of workload processing.
+
+max_workers_per_master -- maximum number of workers which can be
+  assigned to a single master. Basically, this number is limited
+  by the networking code. If too many workers are trying to talk
+  to the master, the system will not be able to process all requests
+  as they come, and workers will be idly waiting for their turn to
+  talk to the master instead of doing some useful work.
+
+max_workload_tries -- maximum number of times the system will attempt
+  to reprocess a workload in case some erors happen during its
+  processing.
+
+max_chunk_tries -- maximum number of times the system will attempt
+  to reprocess a work chunk in case some erors happen during its
+  processing.
+
+chunk_timeout_sec -- the timeout after which the worker which has
+  not turned back the result of work chunk processing is considered
+  AWOL (typically due to system and/or program crashes). In this case
+  the same work chunk will be given to another worker (up to
+  max_chunk_tries times).
+
+worker_wait_interval -- the amount of time the worker has to wait
+  if there is no work chunk available to him before talking to the
+  master or director again.

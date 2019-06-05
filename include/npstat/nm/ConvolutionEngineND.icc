@@ -1,0 +1,111 @@
+#include <cassert>
+#include <stdexcept>
+
+namespace npstat {
+    template <typename Real>
+    void ConvolutionEngineND::setFilter(const Real* data,
+                                        const unsigned *dataShape,
+                                        const unsigned dataRank)
+    {
+        if (!isShapeCompatible(dataShape, dataRank))
+            throw std::invalid_argument(
+                "In npstat::ConvolutionEngineND::setFilter: "
+                "incompatible filter dimensions");
+
+        for (unsigned long i=0; i<dataLen_; ++i)
+            in[i] = data[i];
+        fftw_execute(pf);
+
+        for (unsigned long i=0; i<cmplLen_; ++i)
+        {
+            filterImage[i][0] = out[i][0];
+            filterImage[i][1] = out[i][1];
+        }
+        validFilter_ = true;
+    }
+
+    template <typename Real>
+    void ConvolutionEngineND::depositFilter(const unsigned long tag,
+                                            const Real* data,
+                                            const unsigned *dataShape,
+                                            const unsigned dataRank)
+    {
+        if (!isShapeCompatible(dataShape, dataRank))
+            throw std::invalid_argument(
+                "In npstat::ConvolutionEngineND::depositFilter: "
+                "incompatible filter dimensions");
+
+        for (unsigned long i=0; i<dataLen_; ++i)
+            in[i] = data[i];
+        fftw_execute(pf);
+
+        FourierImage* newImage = new FourierImage(out, cmplLen_);
+
+        FilterMap::iterator it = filterMap_.find(tag);
+        if (it != filterMap_.end())
+        {
+            delete it->second;
+            it->second = newImage;
+        }
+        else
+            filterMap_.insert(std::make_pair(tag, newImage));
+    }
+
+    template <typename Real1, typename Real2>
+    void ConvolutionEngineND::convolveWithImage(const fftw_complex* image,
+                                                const Real1* data,
+                                                Real2* result,
+                                                const unsigned *dataShape,
+                                                const unsigned dataRank)
+    {
+        if (!isShapeCompatible(dataShape, dataRank))
+            throw std::invalid_argument(
+                "In npstat::ConvolutionEngineND::convolveWithImage: "
+                "incompatible data dimensions");
+        assert(data);
+        assert(result);
+
+        // Transform forward
+        for (unsigned long i=0; i<dataLen_; ++i)
+            in[i] = data[i];
+        fftw_execute(pf);
+
+        // Multiply the images
+        multiplyTransforms(out, image, out, cmplLen_);
+
+        // Transform back
+        fftw_execute(pb);
+
+        // Get the result
+        const double nbins = dataLen_;
+        for (unsigned long i=0; i<dataLen_; ++i)
+            result[i] = in[i]/nbins;
+    }
+
+    template <typename Real1, typename Real2>
+    void ConvolutionEngineND::convolveWithFilter(const Real1* data,
+                                                 Real2* result,
+                                                 const unsigned *dataShape,
+                                                 const unsigned dataRank)
+    {
+        if (!validFilter_) throw std::runtime_error(
+            "In npstat::ConvolutionEngineND::convolveWithFilter: "
+            "filter has not been set");
+        convolveWithImage(filterImage, data, result, dataShape, dataRank);
+    }
+
+    template <typename Real1, typename Real2>
+    void ConvolutionEngineND::convolveWithDeposit(const unsigned long tag,
+                                                  const Real1* data,
+                                                  Real2* result,
+                                                  const unsigned *dataShape,
+                                                  const unsigned dataRank)
+    {
+        FilterMap::iterator it = filterMap_.find(tag);
+        if (it == filterMap_.end()) throw std::invalid_argument(
+            "In npstat::ConvolutionEngineND::convolveWithDeposit: "
+            "filter tag not found");
+        convolveWithImage(it->second->image(), data,
+                          result, dataShape, dataRank);
+    }
+}

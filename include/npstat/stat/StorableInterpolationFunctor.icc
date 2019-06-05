@@ -1,0 +1,40 @@
+#include "geners/binaryIO.hh"
+#include "geners/CPP11_auto_ptr.hh"
+#include "geners/IOException.hh"
+
+namespace npstat {
+    template <typename Numeric, class Axis, class Converter>
+    const char* StorableInterpolationFunctor<Numeric,Axis,Converter>::classname()
+    {
+        static const std::string myClass(gs::template_class_name<Numeric,Axis>(
+                                      "npstat::StorableInterpolationFunctor"));
+        return myClass.c_str();
+    }    
+
+    template<typename Numeric, class Axis, class Converter>
+    bool StorableInterpolationFunctor<Numeric,Axis,Converter>::write(
+        std::ostream& of) const
+    {
+        gs::write_pod(of, this->description());
+        return table_.classId().write(of) && table_.write(of);
+    }
+
+    template<typename Numeric, class Axis, class Converter>
+    StorableInterpolationFunctor<Numeric,Axis,Converter>*
+    StorableInterpolationFunctor<Numeric,Axis,Converter>::read(
+        const gs::ClassId& id, std::istream& in)
+    {
+        static const gs::ClassId current(
+            gs::ClassId::makeId<StorableInterpolationFunctor<Numeric,Axis> >());
+        current.ensureSameId(id);
+
+        std::string descr;
+        gs::read_pod(in, &descr);
+        gs::ClassId tabid(in, 1);
+        if (in.fail()) throw gs::IOReadFailure(
+            "In npstat::StorableInterpolationFunctor::read: "
+            "input stream failure");
+        CPP11_auto_ptr<Table> tab(Table::read(tabid, in));
+        return new StorableInterpolationFunctor(*tab, descr);
+    }
+}
